@@ -18,7 +18,30 @@ First proof:
 
 > **A text-only AI village with 5 NPCs that remember, talk, gossip, move, and react to consequences.**
 
-## 3. The Five Core Products
+## 3. Quality Bar
+
+This project must not become a flashy shell with weak mechanics underneath.
+
+Avoid the failure pattern:
+
+- template README / unclear product spine
+- impressive UI before the core loop works
+- random/chance-based mechanics standing in for simulation
+- hardcoded content pretending to be a system
+- broad dependencies before there is a concrete need
+- no tests around the state transitions that define the product
+- no acceptance criteria for what "alive" means
+
+For the first version, quality means:
+
+- one state engine owns events, memories, relationships, locations, and quests
+- every NPC action is structured, validated, logged, and reproducible enough to debug
+- player actions create visible state changes that affect later NPC behavior
+- at least one NPC-to-NPC gossip/confrontation happens because of prior world state
+- tests cover action validation, memory insertion/retrieval, relationship deltas, and invalid LLM output rejection
+- the text simulation is compelling before any Phaser, art, generated media, or import work begins
+
+## 4. The Five Core Products
 
 | Product | Goal | Start Now? |
 |---|---|---:|
@@ -34,7 +57,7 @@ Correct build order:
 Agent simulation → text village → 2D runtime → consequences → director → media → world import
 ```
 
-## 4. Source Credibility Policy
+## 5. Source Credibility Policy
 
 Use sources in tiers.
 
@@ -74,7 +97,7 @@ Use as idea mines, not foundations:
 - Narratium.ai — worldbook, character cards, branching/visual memory UI
 - ARCADIA — emotion engine, GOAP, vector cache/performance ideas
 
-## 5. Known Research Backbone
+## 6. Known Research Backbone
 
 ### Multi-Agent Social Simulation
 
@@ -108,7 +131,7 @@ Use as idea mines, not foundations:
 - **LLMs and Games survey**: use as a field map, not build instructions.
 - Recent LLM-NPC studies warn that open-ended NPCs can increase player cognitive load and may not automatically improve player experience. This supports scoped interactions and explicit goals.
 
-## 6. What To Steal by Core Product
+## 7. What To Steal by Core Product
 
 ### 1. Lore Ingestion / World Compiler
 
@@ -241,7 +264,7 @@ First media feature:
 major event → one still scene card + caption → cached asset
 ```
 
-## 7. First Build: Text-Only AI Village
+## 8. First Build: Text-Only AI Village
 
 ### Scenario
 
@@ -290,7 +313,7 @@ Arin remembers and changes behavior later.
 - gateway logs must track latency, token usage, JSON failure rate, and action rejection rate
 - do not send the whole world every turn; retrieve only relevant state and memory
 
-## 8. Sequential Steps
+## 9. Sequential Steps
 
 1. Define character/world/event/action schemas.
 2. Build text-only event log and world state.
@@ -308,7 +331,7 @@ Arin remembers and changes behavior later.
 14. Add subtitle/anime ingestion.
 15. Consider Godot/Unity/3D/video only after the 2D simulation is fun.
 
-## 9. Parallel Work Tracks
+## 10. Parallel Work Tracks
 
 | Track | Can Start Now? | Output |
 |---|---:|---|
@@ -319,7 +342,7 @@ Arin remembers and changes behavior later.
 | Media experiments | Lightly | portrait/scene-card tests only |
 | Lore import research | Lightly | API notes, not implementation |
 
-## 10. Double-Advocate View
+## 11. Double-Advocate View
 
 ### Case For
 
@@ -358,7 +381,7 @@ Risk controls:
 - no 100 NPCs before 5 NPCs are good
 - no freeform model control of world state
 
-## 11. Non-Negotiable Build Rules
+## 12. Non-Negotiable Build Rules
 
 1. The database/world state is source of truth.
 2. The LLM never directly mutates the world.
@@ -371,7 +394,7 @@ Risk controls:
 9. The first version must be fun in text before visuals matter.
 10. The project is “AI Town + RPG consequences,” not “import anime first.”
 
-## 12. Research Links
+## 13. Research Links
 
 Primary research / docs:
 
@@ -411,7 +434,7 @@ Audit-only references:
 - WhisperX: https://github.com/m-bain/whisperX
 - PySceneDetect: https://github.com/Breakthrough/PySceneDetect
 
-## 13. Bottom Line
+## 14. Bottom Line
 
 Build this first:
 
