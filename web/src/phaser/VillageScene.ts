@@ -1234,13 +1234,19 @@ export class VillageScene extends Phaser.Scene {
     const isElder = id === "orrin";
     const isYouth = id === "pax";
     const skin = id === "player" ? "#f0bf8a" : isElder ? "#efc99b" : "#e79b69";
+    const skinShade = id === "player" ? "#c79165" : isElder ? "#c8a37b" : "#bf7a4d";
     const shirt = this.hex(fill);
+    const shirtShade = this.shade(fill, -0.22);
+    const shirtLight = this.shade(fill, 0.18);
     const trim = id === "player" ? "#f8d44e" : isGardener ? "#e2d58f" : variant % 2 === 0 ? "#d2b16c" : "#f4d782";
     const pants = id === "player" ? "#4a2a1d" : isBlacksmith ? "#2c2a28" : isGardener ? "#5a4a32" : isElder ? "#6b553d" : "#2d3d56";
+    const pantsShade = id === "player" ? "#2f1a10" : isBlacksmith ? "#191817" : isGardener ? "#3a301f" : isElder ? "#4a3a28" : "#1a2638";
     const hair = id === "player" ? "#5b351d" : isElder ? "#e7dbbe" : isBlacksmith ? "#2d2018" : isGardener ? "#6d4930" : ["#4a2917", "#6d4930", "#2d2018", "#8a6038", "#e7dbbe"][variant]!;
+    const hairShade = this.shade(parseInt(hair.slice(1), 16), -0.25);
     const boot = "#2b1d16";
     const belt = "#7b4a25";
     const bag = id === "player" || variant === 2 ? "#8a6038" : "#4d3627";
+    const outline = "rgba(20, 14, 10, 0.55)";
     const side = facing.includes("Right") ? 1 : facing.includes("Left") ? -1 : 0;
     const up = facing.startsWith("up");
     const back = facing === "up" || facing === "upLeft" || facing === "upRight";
@@ -1265,52 +1271,105 @@ export class VillageScene extends Phaser.Scene {
       ctx.fill();
     };
 
+    // Soft silhouette pass — slightly larger shape in semi-transparent dark
+    // so the character reads cleanly against busy ground.
+    ctx.fillStyle = outline;
+    ctx.beginPath();
+    ctx.ellipse(x + 16, y + 16, 7.5, 8.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(x + 9, y + 19, 15, 21, 5);
+    ctx.fill();
+
+    // Legs — two-tone with shadow on the leading edge.
     rect(11, 34 + walk, 5, 10, pants, 2);
+    rect(11, 34 + walk, 2, 10, pantsShade, 2);
     rect(17, 34 - walk, 5, 10, pants, 2);
+    rect(17, 34 - walk, 2, 10, pantsShade, 2);
     rect(10, 43 + walk, 7, 3, boot, 2);
     rect(16, 43 - walk, 7, 3, boot, 2);
-    rect(8 + side, 23, 5, 13, skin, 3);
-    rect(20 + side, 23, 5, 13, skin, 3);
+
+    // Arms — slimmer with a shaded inner edge.
+    rect(8 + side, 23, 4, 13, skin, 3);
+    rect(20 + side, 23, 4, 13, skin, 3);
+    rect(8 + side + (side < 0 ? 0 : 3), 23, 1, 13, skinShade);
+    rect(20 + side + (side < 0 ? 0 : 3), 23, 1, 13, skinShade);
+
+    // Torso — base + side shade + top highlight, slight taper at waist.
     rect(10, 19, 13, 19, shirt, 4);
+    rect(10 + (side < 0 ? 0 : 9), 19, 4, 19, shirtShade, 4);
+    rect(11, 19, 11, 2, shirtLight, 3);
     rect(10, 28, 13, 3, belt, 1);
-    rect(11, 25, 11, 5, "rgba(0,0,0,0.14)", 2);
+    rect(10, 30, 13, 1, "rgba(0,0,0,0.22)");
+
+    // Per-character body accessories.
     if (id === "player") {
       rect(8 - side * 3, 24, 7, 15, bag, 3);
+      rect(8 - side * 3, 24, 7, 2, "#5b3b28", 2);
       rect(9 - side * 2, 20, 3, 20, "#5b3b28", 2);
     } else if (isBlacksmith) {
       rect(7, 20, 19, 21, "#4f3428", 3);
+      rect(7, 20, 19, 2, "#7b5238", 2);
       rect(9, 28, 15, 3, "#24120b", 1);
       rect(8, 35, 17, 5, "#3b2a21", 2);
     } else if (isElder) {
       rect(7, 18, 19, 22, "#355a82", 4);
+      rect(7, 18, 19, 2, "#4d7aa6", 3);
+      rect(7, 36, 19, 4, "#274263", 3);
       rect(22 + side, 31, 3, 17, "#5f452c", 2);
     } else if (isGardener) {
       rect(8, 25, 17, 16, "#5f7d4d", 4);
+      rect(8, 25, 17, 2, "#7a9a64", 3);
       rect(9, 31, 15, 3, "#3f5d3c", 1);
     } else if (isYouth) {
       rect(8 - side * 2, 26, 7, 12, bag, 3);
+      rect(8 - side * 2, 26, 7, 2, "#5b3b28", 2);
     }
+
+    // Front trim ribbon.
     rect(14, 20, 3, 18, trim, 2);
+    rect(14, 20, 3, 1, "rgba(255,255,255,0.35)");
+
+    // Head — neck shadow + face + cheek warmth.
+    rect(13, 14, 6, 5, skinShade, 2);
     oval(16 + side * 2, 15, 6, 7, skin);
-    rect(10 + side * 2, 9, 12, 6, hair, 4);
-    if (up) {
+    oval(13.5 + side * 4, 17, 1.4, 1, "rgba(196,90,70,0.32)");
+    oval(18.5 + side * 4, 17, 1.4, 1, "rgba(196,90,70,0.32)");
+
+    // Hair base (rounded silhouette behind face).
+    rect(10 + side * 2, 9, 12, 6, hairShade, 5);
+    rect(11 + side * 2, 8, 10, 6, hair, 5);
+
+    if (up || back) {
       oval(16 + side * 2, 14, 7, 8, hair);
     } else {
+      // Eyes — two-tone with a white catchlight.
       oval(14 + side * 3, 15, 1, 1.4, "#24120b");
       oval(18 + side * 3, 15, 1, 1.4, "#24120b");
-      rect(15 + side * 3, 18, 4, 1, "#8b3a35", 1);
+      oval(14 + side * 3, 14.6, 0.4, 0.4, "rgba(255,255,255,0.7)");
+      oval(18 + side * 3, 14.6, 0.4, 0.4, "rgba(255,255,255,0.7)");
+      // Nose hint.
+      oval(16 + side * 3, 16.5, 0.9, 0.6, "rgba(120,60,30,0.32)");
+      // Mouth.
+      rect(15 + side * 3, 18, 3, 1, "#8b3a35", 1);
     }
+
+    // Per-character head accessories (hats / scarves / hairstyles).
     if (id === "player") {
       rect(9 + side * 2, 8, 14, 3, hair, 2);
       rect(13 + side * 2, 5, 7, 4, "#6b3d21", 3);
+      rect(13 + side * 2, 5, 7, 1, "rgba(255,255,255,0.18)");
     } else if (isBlacksmith) {
       rect(8 + side * 2, 7, 16, 4, "#4a5568", 2);
+      rect(8 + side * 2, 7, 16, 1, "rgba(255,255,255,0.22)");
       rect(8 + side * 2, 10, 18, 3, "#243044", 2);
       if (!back) {
         rect(13 + side * 2, 18, 8, 5, "#3b2418", 3);
+        rect(13 + side * 2, 18, 8, 1, "rgba(255,255,255,0.18)");
       }
     } else if (isGardener) {
       rect(7 + side * 2, 7, 18, 7, "#5f7d4d", 4);
+      rect(7 + side * 2, 7, 18, 1, "rgba(255,255,255,0.22)");
       rect(20 + side * 2, 10, 4, 5, "#3f5d3c", 2);
     } else if (variant === 1) {
       rect(9 + side * 2, 9, 15, 3, "#592d37", 2);
@@ -1319,7 +1378,23 @@ export class VillageScene extends Phaser.Scene {
       oval(22 + side * 2, 8, 1.5, 1.5, "#f2d16b");
     } else if (isElder && !back) {
       rect(8 + side * 2, 8, 16, 4, "#e7dbbe", 3);
+      rect(8 + side * 2, 8, 16, 1, "rgba(255,255,255,0.32)");
     }
+  }
+
+  /** Lighten or darken a 0xRRGGBB integer by a signed ratio in (-1, 1). */
+  private shade(value: number, ratio: number): string {
+    const r = (value >> 16) & 0xff;
+    const g = (value >> 8) & 0xff;
+    const b = value & 0xff;
+    const adjust = (channel: number) => {
+      if (ratio >= 0) return Math.round(channel + (255 - channel) * ratio);
+      return Math.round(channel * (1 + ratio));
+    };
+    const nr = Math.max(0, Math.min(255, adjust(r)));
+    const ng = Math.max(0, Math.min(255, adjust(g)));
+    const nb = Math.max(0, Math.min(255, adjust(b)));
+    return `#${((nr << 16) | (ng << 8) | nb).toString(16).padStart(6, "0")}`;
   }
 
   private hex(value: number) {
