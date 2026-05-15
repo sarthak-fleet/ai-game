@@ -205,6 +205,55 @@ export class VillageScene extends Phaser.Scene {
 
   private createTileTextures() {
     if (this.textures.exists("ashbend-tiles")) return;
+    const tileCount = Object.keys(TILE).length;
+
+    // Russpuppy CC0 tileset → ashbend terrain mapping. Indices into the
+    // 10-col × 11-row, 16×16-per-tile source grid, chosen by inspecting
+    // open_tileset_16.png. If the texture didn't load (e.g. dev server
+    // path miss), fall through to the procedural renderer below.
+    const RUSSPUPPY_BY_TERRAIN: Record<number, number> = {
+      [TILE.grass]: 10,
+      [TILE.grassAlt]: 11,
+      [TILE.path]: 20,
+      [TILE.pathEdge]: 21,
+      [TILE.water]: 0,
+      [TILE.bridge]: 25,
+      [TILE.plaza]: 22,
+      [TILE.garden]: 12,
+      [TILE.forest]: 13,
+    };
+
+    const tileset = this.textures.exists("russpuppy-rpg") ? this.textures.get("russpuppy-rpg") : null;
+    const source = tileset?.getSourceImage() as
+      | HTMLImageElement
+      | HTMLCanvasElement
+      | undefined;
+    if (source) {
+      const canvas = document.createElement("canvas");
+      canvas.width = TILE_SIZE * tileCount;
+      canvas.height = TILE_SIZE;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.imageSmoothingEnabled = false;
+        const SRC = 16;
+        const COLS = 10;
+        for (const [tileIdxStr, srcIdx] of Object.entries(RUSSPUPPY_BY_TERRAIN)) {
+          const tileIdx = Number(tileIdxStr);
+          const sx = (srcIdx % COLS) * SRC;
+          const sy = Math.floor(srcIdx / COLS) * SRC;
+          const dx = tileIdx * TILE_SIZE;
+          ctx.drawImage(source, sx, sy, SRC, SRC, dx, 0, TILE_SIZE, TILE_SIZE);
+        }
+        (
+          this.textures as unknown as {
+            addCanvas: (key: string, canvas: HTMLCanvasElement) => void;
+          }
+        ).addCanvas("ashbend-tiles", canvas);
+        return;
+      }
+    }
+
+    // Fallback: procedural tile textures.
     const g = this.add.graphics();
     const drawTile = (index: number, color: number, accent: number, dark: number) => {
       const x = index * TILE_SIZE;
@@ -255,7 +304,7 @@ export class VillageScene extends Phaser.Scene {
     drawTile(TILE.plaza, 0x515967, 0x7b8493, 0x363d49);
     drawTile(TILE.garden, 0x35633d, 0xa5c76b, 0x24432b);
     drawTile(TILE.forest, 0x203f2c, 0x4d7f45, 0x12261a);
-    g.generateTexture("ashbend-tiles", TILE_SIZE * Object.keys(TILE).length, TILE_SIZE);
+    g.generateTexture("ashbend-tiles", TILE_SIZE * tileCount, TILE_SIZE);
     g.destroy();
   }
 
@@ -265,7 +314,9 @@ export class VillageScene extends Phaser.Scene {
     if (tiles) {
       this.groundLayer = map.createLayer(0, tiles, 0, 0) ?? undefined;
       this.groundLayer?.setDepth(-20);
-      this.groundLayer?.setAlpha(0);
+      // Pixel-art tiles are visible underneath the painterly atmosphere
+      // overlay (which uses semi-transparent fills now).
+      this.groundLayer?.setAlpha(1);
       this.groundLayer?.setCollision([TILE.water]);
     }
     this.add.text(58, 958, "Ashbend river", { fontFamily: "ui-sans-serif, system-ui", fontSize: "13px", color: "#9ec8e6" }).setDepth(-6);
@@ -274,7 +325,9 @@ export class VillageScene extends Phaser.Scene {
 
   private drawVenueAtmosphere() {
     const g = this.add.graphics().setDepth(-19);
-    g.fillStyle(0x315f3d, 1);
+    // Soft green wash sits over the pixel-art ground layer so the existing
+    // painterly look survives, but tiles still read through.
+    g.fillStyle(0x315f3d, 0.32);
     g.fillRect(0, 0, WORLD_W, WORLD_H);
     g.fillStyle(0x244c31, 0.44);
     g.fillEllipse(190, 150, 420, 180);
