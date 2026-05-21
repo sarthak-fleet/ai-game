@@ -61,14 +61,21 @@ async function runBrowserPlaytest(): Promise<void> {
     await expect(objective(page)).toContainText("Talk to Mira");
     await clickObjective(page, "Talk");
     await clickButton(page, "Accept task");
+    await clickButton(page, "Close");
     await expect(objective(page)).toContainText("Find Pruning shears");
     await clickButton(page, "Slot Save");
     await expect(page.locator(".header-toast")).toContainText("Quick saved", { timeout: 5_000 });
     await page.screenshot({ path: join(ARTIFACT_DIR, "02-accepted.png") });
 
-    await clickObjective(page, "Go");
+    await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
+    await expect(page.locator(".three-host canvas")).toBeVisible();
+    await expect(page.getByLabel("3D travel")).toContainText("At Herb Garden");
+    await clickButton(page, "Go Village Square");
+    await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
+    await clickButton(page, "Go Old Forge");
+    await expect(page.getByLabel("3D travel")).toContainText("At Old Forge");
     await expect(objective(page)).toContainText("Pick up");
-    await clickObjective(page, "Pick up");
+    await clickThreeTarget(page, "Pick up Pruning shears");
     await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
@@ -112,6 +119,28 @@ async function clickObjective(page: Page, label: string): Promise<void> {
 
 async function clickButton(page: Page, label: string): Promise<void> {
   await clickUnique(page.getByRole("button", { name: label }));
+}
+
+async function clickThreeTarget(page: Page, label: string): Promise<void> {
+  const canvas = page.locator(".three-host canvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("3D canvas is not visible");
+  const seen = new Set<string>();
+
+  for (const y of [0.5, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.88]) {
+    for (const x of [0.5, 0.08, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.88]) {
+      const point = { x: box.x + box.width * x, y: box.y + box.height * y };
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(15);
+      const readout = await page.getByLabel("3D target").innerText();
+      if (readout !== "Hover a scene target") seen.add(readout);
+      if (!readout.includes(label)) continue;
+      await page.mouse.click(point.x, point.y);
+      return;
+    }
+  }
+
+  throw new Error(`Could not find 3D target: ${label}. Saw: ${[...seen].join(", ") || "none"}`);
 }
 
 async function clickUnique(locator: Locator): Promise<void> {

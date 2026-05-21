@@ -209,6 +209,11 @@ button.primary:hover { filter: brightness(1.05); }
   background: rgba(9, 12, 18, 0.64);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+.three-camera-controls,
+.three-location-strip {
+  pointer-events: auto;
 }
 .three-overlay span {
   display: block;

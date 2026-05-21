@@ -400,9 +400,9 @@ export class ThreeWorldRenderer {
     this.pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
     return (
-      this.firstHitTarget(this.pickableActors) ??
       this.firstHitTarget(this.pickableItems) ??
       this.firstHitTarget(this.pickableProps) ??
+      this.firstHitTarget(this.pickableActors) ??
       this.firstHitTarget(this.pickableLocations)
     );
   }
@@ -822,21 +822,39 @@ function makeActorMesh(actor: SceneActorNode, motion: TravelMotion | null = null
 function makeItemMesh(item: SceneItemNode): THREE.Object3D {
   const group = new THREE.Group();
   group.position.set(item.x, 0, item.z);
+  const pickTarget = { kind: "item", id: item.id, label: item.name, action: "Pick up" } satisfies SceneTarget;
+  const hitMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.32, 12, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })
+  );
+  hitMesh.name = `pick:item:${item.id}`;
+  hitMesh.userData["itemId"] = item.id;
+  hitMesh.userData["target"] = pickTarget;
+  hitMesh.position.set(0, 0.28, 0);
   const geometry = new THREE.IcosahedronGeometry(0.11, 1);
   const material = new THREE.MeshStandardMaterial({ color: new THREE.Color(item.color), emissive: 0x4a3300, roughness: 0.32 });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = `pick:item:${item.id}`;
+  mesh.name = `item:${item.id}`;
   mesh.userData["itemId"] = item.id;
-  mesh.userData["target"] = { kind: "item", id: item.id, label: item.name, action: "Pick up" } satisfies SceneTarget;
+  mesh.userData["target"] = pickTarget;
   mesh.position.set(0, 0.24, 0);
   mesh.userData["sceneAnimation"] = bobAnimation(item.id, 0.24, 0.045);
-  group.add(makeTargetHalo(item.color, 0.28, 0.16), mesh);
+  group.add(makeTargetHalo(item.color, 0.28, 0.16), hitMesh, mesh);
   return group;
 }
 
 function makePropMesh(prop: ScenePropNode): THREE.Object3D {
   const group = new THREE.Group();
   group.position.set(prop.x, 0, prop.z);
+  const pickTarget = { kind: "prop", id: prop.id, label: prop.name, action: "Inspect" } satisfies SceneTarget;
+  const hitMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.38, 0.34, 0.38),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })
+  );
+  hitMesh.name = `pick:prop:${prop.id}`;
+  hitMesh.userData["propId"] = prop.id;
+  hitMesh.userData["target"] = pickTarget;
+  hitMesh.position.set(0, 0.18, 0);
   const geometry = new THREE.BoxGeometry(0.16, prop.inspected ? 0.1 : 0.18, 0.16);
   const material = new THREE.MeshStandardMaterial({
     color: prop.inspected ? 0x7d8796 : 0x9fc3ff,
@@ -844,12 +862,12 @@ function makePropMesh(prop: ScenePropNode): THREE.Object3D {
     roughness: 0.56,
   });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = `pick:prop:${prop.id}`;
+  mesh.name = `prop:${prop.id}`;
   mesh.userData["propId"] = prop.id;
-  mesh.userData["target"] = { kind: "prop", id: prop.id, label: prop.name, action: "Inspect" } satisfies SceneTarget;
+  mesh.userData["target"] = pickTarget;
   mesh.position.set(0, prop.inspected ? 0.11 : 0.16, 0);
   if (!prop.inspected) mesh.userData["sceneAnimation"] = bobAnimation(prop.id, 0.16, 0.024);
-  group.add(makeTargetHalo(prop.inspected ? "#7d8796" : "#9fc3ff", 0.25, prop.inspected ? 0.08 : 0.14), mesh);
+  group.add(makeTargetHalo(prop.inspected ? "#7d8796" : "#9fc3ff", 0.25, prop.inspected ? 0.08 : 0.14), hitMesh, mesh);
   return group;
 }
 
