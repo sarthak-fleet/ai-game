@@ -216,6 +216,31 @@ button.primary:hover { filter: brightness(1.05); }
   font-size: 11px;
   line-height: 1.2;
 }
+.three-camera-controls {
+  display: grid;
+  grid-template-columns: 32px minmax(58px, 1fr) 32px 58px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.three-camera-controls button {
+  min-height: 28px;
+  padding: 4px 7px;
+  border-color: rgba(127, 208, 255, 0.46);
+  background: rgba(127, 208, 255, 0.12);
+  color: #edf6ff;
+  font-size: 11px;
+  line-height: 1;
+}
+.three-camera-controls output {
+  display: block;
+  min-width: 0;
+  color: rgba(230, 233, 239, 0.84);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+}
 .three-location-strip {
   display: flex;
   flex-wrap: wrap;

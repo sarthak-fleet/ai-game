@@ -8,7 +8,9 @@ import { movePlayerToward } from "../world-travel.ts";
 export function ThreeWorld() {
   const world = useWorldStore((state) => state.world);
   const hostRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<ThreeWorldRenderer | null>(null);
   const [hoverTarget, setHoverTarget] = useState<SceneTarget | null>(null);
+  const [cameraBearing, setCameraBearing] = useState(34);
   const currentLocation = world?.locations.find((location) => location.id === world.player.locationId) ?? null;
   const destinations = world ? reachableLocations(world) : [];
 
@@ -49,6 +51,8 @@ export function ThreeWorld() {
       },
       onTargetHover: setHoverTarget,
     });
+    rendererRef.current = renderer;
+    setCameraBearing(renderer.cameraBearingDegrees());
     const resizeObserver = new ResizeObserver(() => renderer.resize());
     resizeObserver.observe(host);
 
@@ -70,6 +74,7 @@ export function ThreeWorld() {
       unsub();
       resizeObserver.disconnect();
       renderer.dispose();
+      rendererRef.current = null;
     };
   }, []);
 
@@ -80,6 +85,18 @@ export function ThreeWorld() {
         <strong className="three-target-readout" aria-label="3D target">
           {hoverTarget ? `${hoverTarget.action} ${hoverTarget.label}` : "Hover a scene target"}
         </strong>
+        <div className="three-camera-controls" aria-label="3D camera controls">
+          <button type="button" aria-label="Rotate camera left" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(-Math.PI / 8) ?? cameraBearing)}>
+            ◀
+          </button>
+          <output aria-label="3D camera bearing">{cameraBearing} deg</output>
+          <button type="button" aria-label="Rotate camera right" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(Math.PI / 8) ?? cameraBearing)}>
+            ▶
+          </button>
+          <button type="button" aria-label="Reset camera" onClick={() => setCameraBearing(rendererRef.current?.resetCamera() ?? cameraBearing)}>
+            Reset
+          </button>
+        </div>
         <div className="three-location-strip">
           {destinations.map((location) => (
             <button type="button" key={location.id} onClick={() => void movePlayerToward(location.id)}>

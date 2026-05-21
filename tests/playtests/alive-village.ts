@@ -70,6 +70,14 @@ async function runAliveVillagePlaytest(): Promise<void> {
     await page.screenshot({ path: join(ARTIFACT_DIR, "02-ambient-wait.png") });
 
     await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
+    await expect(page.getByLabel("3D camera controls")).toBeVisible();
+    await expect(page.getByLabel("3D camera bearing")).toContainText("34 deg");
+    const cameraBefore = await canvasPixelHash(page, ".three-host canvas");
+    await page.getByRole("button", { name: "Rotate camera right" }).click();
+    await expect(page.getByLabel("3D camera bearing")).toContainText("56 deg");
+    await expect.poll(() => canvasPixelHash(page, ".three-host canvas")).not.toEqual(cameraBefore);
+    await page.getByRole("button", { name: "Reset camera" }).click();
+    await expect(page.getByLabel("3D camera bearing")).toContainText("34 deg");
     await expect(page.getByRole("button", { name: "Go Herb Garden" })).toBeVisible();
     await page.getByRole("button", { name: "Go Herb Garden" }).click();
     await expect(page.getByLabel("3D travel")).toContainText("At Herb Garden");
@@ -121,6 +129,29 @@ async function nonBlankCanvasPixels(page: Page, selector: string): Promise<numbe
       if (r + g + b > 32) visible += 1;
     }
     return visible;
+  });
+}
+
+async function canvasPixelHash(page: Page, selector: string): Promise<string> {
+  return page.locator(selector).evaluate((canvas) => {
+    const source = canvas as HTMLCanvasElement;
+    const probe = document.createElement("canvas");
+    probe.width = 48;
+    probe.height = 48;
+    const ctx = probe.getContext("2d");
+    if (!ctx || source.width === 0 || source.height === 0) return "blank";
+    ctx.drawImage(source, 0, 0, probe.width, probe.height);
+    const pixels = ctx.getImageData(0, 0, probe.width, probe.height).data;
+    let hash = 2166136261;
+    for (let i = 0; i < pixels.length; i += 12) {
+      hash ^= pixels[i] ?? 0;
+      hash = Math.imul(hash, 16777619);
+      hash ^= pixels[i + 1] ?? 0;
+      hash = Math.imul(hash, 16777619);
+      hash ^= pixels[i + 2] ?? 0;
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash.toString(16);
   });
 }
 

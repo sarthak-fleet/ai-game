@@ -4,6 +4,9 @@ import type { Exit, InteractableProp, Item, Location, Npc, World } from "../../.
 
 const WORLD_SCALE = 0.018;
 const MIN_BUILDING_HEIGHT = 0.45;
+const DEFAULT_CAMERA_YAW = Math.atan2(4.8, 7.2);
+const CAMERA_DISTANCE = Math.hypot(4.8, 7.2);
+const CAMERA_HEIGHT = 6.4;
 
 export interface SceneLocationNode {
   id: string;
@@ -128,6 +131,8 @@ export class ThreeWorldRenderer {
   private onPropSelect: ((propId: string) => void) | null = null;
   private onTargetHover: ((target: SceneTarget | null) => void) | null = null;
   private hoverKey: string | null = null;
+  private cameraYaw = DEFAULT_CAMERA_YAW;
+  private cameraTarget = { x: 0, z: 0 };
 
   constructor(private readonly container: HTMLElement, options: ThreeWorldRendererOptions = {}) {
     this.onLocationSelect = options.onLocationSelect ?? null;
@@ -195,9 +200,24 @@ export class ThreeWorldRenderer {
       const pickable = mesh.getObjectByName(`pick:actor:${actor.id}`);
       if (!actor.player && pickable) this.pickableActors.push(pickable);
     }
-    this.camera.position.set(model.cameraTarget.x + 4.8, 6.4, model.cameraTarget.z + 7.2);
-    this.camera.lookAt(model.cameraTarget.x, 0.25, model.cameraTarget.z);
-    this.render();
+    this.cameraTarget = model.cameraTarget;
+    this.updateCamera();
+  }
+
+  orbitCamera(deltaRadians: number): number {
+    this.cameraYaw = normalizeRadians(this.cameraYaw + deltaRadians);
+    this.updateCamera();
+    return this.cameraBearingDegrees();
+  }
+
+  resetCamera(): number {
+    this.cameraYaw = DEFAULT_CAMERA_YAW;
+    this.updateCamera();
+    return this.cameraBearingDegrees();
+  }
+
+  cameraBearingDegrees(): number {
+    return Math.round(normalizeRadians(this.cameraYaw) * 180 / Math.PI);
   }
 
   render(): void {
@@ -258,6 +278,16 @@ export class ThreeWorldRenderer {
     this.onTargetHover?.(null);
   };
 
+  private updateCamera(): void {
+    this.camera.position.set(
+      this.cameraTarget.x + Math.sin(this.cameraYaw) * CAMERA_DISTANCE,
+      CAMERA_HEIGHT,
+      this.cameraTarget.z + Math.cos(this.cameraYaw) * CAMERA_DISTANCE
+    );
+    this.camera.lookAt(this.cameraTarget.x, 0.25, this.cameraTarget.z);
+    this.render();
+  }
+
   private targetAt(event: PointerEvent): SceneTarget | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -277,6 +307,11 @@ export class ThreeWorldRenderer {
     const target = hit?.object.userData["target"];
     return isSceneTarget(target) ? target : null;
   }
+}
+
+function normalizeRadians(value: number): number {
+  const fullTurn = Math.PI * 2;
+  return ((value % fullTurn) + fullTurn) % fullTurn;
 }
 
 function isSceneTarget(value: unknown): value is SceneTarget {
