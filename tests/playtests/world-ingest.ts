@@ -149,6 +149,7 @@ async function runWorldIngestPlaytest(): Promise<void> {
     await completeAbyssalFirstQuest(page);
     await expect.poll(() => canvasPixelHash(page, ".three-host canvas"), { message: "Abyssal 3D canvas should change after quest movement", timeout: 10_000 }).not.toEqual(abyssalStartHash);
     await page.screenshot({ path: join(ARTIFACT_DIR, "07-abyssal-source.png") });
+    await verifyMobileImportedAbyssal(browser);
 
     await importSource(page, OPM);
     await expect(page.getByRole("heading", { name: "One Punch Man Playable Slice" })).toBeVisible({ timeout: 15_000 });
@@ -282,6 +283,28 @@ async function completeAbyssalFirstQuest(page: Page): Promise<void> {
   await expect(objective(page)).toContainText("Recover Turbine gear for Paxel");
 }
 
+async function verifyMobileImportedAbyssal(browser: Awaited<ReturnType<typeof chromium.launch>>): Promise<void> {
+  const mobile = await browser.newPage({ viewport: { width: 390, height: 720 } });
+  try {
+    await mobile.goto(BASE_URL);
+    await mobile.waitForLoadState("domcontentloaded");
+    await expect(mobile.getByRole("heading", { name: "Abyssal Salvage Playable Slice" })).toBeVisible();
+    await expect(mobile.getByRole("button", { name: "3D" })).toHaveClass(/active/);
+    await expect(mobile.locator(".three-host canvas")).toBeVisible();
+    await expect.poll(() => nonBlankCanvasPixels(mobile, ".three-host canvas"), { message: "Abyssal mobile 3D canvas should render nonblank pixels", timeout: 10_000 }).toBeGreaterThan(40);
+    await expect(mobile.getByLabel("3D travel")).toContainText("At Reef Dome");
+    await expect(mobile.locator(".objective-tracker")).toContainText("Recover Turbine gear for Paxel");
+    await expect(mobile.getByRole("button", { name: "Go Sonar Array" })).toBeVisible();
+    await mobile.getByRole("button", { name: "Go Sonar Array" }).click();
+    await expect(mobile.getByLabel("3D travel")).toContainText("At Sonar Array");
+    await expectNoVerticalOverlap(mobile, ".view-toggle", ".three-overlay");
+    await expectNoVerticalOverlap(mobile, ".three-overlay", ".objective-tracker");
+    await mobile.screenshot({ path: join(ARTIFACT_DIR, "08-abyssal-mobile.png") });
+  } finally {
+    await mobile.close();
+  }
+}
+
 async function importSource(page: Page, sourcePath: string): Promise<void> {
   await page.locator("input[aria-label='World source JSON']").setInputFiles(sourcePath);
 }
@@ -378,6 +401,16 @@ async function hoverThreeTarget(page: Page, label: string): Promise<{ x: number;
 async function clickUnique(locator: Locator): Promise<void> {
   await expect(locator).toHaveCount(1, { timeout: 10_000 });
   await locator.click();
+}
+
+async function expectNoVerticalOverlap(page: Page, upperSelector: string, lowerSelector: string): Promise<void> {
+  const boxes = await page.evaluate(({ upperSelector, lowerSelector }) => {
+    const upper = document.querySelector(upperSelector)?.getBoundingClientRect();
+    const lower = document.querySelector(lowerSelector)?.getBoundingClientRect();
+    return upper && lower ? { upperBottom: upper.bottom, lowerTop: lower.top } : null;
+  }, { upperSelector, lowerSelector });
+  expect(boxes).not.toBeNull();
+  expect(boxes!.lowerTop).toBeGreaterThanOrEqual(boxes!.upperBottom + 6);
 }
 
 async function nonBlankCanvasPixels(page: Page, selector: string): Promise<number> {
