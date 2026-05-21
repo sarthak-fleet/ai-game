@@ -48,8 +48,9 @@ export function expandedCompletionReport(rootDir = process.cwd()): ExpandedCompl
       source("src/server.ts", ["/api/import-world-source", "validateWorldIngestSource", "worldSourceToWorld"]),
       source("web/src/store/world.ts", ["importWorldSource", "importWorldSourceFromJson"]),
       source("web/src/organisms/AppHeader.tsx", ["World source JSON", "World", "World import failed"]),
+      source("web/src/organisms/NpcDrawer.tsx", ["questItemTargetsFor", "Complete: Give", "relevantQuestItemIds(world, activeQuest)", "Ask about world", "That matters in ${world.name}"]),
       source("tests/world-ingest.test.ts", ["Skyfront Couriers: World Ingest Slice", "world_origin_clue", "harbor_ring", "signal_mast", "guild_counter", "chain_bridge", "recover_route_token", "route_token", "a_false_pirate_alarm_threatens_the_harbor_route_plan", "keeps source-derived generic quest IDs playable", "uses source-derived story objectives", "Report to Guild Counter before pressure peaks", "Confront Vex", "World title is required.", "invalid-source.json", "rejects malformed generic source", "Invalid world ingest source"]),
-      source("tests/playtests/world-ingest.ts", ["Skyfront Couriers Playable Slice", "3D travel", "At Harbor Ring", "Go Rookery Deck", "At Rookery Deck", "canvasPixelHash", "importInvalidSource", "World import failed: invalid_world_source", "One Punch Man Playable Slice"]),
+      source("tests/playtests/world-ingest.ts", ["Skyfront Couriers Playable Slice", "3D travel", "At Harbor Ring", "Go Rookery Deck", "At Rookery Deck", "Pick up Route token", "Complete: Give Route token", "That matters in Skyfront Couriers Playable Slice", "Ask about world", "Recover Route token for Mara is complete", "Recover Prism gear for Ivo", "canvasPixelHash", "importInvalidSource", "World import failed: invalid_world_source", "One Punch Man Playable Slice"]),
     ]),
     gate(rootDir, "long_running_agents", "Long-running AI agents", [
       file("src/agent-loop.ts"),

@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { chromium, expect, type Page } from "@playwright/test";
+import { chromium, expect, type Locator, type Page } from "@playwright/test";
 
 const API_PORT = Number(process.env["PLAYTEST_API_PORT"] ?? 5674);
 const WEB_PORT = Number(process.env["PLAYTEST_WEB_PORT"] ?? 5675);
@@ -70,23 +70,50 @@ async function runWorldIngestPlaytest(): Promise<void> {
     await expect(page.getByLabel("3D travel")).toContainText("At Rookery Deck");
     await expect.poll(() => canvasPixelHash(page, ".three-host canvas")).not.toEqual(skyfrontStartHash);
     await page.screenshot({ path: join(ARTIFACT_DIR, "01-skyfront-3d.png") });
+    await completeSkyfrontRouteTokenQuest(page);
 
     allowInvalidImportError = true;
     await importInvalidSource(page, INVALID_WORLD);
     allowInvalidImportError = false;
     await expect(page.getByRole("heading", { name: "Skyfront Couriers Playable Slice" })).toBeVisible();
-    await expect(page.getByLabel("3D travel")).toContainText("At Rookery Deck");
+    await expect(page.getByLabel("3D travel")).toContainText("At Harbor Ring");
     await expect(page.locator(".three-host canvas")).toBeVisible();
 
     await importSource(page, OPM);
     await expect(page.getByRole("heading", { name: "One Punch Man Playable Slice" })).toBeVisible();
     await expect(page.locator(".objective-tracker")).toContainText("Recover Grocery coupon for Saitama");
-    await page.screenshot({ path: join(ARTIFACT_DIR, "02-opm-source.png") });
+    await page.screenshot({ path: join(ARTIFACT_DIR, "03-opm-source.png") });
     await expect(errors, errors.join("\n")).toEqual([]);
   } finally {
     await page.close();
     await browser.close();
   }
+}
+
+async function completeSkyfrontRouteTokenQuest(page: Page): Promise<void> {
+  await expect(objective(page)).toContainText("Recover Route token for Mara");
+  await clickObjective(page, "Go");
+  await expect(page.getByLabel("3D travel")).toContainText("At Harbor Ring");
+  await expect(objective(page)).toContainText("Talk to Mara");
+  await clickObjective(page, "Talk");
+  await clickButton(page, "Accept task");
+  await clickButton(page, "Close");
+  await expect(objective(page)).toContainText("Find Route token");
+  await clickObjective(page, "Go");
+  await expect(page.getByLabel("3D travel")).toContainText("At Signal Mast");
+  await expect(objective(page)).toContainText("Pick up");
+  await clickThreeTarget(page, "Pick up Route token");
+  await expect(objective(page)).toContainText("Bring Route token to Mara");
+  await clickObjective(page, "Go");
+  await expect(page.getByLabel("3D travel")).toContainText("At Harbor Ring");
+  await clickObjective(page, "Talk");
+  await clickButton(page, "Complete: Give Route token");
+  await expect(page.locator(".outcome-toast")).toContainText("Recover Route token for Mara is complete");
+  await expect(page.locator(".dialogue-panel")).toContainText("That matters in Skyfront Couriers Playable Slice");
+  await expect(page.locator(".dialogue-panel")).not.toContainText("That matters in Ashbend");
+  await expect(page.getByRole("button", { name: "Ask about world" })).toBeVisible();
+  await expect(objective(page)).toContainText("Recover Prism gear for Ivo");
+  await page.screenshot({ path: join(ARTIFACT_DIR, "02-skyfront-remapped-quest-complete.png") });
 }
 
 async function importSource(page: Page, sourcePath: string): Promise<void> {
@@ -97,6 +124,48 @@ async function importSource(page: Page, sourcePath: string): Promise<void> {
 async function importInvalidSource(page: Page, sourcePath: string): Promise<void> {
   await page.locator("input[aria-label='World source JSON']").setInputFiles(sourcePath);
   await expect(page.locator(".header-toast")).toContainText("World import failed: invalid_world_source", { timeout: 8_000 });
+}
+
+function objective(page: Page): Locator {
+  return page.locator(".objective-tracker");
+}
+
+async function clickObjective(page: Page, label: string): Promise<void> {
+  await clickUnique(objective(page).getByRole("button", { name: label }));
+}
+
+async function clickButton(page: Page, label: string): Promise<void> {
+  await clickUnique(page.getByRole("button", { name: label }));
+}
+
+async function clickThreeTarget(page: Page, label: string): Promise<void> {
+  const point = await hoverThreeTarget(page, label);
+  await page.mouse.click(point.x, point.y);
+}
+
+async function hoverThreeTarget(page: Page, label: string): Promise<{ x: number; y: number }> {
+  const canvas = page.locator(".three-host canvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("3D canvas is not visible");
+  const seen = new Set<string>();
+
+  for (const y of [0.5, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.88]) {
+    for (const x of [0.5, 0.08, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.88]) {
+      const point = { x: box.x + box.width * x, y: box.y + box.height * y };
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(15);
+      const readout = await page.getByLabel("3D target").innerText();
+      if (readout !== "Hover a scene target") seen.add(readout);
+      if (readout.includes(label)) return point;
+    }
+  }
+
+  throw new Error(`Could not find 3D target: ${label}. Saw: ${[...seen].join(", ") || "none"}`);
+}
+
+async function clickUnique(locator: Locator): Promise<void> {
+  await expect(locator).toHaveCount(1);
+  await locator.click();
 }
 
 async function nonBlankCanvasPixels(page: Page, selector: string): Promise<number> {

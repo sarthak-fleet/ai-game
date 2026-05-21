@@ -19,7 +19,7 @@ export function ObjectiveTracker() {
         <div>
           <span>Complete</span>
           <strong>Starter path complete</strong>
-          <p>All village starter tasks are resolved. You can keep exploring, talking, saving, or waiting.</p>
+          <p>All starter tasks are resolved. You can keep exploring, talking, saving, or waiting.</p>
         </div>
       </section>
     );

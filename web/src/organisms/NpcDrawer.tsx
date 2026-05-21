@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { retrieveRelevantMemories, scheduledBlockFor } from "../../../src/agents.ts";
 import { combatMovesFor } from "../../../src/combat.ts";
+import { questItemTargetsFor } from "../../../src/quest-targets.ts";
 import type { Npc, Quest, World } from "../../../src/types.ts";
 import { Button } from "../atoms/Button.tsx";
 import { RelationCell } from "../molecules/RelationCell.tsx";
@@ -25,26 +26,26 @@ export function NpcDrawer() {
   const doneQuest = giverQuests.find((quest) => quest.status === "done");
   const relation = npc.relationships?.["player"] ?? 0;
   const playerAxes = npc.relationshipAxes?.["player"];
-  const latestMemory = npc.memories.at(-1)?.text ?? "They are watching the village and weighing what to say next.";
+  const latestMemory = npc.memories.at(-1)?.text ?? "They are watching the world state and weighing what to say next.";
   const currentIntent = npc.plan?.currentIntent;
   const scheduleBlock = scheduledBlockFor(world, npc);
   const topAmbition = [...(npc.ambitions ?? [])]
     .filter((goal) => (goal.status ?? "active") === "active")
     .sort((a, b) => b.priority - a.priority)[0];
-  const questLine = questDialogueLine(world.id, npc.id, openQuest?.id ?? activeQuest?.id ?? doneQuest?.id, {
+  const questLine = questDialogueLine(world, npc.id, openQuest?.id ?? activeQuest?.id ?? doneQuest?.id, {
     open: Boolean(openQuest),
     active: Boolean(activeQuest),
     done: Boolean(doneQuest),
-    hasRelevantItem: playerInventory.some((item) => relevantQuestItemIds(activeQuest?.id).includes(item.id)),
+    hasRelevantItem: playerInventory.some((item) => relevantQuestItemIds(world, activeQuest).includes(item.id)),
   });
   const clueLine = questClueLine(world.id, activeQuest?.id ?? openQuest?.id);
-  const relevantGiveItems = playerInventory.filter((item) => relevantQuestItemIds(activeQuest?.id).includes(item.id));
+  const relevantGiveItems = playerInventory.filter((item) => relevantQuestItemIds(world, activeQuest).includes(item.id));
   const doneAftermath = doneQuest ? questAftermathLine(world, npc, doneQuest) : null;
   const canFight = world.player.locationId === npc.locationId && (npc.factionId === "challengers" || npc.id === "pax");
   const combatMoves = combatMovesFor(world);
   const combat = npc.combat;
   const memoryQuery = [activeQuest?.title, openQuest?.title, world.story?.currentObjective, currentIntent?.reason].filter(Boolean).join(" ");
-  const relevantMemories = retrieveRelevantMemories(world, npc.id, memoryQuery || "bridge village task", 2);
+  const relevantMemories = retrieveRelevantMemories(world, npc.id, memoryQuery || "local task", 2);
   const appearance = npc.appearance;
   const portraitColor = appearance?.palette?.[0] ?? (npc.tier === "quest" ? "#b5e48c" : "#ff8a65");
   const locationName = world.locations.find((location) => location.id === npc.locationId)?.name ?? npc.locationId;
@@ -159,7 +160,7 @@ export function NpcDrawer() {
           </div>
         )}
         <div className="dialogue-choices">
-          <Button onClick={() => void say(`What should I know about ${world.name} today?`)}>Ask about village</Button>
+          <Button onClick={() => void say(`What should I know about ${world.name} today?`)}>Ask about world</Button>
           {activeQuest && <Button onClick={() => void say(`I am working on "${activeQuest.title}". What matters most?`)}>Ask about task</Button>}
           <Button onClick={() => void say("I want to help and keep people safe. What do you trust me with?")}>Build trust</Button>
           <Button onClick={() => void say("Sorry if I pushed too hard. I am trying to understand before blaming anyone.")}>Apologize</Button>
@@ -239,22 +240,24 @@ export function NpcDrawer() {
   );
 }
 
-function relevantQuestItemIds(questId: string | undefined): string[] {
-  if (questId === "return_shears") return ["shears"];
-  if (questId === "rekindle_forge") return ["bellows_leather"];
-  if (questId === "bridge_whisper") return ["blue_ember", "rumor_note"];
-  return [];
+function relevantQuestItemIds(world: World, quest: Quest | undefined): string[] {
+  if (!quest) return [];
+  return questItemTargetsFor(world, quest).map((target) => target.itemId);
 }
 
 function questDialogueLine(
-  worldId: string,
+  world: World,
   npcId: string,
   questId: string | undefined,
   state: { open: boolean; active: boolean; done: boolean; hasRelevantItem: boolean }
 ): string | null {
   if (!questId) return null;
-  if (worldId === "opm_z_city") return opmQuestDialogueLine(npcId, questId, state);
-  if (state.done) return "You did what you said you would. That matters in Ashbend.";
+  if (world.id === "opm_z_city") return opmQuestDialogueLine(npcId, questId, state);
+  if (state.done) {
+    return world.id === "ashbend"
+      ? "You did what you said you would. That matters in Ashbend."
+      : `You did what you said you would. That matters in ${world.name}.`;
+  }
   if (state.hasRelevantItem) return "You have what we needed. Hand it over and we can move this forward.";
   if (questId === "return_shears" && npcId === "mira") {
     return state.open
