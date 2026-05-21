@@ -21,6 +21,7 @@ describe("3D world scene model", () => {
       landmarks: ["forge_chimney"],
     });
     expect(model.paths.map((path) => `${path.fromId}->${path.toId}`)).toContain("square->garden");
+    expect(model.atmosphere.map((node) => node.kind)).toEqual(expect.arrayContaining(["signal", "spark", "firefly", "dust"]));
     expect(model.actors.find((actor) => actor.id === "player")?.player).toBe(true);
     expect(model.actors.some((actor) => actor.id === "mira")).toBe(true);
     expect(model.items.some((item) => item.id === "shears")).toBe(true);
@@ -39,6 +40,7 @@ describe("3D world scene model", () => {
       accentColor: "#8d5cff",
       landmarks: ["bridge_span"],
     });
+    expect(model.atmosphere.map((node) => node.kind)).toEqual(expect.arrayContaining(["spark", "dust", "signal"]));
   });
 
   test("moves the camera target with the active player location", () => {

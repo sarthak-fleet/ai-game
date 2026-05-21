@@ -61,9 +61,20 @@ export interface ScenePathNode {
   to: { x: number; z: number };
 }
 
+export interface SceneAtmosphereNode {
+  id: string;
+  kind: "mist" | "spark" | "firefly" | "signal" | "dust";
+  x: number;
+  z: number;
+  y: number;
+  color: string;
+  scale: number;
+}
+
 export interface WorldSceneModel {
   locations: SceneLocationNode[];
   paths: ScenePathNode[];
+  atmosphere: SceneAtmosphereNode[];
   actors: SceneActorNode[];
   items: SceneItemNode[];
   props: ScenePropNode[];
@@ -76,6 +87,7 @@ export function buildWorldSceneModel(world: World): WorldSceneModel {
   const activeLocation = world.locations.find((location) => location.id === world.player.locationId) ?? world.locations[0];
   const locations = world.locations.map((location) => locationNode(location, world.player.locationId));
   const paths = world.exits.map((exit) => pathNode(exit, world.locations)).filter((node): node is ScenePathNode => Boolean(node));
+  const atmosphere = locations.flatMap((location) => atmosphereNodesFor(location));
   const actors = [
     playerNode(world, activeLocation),
     ...world.npcs.map((npc) => actorNode(npc, world.locations.find((location) => location.id === npc.locationId))),
@@ -90,6 +102,7 @@ export function buildWorldSceneModel(world: World): WorldSceneModel {
   return {
     locations,
     paths,
+    atmosphere,
     actors,
     items,
     props,
@@ -192,6 +205,7 @@ export class ThreeWorldRenderer {
     this.root.add(makeGround(model));
     this.root.add(makeSkyline(model));
     for (const path of model.paths) this.root.add(makePathMesh(path));
+    this.root.add(makeAtmosphereMesh(model.atmosphere));
     for (const location of model.locations) {
       const mesh = makeLocationMesh(location);
       this.root.add(mesh);
@@ -520,6 +534,38 @@ function pathNode(exit: Exit, locations: Location[]): ScenePathNode | null {
   };
 }
 
+function atmosphereNodesFor(location: SceneLocationNode): SceneAtmosphereNode[] {
+  const kind = atmosphereKindFor(location);
+  const count = location.active ? 5 : 3;
+  return Array.from({ length: count }, (_, index) => {
+    const offset = stableOffset(`${location.id}:atmosphere:${index}`, 0.72 + index * 0.08);
+    return {
+      id: `${location.id}:${kind}:${index}`,
+      kind,
+      x: location.x + offset.x,
+      z: location.z + offset.z,
+      y: location.height + 0.28 + (index % 3) * 0.16,
+      color: atmosphereColor(kind, location),
+      scale: 0.75 + (index % 4) * 0.12,
+    };
+  });
+}
+
+function atmosphereKindFor(location: SceneLocationNode): SceneAtmosphereNode["kind"] {
+  const text = `${location.name} ${location.visualTags.join(" ")} ${location.landmarks.join(" ")}`.toLowerCase();
+  if (/bridge|overpass|alley|threat|monster|ruin/.test(text)) return "dust";
+  if (/cloud|fog|sky|harbor|rookery/.test(text)) return "mist";
+  if (/forge|engine|metal|soot|cyborg|training/.test(text)) return "spark";
+  if (/garden|wood|herb|home/.test(text)) return "firefly";
+  return "signal";
+}
+
+function atmosphereColor(kind: SceneAtmosphereNode["kind"], location: SceneLocationNode): string {
+  if (kind === "mist") return "#9fc3ff";
+  if (kind === "dust") return "#b9a58f";
+  return location.accentColor;
+}
+
 function playerNode(world: World, location: Location | undefined): SceneActorNode | null {
   if (!location) return null;
   const center = centerForLocation(location);
@@ -616,6 +662,27 @@ function makePathMesh(path: ScenePathNode): THREE.Object3D {
   mesh.position.set((path.from.x + path.to.x) / 2, 0.025, (path.from.z + path.to.z) / 2);
   mesh.rotation.y = Math.atan2(dx, dz);
   return mesh;
+}
+
+function makeAtmosphereMesh(nodes: SceneAtmosphereNode[]): THREE.Object3D {
+  const group = new THREE.Group();
+  group.name = "atmosphere";
+  for (const node of nodes) {
+    const color = new THREE.Color(node.color);
+    const radius = node.kind === "mist" ? 0.16 : node.kind === "dust" ? 0.055 : 0.038;
+    const opacity = node.kind === "mist" ? 0.18 : node.kind === "dust" ? 0.22 : 0.68;
+    const geometry = new THREE.SphereGeometry(radius * node.scale, node.kind === "mist" ? 12 : 8, node.kind === "mist" ? 8 : 6);
+    const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = `atmosphere:${node.id}`;
+    mesh.position.set(node.x, node.y, node.z);
+    mesh.userData["sceneAnimation"] =
+      node.kind === "mist" || node.kind === "dust"
+        ? bobAnimation(node.id, node.y, node.kind === "mist" ? 0.055 : 0.025)
+        : pulseAnimation(node.id, node.scale, node.kind === "spark" ? 0.18 : 0.1);
+    group.add(mesh);
+  }
+  return group;
 }
 
 function makeLocationMesh(location: SceneLocationNode): THREE.Object3D {
