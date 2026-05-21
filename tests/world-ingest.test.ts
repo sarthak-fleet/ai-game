@@ -29,21 +29,31 @@ describe("generic world ingest", () => {
       ["recover_prism_gear", "ivo"],
       ["recover_painted_flag_scrap", "nell"],
     ]);
-    expect(world.interactables?.map((prop) => [prop.relatedQuestId, prop.involvedIds])).toContainEqual(["recover_route_token", ["mara", "forge"]]);
+    expect(world.locations.map((location) => location.id)).toEqual([
+      "harbor_ring",
+      "signal_mast",
+      "rookery_deck",
+      "guild_counter",
+      "chain_bridge",
+      "cloud_engine",
+    ]);
+    expect(world.player.locationId).toBe("harbor_ring");
+    expect(world.exits.map((exit) => `${exit.from}->${exit.to}`)).toContain("harbor_ring->rookery_deck");
+    expect(world.interactables?.map((prop) => [prop.relatedQuestId, prop.locationId, prop.involvedIds])).toContainEqual(["recover_route_token", "signal_mast", ["mara", "signal_mast"]]);
     expect(world.tensions?.[0]).toMatchObject({
       id: "a_false_pirate_alarm_threatens_the_harbor_route",
-      involvedIds: ["vex", "bridge"],
+      involvedIds: ["vex", "chain_bridge"],
     });
     expect(world.villainPlans?.[0]).toMatchObject({
       id: "a_false_pirate_alarm_threatens_the_harbor_route_plan",
       actorId: "vex",
     });
     expect(world.npcs.map((npc) => npc.name)).toContain("Vex");
-    expect(world.locations.find((location) => location.id === "square")?.visual).toMatchObject({
+    expect(world.locations.find((location) => location.id === "harbor_ring")?.visual).toMatchObject({
       role: "hub",
       landmarks: ["notice_board"],
     });
-    expect(world.locations.find((location) => location.id === "bridge")?.visual?.description).toContain("false pirate flags");
+    expect(world.locations.find((location) => location.id === "chain_bridge")?.visual?.description).toContain("false pirate flags");
     expect(activeObjectives(world)[0]?.questTitle).toBe("Recover Route token for Mara");
     expect(validateStoryPackage(pkg)).toEqual([]);
     expect(JSON.stringify(pkg)).not.toMatch(/mira|tomas|lena|orrin|pax|shears|bellows_leather|blue_ember|rumor_note|lantern|return_shears|rekindle_forge|bridge_whisper|overpass_alert/);
@@ -62,17 +72,17 @@ describe("generic world ingest", () => {
       questId: "recover_route_token",
       targetType: "item",
       targetId: "route_token",
-      locationId: "forge",
+      locationId: "signal_mast",
     });
-    expect(applyAction(world, { type: "move", actorId: "player", locationId: "forge" }).applied).toBe(true);
+    expect(applyAction(world, { type: "move", actorId: "player", locationId: "signal_mast" }).applied).toBe(true);
     expect(applyAction(world, { type: "pickup", actorId: "player", itemId: "route_token" }).applied).toBe(true);
     expect(activeObjectives(world)[0]).toMatchObject({
       questId: "recover_route_token",
       targetType: "npc",
       targetId: "mara",
-      locationId: "square",
+      locationId: "harbor_ring",
     });
-    expect(applyAction(world, { type: "move", actorId: "player", locationId: "square" }).applied).toBe(true);
+    expect(applyAction(world, { type: "move", actorId: "player", locationId: "harbor_ring" }).applied).toBe(true);
     expect(applyAction(world, { type: "give", actorId: "player", itemId: "route_token", targetId: "mara" }).applied).toBe(true);
     expect(getQuest(world, "recover_route_token")?.status).toBe("done");
   });
@@ -88,11 +98,11 @@ describe("generic world ingest", () => {
     expect(world.storyProgress?.phase).toBe("nightfall_warning");
     expect(activeObjectives(world)[0]).toMatchObject({
       questTitle: "Report to Guild Counter before pressure peaks",
-      locationId: "inn",
+      locationId: "guild_counter",
       text: "Reach Guild Counter before a false pirate alarm threatens the harbor route escalates.",
     });
 
-    expect(applyAction(world, { type: "move", actorId: "player", locationId: "inn" }).applied).toBe(true);
+    expect(applyAction(world, { type: "move", actorId: "player", locationId: "guild_counter" }).applied).toBe(true);
     expect(world.storyProgress?.phase).toBe("shadow_confrontation");
     expect(activeObjectives(world)[0]).toMatchObject({
       questTitle: "Confront Vex",

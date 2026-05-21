@@ -42,7 +42,7 @@ export function ensureAgentStateDefaults(world: World): void {
       npc.relationshipAxes[actorId] ??= axesFromScore(score);
     }
     npc.plan ??= {};
-    npc.plan.schedule ??= defaultScheduleFor(npc.id);
+    npc.plan.schedule ??= defaultScheduleFor(npc.id, world, npc);
     npc.plan.currentIntent ??= planAgentIntent(world, npc);
     npc.plan.nextActionHint = nextActionHint(world, npc);
     for (const memory of npc.memories) {
@@ -211,7 +211,7 @@ export function planAgentIntent(world: World, npc: Npc): AgentIntent {
 }
 
 export function scheduledBlockFor(world: World, npc: Npc): ScheduleBlock | null {
-  const schedule = npc.plan?.schedule ?? defaultScheduleFor(npc.id);
+  const schedule = npc.plan?.schedule ?? defaultScheduleFor(npc.id, world, npc);
   if (!schedule.length) return null;
   return [...schedule]
     .sort((a, b) => b.hour - a.hour)
@@ -235,7 +235,7 @@ function goalsToAmbitions(npc: Npc) {
   }));
 }
 
-function defaultScheduleFor(npcId: string): ScheduleBlock[] {
+function defaultScheduleFor(npcId: string, world: World, npc?: Npc): ScheduleBlock[] {
   const schedules: Record<string, ScheduleBlock[]> = {
     mira: [
       { hour: 6, locationId: "garden", intent: "Tend moonmint and check for missing tools." },
@@ -262,7 +262,11 @@ function defaultScheduleFor(npcId: string): ScheduleBlock[] {
       { hour: 21, locationId: "wood", intent: "Hide from anyone asking about metal." },
     ],
   };
-  return schedules[npcId] ?? [{ hour: 6, locationId: "square", intent: "Follow the village routine and watch for changes." }];
+  return schedules[npcId] ?? [{
+    hour: 6,
+    locationId: npc?.locationId ?? world.locations[0]?.id ?? world.player.locationId,
+    intent: "Follow the local routine and watch for changes.",
+  }];
 }
 
 function nextActionHint(world: World, npc: Npc): string {

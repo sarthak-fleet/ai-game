@@ -56,51 +56,67 @@ function rebrandGenericWorld(world: World, source: WorldIngestSource): World {
 }
 
 function remapGenericWorldIds(world: World, source: WorldIngestSource): World {
-  const locationIds = new Set(world.locations.map((location) => location.id));
+  const reservedIds = new Set(["player", "world", "director"]);
+  const locationIdMap = idMap([
+    ["square", source.locations[0]?.name ? uniqueSlug(source.locations[0].name, reservedIds) : undefined],
+    ["forge", source.locations[1]?.name ? uniqueSlug(source.locations[1].name, reservedIds) : undefined],
+    ["garden", source.locations[2]?.name ? uniqueSlug(source.locations[2].name, reservedIds) : undefined],
+    ["inn", source.locations[3]?.name ? uniqueSlug(source.locations[3].name, reservedIds) : undefined],
+    ["bridge", source.locations[4]?.name ? uniqueSlug(source.locations[4].name, reservedIds) : undefined],
+    ["wood", source.locations[5]?.name ? uniqueSlug(source.locations[5].name, reservedIds) : undefined],
+  ]);
   const npcIdMap = idMap([
-    ["mira", source.characters[0]?.name ? uniqueSlug(source.characters[0].name, locationIds) : undefined],
-    ["tomas", source.characters[1]?.name ? uniqueSlug(source.characters[1].name, locationIds) : undefined],
-    ["lena", source.characters[2]?.name ? uniqueSlug(source.characters[2].name, locationIds) : undefined],
-    ["orrin", source.characters[3]?.name ? uniqueSlug(source.characters[3].name, locationIds) : undefined],
-    ["pax", source.characters[4]?.name ? uniqueSlug(source.characters[4].name, locationIds) : undefined],
+    ["mira", source.characters[0]?.name ? uniqueSlug(source.characters[0].name, reservedIds) : undefined],
+    ["tomas", source.characters[1]?.name ? uniqueSlug(source.characters[1].name, reservedIds) : undefined],
+    ["lena", source.characters[2]?.name ? uniqueSlug(source.characters[2].name, reservedIds) : undefined],
+    ["orrin", source.characters[3]?.name ? uniqueSlug(source.characters[3].name, reservedIds) : undefined],
+    ["pax", source.characters[4]?.name ? uniqueSlug(source.characters[4].name, reservedIds) : undefined],
   ]);
   const itemIdMap = idMap([
-    ["shears", source.artifacts?.[0]?.name ? uniqueSlug(source.artifacts[0].name, locationIds) : undefined],
-    ["bellows_leather", source.artifacts?.[1]?.name ? uniqueSlug(source.artifacts[1].name, locationIds) : undefined],
-    ["blue_ember", source.artifacts?.[2]?.name ? uniqueSlug(source.artifacts[2].name, locationIds) : undefined],
-    ["rumor_note", source.artifacts?.[3]?.name ? uniqueSlug(source.artifacts[3].name, locationIds) : undefined],
-    ["lantern", source.artifacts?.[4]?.name ? uniqueSlug(source.artifacts[4].name, locationIds) : undefined],
+    ["shears", source.artifacts?.[0]?.name ? uniqueSlug(source.artifacts[0].name, reservedIds) : undefined],
+    ["bellows_leather", source.artifacts?.[1]?.name ? uniqueSlug(source.artifacts[1].name, reservedIds) : undefined],
+    ["blue_ember", source.artifacts?.[2]?.name ? uniqueSlug(source.artifacts[2].name, reservedIds) : undefined],
+    ["rumor_note", source.artifacts?.[3]?.name ? uniqueSlug(source.artifacts[3].name, reservedIds) : undefined],
+    ["lantern", source.artifacts?.[4]?.name ? uniqueSlug(source.artifacts[4].name, reservedIds) : undefined],
   ]);
   const questIdMap = idMap([
-    ["return_shears", itemIdMap.get("shears") ? uniqueSlug(`recover ${itemIdMap.get("shears")}`, locationIds) : undefined],
-    ["rekindle_forge", itemIdMap.get("bellows_leather") ? uniqueSlug(`recover ${itemIdMap.get("bellows_leather")}`, locationIds) : undefined],
-    ["bridge_whisper", itemIdMap.get("blue_ember") ? uniqueSlug(`recover ${itemIdMap.get("blue_ember")}`, locationIds) : undefined],
+    ["return_shears", itemIdMap.get("shears") ? uniqueSlug(`recover ${itemIdMap.get("shears")}`, reservedIds) : undefined],
+    ["rekindle_forge", itemIdMap.get("bellows_leather") ? uniqueSlug(`recover ${itemIdMap.get("bellows_leather")}`, reservedIds) : undefined],
+    ["bridge_whisper", itemIdMap.get("blue_ember") ? uniqueSlug(`recover ${itemIdMap.get("blue_ember")}`, reservedIds) : undefined],
   ]);
   const tensionIdMap = idMap([
-    ["overpass_alert", source.conflicts?.[0]?.title ? uniqueSlug(source.conflicts[0].title, locationIds) : undefined],
+    ["overpass_alert", source.conflicts?.[0]?.title ? uniqueSlug(source.conflicts[0].title, reservedIds) : undefined],
   ]);
   const villainPlanIdMap = idMap([
-    ["bridge_whisper_plan", source.conflicts?.[0]?.title ? uniqueSlug(`${source.conflicts[0].title} plan`, locationIds) : undefined],
+    ["bridge_whisper_plan", source.conflicts?.[0]?.title ? uniqueSlug(`${source.conflicts[0].title} plan`, reservedIds) : undefined],
   ]);
 
   return {
     ...world,
     player: {
       ...world.player,
+      locationId: remapId(locationIdMap, world.player.locationId),
       characterId: world.player.characterId ? remapActorId(npcIdMap, world.player.characterId) : undefined,
     },
-    npcs: world.npcs.map((npc) => remapNpc(npc, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap)),
+    locations: world.locations.map((location) => ({ ...location, id: remapId(locationIdMap, location.id) })),
+    exits: world.exits.map((exit) => ({
+      ...exit,
+      from: remapId(locationIdMap, exit.from),
+      to: remapId(locationIdMap, exit.to),
+    })),
+    npcs: world.npcs.map((npc) => remapNpc(npc, locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap)),
     items: world.items.map((item) => ({
       ...item,
       id: remapId(itemIdMap, item.id),
+      locationId: item.locationId ? remapId(locationIdMap, item.locationId) : undefined,
       holderId: item.holderId ? remapHolderId(npcIdMap, item.holderId) : undefined,
     })),
     quests: (world.quests ?? []).map((quest) => remapQuest(quest, npcIdMap, questIdMap)),
-    interactables: (world.interactables ?? []).map((prop) => rebrandGenericProp(prop, npcIdMap, questIdMap)),
+    interactables: (world.interactables ?? []).map((prop) => rebrandGenericProp(prop, locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap)),
     tensions: (world.tensions ?? []).map((tension) => ({
       ...tension,
       id: remapId(tensionIdMap, tension.id),
-      involvedIds: tension.involvedIds?.map((id) => remapActorId(npcIdMap, id)),
+      involvedIds: tension.involvedIds?.map((id) => remapAnyId(locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, id)),
     })),
     villainPlans: (world.villainPlans ?? []).map((plan) => ({
       ...plan,
@@ -109,24 +125,33 @@ function remapGenericWorldIds(world: World, source: WorldIngestSource): World {
     })),
     eventLog: world.eventLog.map((tick) => ({
       ...tick,
-      actions: tick.actions.map((entry) => ({ ...entry, action: remapAction(entry.action, npcIdMap, itemIdMap, questIdMap) })),
-      rejected: tick.rejected.map((entry) => ({ ...entry, action: remapAction(entry.action, npcIdMap, itemIdMap, questIdMap) })),
+      actions: tick.actions.map((entry) => ({ ...entry, action: remapAction(entry.action, locationIdMap, npcIdMap, itemIdMap, questIdMap) })),
+      rejected: tick.rejected.map((entry) => ({ ...entry, action: remapAction(entry.action, locationIdMap, npcIdMap, itemIdMap, questIdMap) })),
     })),
   };
 }
 
-function rebrandGenericProp(prop: InteractableProp, npcIdMap: Map<string, string>, questIdMap: Map<string, string>): InteractableProp {
+function rebrandGenericProp(
+  prop: InteractableProp,
+  locationIdMap: Map<string, string>,
+  npcIdMap: Map<string, string>,
+  itemIdMap: Map<string, string>,
+  questIdMap: Map<string, string>,
+  villainPlanIdMap: Map<string, string>
+): InteractableProp {
   return {
     ...prop,
     id: prop.id.replace(/^anime_/, "world_"),
+    locationId: remapId(locationIdMap, prop.locationId),
     clueTags: prop.clueTags?.map((tag) => tag === "anime" ? "world" : tag),
     relatedQuestId: prop.relatedQuestId ? remapId(questIdMap, prop.relatedQuestId) : undefined,
-    involvedIds: prop.involvedIds?.map((id) => remapActorId(npcIdMap, id)),
+    involvedIds: prop.involvedIds?.map((id) => remapAnyId(locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, id)),
   };
 }
 
 function remapNpc(
   npc: Npc,
+  locationIdMap: Map<string, string>,
   npcIdMap: Map<string, string>,
   itemIdMap: Map<string, string>,
   questIdMap: Map<string, string>,
@@ -136,12 +161,13 @@ function remapNpc(
   return {
     ...npc,
     id: nextId,
+    locationId: remapId(locationIdMap, npc.locationId),
     relationships: remapRelationshipScores(npc.relationships, npcIdMap),
     relationshipAxes: npc.relationshipAxes ? remapRelationshipAxes(npc.relationshipAxes, npcIdMap) : undefined,
     ambitions: npc.ambitions?.map((ambition) => ({
       ...ambition,
       id: ambition.id.replace(npc.id, nextId),
-      targetId: ambition.targetId ? remapAnyId(npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, ambition.targetId) : undefined,
+      targetId: ambition.targetId ? remapAnyId(locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, ambition.targetId) : undefined,
     })),
     secrets: npc.secrets?.map((secret) => ({ ...secret, id: secret.id.replace(npc.id, nextId), knownBy: secret.knownBy?.map((id) => remapHolderId(npcIdMap, id)) })),
     plan: npc.plan ? {
@@ -149,9 +175,10 @@ function remapNpc(
       currentIntent: npc.plan.currentIntent ? {
         ...npc.plan.currentIntent,
         targetId: npc.plan.currentIntent.targetId
-          ? remapAnyId(npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, npc.plan.currentIntent.targetId)
+          ? remapAnyId(locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, npc.plan.currentIntent.targetId)
           : undefined,
       } : undefined,
+      schedule: npc.plan.schedule?.map((block) => ({ ...block, locationId: remapId(locationIdMap, block.locationId) })),
     } : undefined,
     memories: npc.memories.map((memory) => ({
       ...memory,
@@ -191,23 +218,31 @@ function remapRelationshipAxes(
   return Object.fromEntries(Object.entries(axes).map(([id, value]) => [remapActorId(npcIdMap, id), value]));
 }
 
-function remapAction(action: Action, npcIdMap: Map<string, string>, itemIdMap: Map<string, string>, questIdMap: Map<string, string>): Action {
+function remapAction(
+  action: Action,
+  locationIdMap: Map<string, string>,
+  npcIdMap: Map<string, string>,
+  itemIdMap: Map<string, string>,
+  questIdMap: Map<string, string>
+): Action {
   const base = { ...action, actorId: remapActorId(npcIdMap, action.actorId) };
   if ("targetId" in base && typeof base.targetId === "string") base.targetId = remapActorId(npcIdMap, base.targetId);
   if ("aboutId" in base && typeof base.aboutId === "string") base.aboutId = remapActorId(npcIdMap, base.aboutId);
   if ("itemId" in base && typeof base.itemId === "string") base.itemId = remapId(itemIdMap, base.itemId);
   if ("questId" in base && typeof base.questId === "string") base.questId = remapId(questIdMap, base.questId);
+  if ("locationId" in base && typeof base.locationId === "string") base.locationId = remapId(locationIdMap, base.locationId);
   return base;
 }
 
 function remapAnyId(
+  locationIdMap: Map<string, string>,
   npcIdMap: Map<string, string>,
   itemIdMap: Map<string, string>,
   questIdMap: Map<string, string>,
   villainPlanIdMap: Map<string, string>,
   id: string
 ): string {
-  return remapId(villainPlanIdMap, remapId(questIdMap, remapId(itemIdMap, remapActorId(npcIdMap, id))));
+  return remapId(villainPlanIdMap, remapId(questIdMap, remapId(itemIdMap, remapActorId(npcIdMap, remapId(locationIdMap, id)))));
 }
 
 function remapActorId(npcIdMap: Map<string, string>, id: string): string {
