@@ -1,14 +1,16 @@
 import { type ChildProcess,spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, test } from "vitest";
 
 const SERVER = new URL("../src/server.ts", import.meta.url).pathname;
 const TSX = new URL("../node_modules/tsx/dist/cli.mjs", import.meta.url).pathname;
 
-function startServer(port: number): Promise<ChildProcess> {
+function startServer(port: number, env: Record<string, string> = {}): Promise<ChildProcess> {
   const child = spawn(process.execPath, [TSX, SERVER], {
-    env: { ...process.env, PORT: String(port), LLM_API_KEY: "", LLM_BASE_URL: "" },
+    env: { ...process.env, PORT: String(port), LLM_API_KEY: "", LLM_BASE_URL: "", ...env },
     stdio: ["ignore", "pipe", "pipe"],
   });
   return new Promise((resolve, reject) => {
@@ -107,4 +109,49 @@ describe("server", () => {
       child.kill();
     }
   });
+
+  test("persists agent loop checkpoints across server restarts", async () => {
+    const port = 5500 + Math.floor(Math.random() * 200);
+    const checkpointDir = mkdtempSync(join(tmpdir(), "ai-game-server-checkpoints-"));
+    const checkpointFile = join(checkpointDir, "agent-loop.json");
+    const env = {
+      AGENT_LOOP_CHECKPOINT_FILE: checkpointFile,
+      AGENT_LOOP_MAX_CHECKPOINTS: "2",
+    };
+    let child: ChildProcess | null = null;
+
+    try {
+      child = await startServer(port, env);
+      for (let i = 0; i < 5; i += 1) {
+        const step = await fetch(`http://localhost:${port}/api/agent-loop/step`, { method: "POST" });
+        expect(step.status).toBe(200);
+      }
+      let status = await fetch(`http://localhost:${port}/api/agent-loop/status`);
+      let body = (await status.json()) as { checkpoints: Array<{ tick: number }> };
+      expect(body.checkpoints.map((checkpoint) => checkpoint.tick)).toEqual([5]);
+      child.kill();
+      await waitForExit(child);
+
+      child = await startServer(port, env);
+      status = await fetch(`http://localhost:${port}/api/agent-loop/status`);
+      body = (await status.json()) as { checkpoints: Array<{ tick: number }> };
+      expect(body.checkpoints.map((checkpoint) => checkpoint.tick)).toEqual([5]);
+
+      const restore = await fetch(`http://localhost:${port}/api/agent-loop/restore-checkpoint`, { method: "POST" });
+      expect(restore.status).toBe(200);
+      const restored = (await restore.json()) as { state: { tick: number }; checkpoint: { tick: number } };
+      expect(restored.checkpoint.tick).toBe(5);
+      expect(restored.state.tick).toBe(5);
+    } finally {
+      child?.kill();
+      rmSync(checkpointDir, { recursive: true, force: true });
+    }
+  });
 });
+
+function waitForExit(child: ChildProcess): Promise<void> {
+  return new Promise((resolve) => {
+    if (child.exitCode !== null) return resolve();
+    child.once("exit", () => resolve());
+  });
+}

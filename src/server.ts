@@ -2,6 +2,7 @@ import { readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, normalize } from "node:path";
 
+import { readAgentLoopCheckpoints, upsertAgentLoopCheckpoint } from "./agent-checkpoint-store.ts";
 import { createAgentLoop } from "./agent-loop.ts";
 import { createDirector } from "./director.ts";
 import { createLlmProposer } from "./llm/proposer.ts";
@@ -20,6 +21,8 @@ const CUTSCENE_MANIFEST_PATH = new URL("./web/assets/cutscenes/manifest.json", C
 const LLM_MAX_NPCS = Number(process.env["LLM_MAX_NPCS"] ?? 5);
 const AGENT_LOOP_INTERVAL_MS = Number(process.env["AGENT_LOOP_INTERVAL_MS"] ?? 4_000);
 const AGENT_LOOP_MAX_TICKS = process.env["AGENT_LOOP_MAX_TICKS"] ? Number(process.env["AGENT_LOOP_MAX_TICKS"]) : null;
+const AGENT_LOOP_MAX_CHECKPOINTS = Number(process.env["AGENT_LOOP_MAX_CHECKPOINTS"] ?? 24);
+const AGENT_LOOP_CHECKPOINT_PATH = new URL(process.env["AGENT_LOOP_CHECKPOINT_FILE"] ?? "./tmp/agent-loop-checkpoints.json", CWD);
 const AGENT_LOOP_AUTOSTART = process.env["AGENT_LOOP_AUTOSTART"] === "1";
 
 const MIME: Record<string, string> = {
@@ -38,7 +41,13 @@ const world = JSON.parse(readFileSync(WORLD_PATH, "utf8")) as World;
 const propose = isLlmEnabled() ? createLlmProposer({ tier: "normal", maxNpcs: LLM_MAX_NPCS }) : undefined;
 const director = createDirector({ propose: isLlmEnabled() ? proposeAction : undefined });
 const engine = createEngine(world, { propose, director });
-const agentLoop = createAgentLoop(engine, { intervalMs: AGENT_LOOP_INTERVAL_MS, maxTicks: AGENT_LOOP_MAX_TICKS });
+const agentLoop = createAgentLoop(engine, {
+  intervalMs: AGENT_LOOP_INTERVAL_MS,
+  maxTicks: AGENT_LOOP_MAX_TICKS,
+  maxCheckpoints: AGENT_LOOP_MAX_CHECKPOINTS,
+  initialCheckpoints: readAgentLoopCheckpoints(AGENT_LOOP_CHECKPOINT_PATH),
+  onCheckpoint: (checkpoint) => upsertAgentLoopCheckpoint(AGENT_LOOP_CHECKPOINT_PATH, checkpoint, AGENT_LOOP_MAX_CHECKPOINTS),
+});
 if (AGENT_LOOP_AUTOSTART) agentLoop.start();
 
 const server = createServer(async (req, res) => {

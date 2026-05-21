@@ -1,5 +1,5 @@
 import { type ChildProcess,spawn } from "node:child_process";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 import { chromium, expect, type Page } from "@playwright/test";
@@ -16,8 +16,17 @@ const WORLD = new URL("../../worlds/village.json", import.meta.url).pathname;
 
 async function main(): Promise<void> {
   mkdirSync(ARTIFACT_DIR, { recursive: true });
+  const checkpointFile = join(ARTIFACT_DIR, "agent-loop-checkpoints.json");
+  rmSync(checkpointFile, { force: true });
   const api = spawn(process.execPath, [TSX, SERVER], {
-    env: { ...process.env, PORT: String(API_PORT), AGENT_LOOP_INTERVAL_MS: String(LIVE_LOOP_INTERVAL_MS), LLM_API_KEY: "", LLM_BASE_URL: "" },
+    env: {
+      ...process.env,
+      PORT: String(API_PORT),
+      AGENT_LOOP_INTERVAL_MS: String(LIVE_LOOP_INTERVAL_MS),
+      AGENT_LOOP_CHECKPOINT_FILE: checkpointFile,
+      LLM_API_KEY: "",
+      LLM_BASE_URL: "",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const web = spawn(process.execPath, [VITE, "--host", "127.0.0.1", "--port", String(WEB_PORT), "--strictPort"], {
