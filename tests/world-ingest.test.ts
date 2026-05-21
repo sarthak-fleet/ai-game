@@ -77,6 +77,39 @@ describe("generic world ingest", () => {
     expect(getQuest(world, "recover_route_token")?.status).toBe("done");
   });
 
+  test("uses source-derived story objectives after a generic world's starter quests", () => {
+    const world = worldSourceToWorld(source("../fixtures/worlds/skyfront-source.json"));
+
+    for (const questId of ["recover_route_token", "recover_prism_gear", "recover_painted_flag_scrap"]) {
+      expect(applyAction(world, { type: "accept_quest", actorId: "player", questId }).applied).toBe(true);
+      expect(applyAction(world, { type: "complete_quest", actorId: "player", questId }).applied).toBe(true);
+    }
+
+    expect(world.storyProgress?.phase).toBe("nightfall_warning");
+    expect(activeObjectives(world)[0]).toMatchObject({
+      questTitle: "Report to Guild Counter before pressure peaks",
+      locationId: "inn",
+      text: "Reach Guild Counter before a false pirate alarm threatens the harbor route escalates.",
+    });
+
+    expect(applyAction(world, { type: "move", actorId: "player", locationId: "inn" }).applied).toBe(true);
+    expect(world.storyProgress?.phase).toBe("shadow_confrontation");
+    expect(activeObjectives(world)[0]).toMatchObject({
+      questTitle: "Confront Vex",
+      storyTargetId: "vex",
+      text: "Call Vex into the open with Nell watching.",
+    });
+
+    expect(applyAction(world, {
+      type: "confront",
+      actorId: "player",
+      targetId: "vex",
+      text: "The fresh paint and false flag plan end here.",
+    }).applied).toBe(true);
+    expect(world.storyProgress?.phase).toBe("dawn_after_tasks");
+    expect(activeObjectives(world)[0]?.questTitle).toBe("Skyfront Couriers Playable Slice route stabilized");
+  });
+
   test("keeps anime as one fixture rather than a special ingest path", () => {
     const anime = source("../fixtures/anime/opm-ingest-source.json");
 

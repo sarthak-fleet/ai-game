@@ -1,4 +1,5 @@
 import { questItemTargetsFor } from "./quest-targets.ts";
+import { locationById, npcById, storyConfrontationTargetId, storyPhaseLocations, storyWitnessNpc } from "./story-context.ts";
 import { syncStoryProgress } from "./story-progress.ts";
 import type { Item, Npc, Quest, QuestStatus, World } from "./types.ts";
 
@@ -31,8 +32,9 @@ export function activeObjectives(world: World): Objective[] {
 export function objectiveForStoryProgress(world: World): Objective | null {
   const progress = syncStoryProgress(world);
   const labels = storyLabelsFor(world);
+  const { hubId, reportId } = storyPhaseLocations(world);
   if (progress.phase === "nightfall_warning") {
-    const targetLocation = world.player.locationId === "inn" ? "square" : "inn";
+    const targetLocation = world.player.locationId === reportId ? hubId : reportId;
     return {
       questId: "story:nightfall_warning",
       questTitle: labels.warningTitle,
@@ -45,7 +47,7 @@ export function objectiveForStoryProgress(world: World): Objective | null {
     };
   }
   if (progress.phase === "shadow_confrontation") {
-    const targetLocation = world.player.locationId === "inn" ? "inn" : "square";
+    const targetLocation = world.player.locationId === reportId ? reportId : hubId;
     return {
       questId: "story:shadow_confrontation",
       questTitle: labels.confrontTitle,
@@ -86,6 +88,27 @@ function storyLabelsFor(world: World) {
       confrontTargetId: "pax",
       doneTitle: "Z-City alert cleared",
       doneText: "The first Z-City patrol loop is resolved. Keep exploring, talking, saving, or replaying scenes.",
+    };
+  }
+  if (world.id !== "ashbend") {
+    const { hubId, reportId } = storyPhaseLocations(world);
+    const hub = locationById(world, hubId);
+    const report = locationById(world, reportId) ?? hub;
+    const targetId = storyConfrontationTargetId(world);
+    const target = npcById(world, targetId);
+    const witness = storyWitnessNpc(world) ?? target;
+    const tensionTitle = world.tensions?.[0]?.title.toLowerCase() ?? "the core conflict";
+    return {
+      warningTitle: `Report to ${report?.name ?? "the report point"} before pressure peaks`,
+      warningTravelText: `Reach ${report?.name ?? "the report point"} before ${tensionTitle} escalates.`,
+      warningHereText: `Return to ${hub?.name ?? "the hub"} and watch for ${target?.name ?? "the antagonist"}'s next move.`,
+      confrontTitle: `Confront ${target?.name ?? "the antagonist"}`,
+      confrontText: `Call ${target?.name ?? "the antagonist"} into the open with ${witness?.name ?? "a witness"} watching.`,
+      confrontActionLabel: "Confront",
+      confrontAction: "confront_shadow" as const,
+      confrontTargetId: targetId,
+      doneTitle: `${world.name} route stabilized`,
+      doneText: "The imported world's first playable loop is resolved. Keep exploring, talking, saving, or replaying scenes.",
     };
   }
   return {

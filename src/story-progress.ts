@@ -1,3 +1,4 @@
+import { storyPhaseLocations } from "./story-context.ts";
 import type { Quest, StoryProgress, World } from "./types.ts";
 
 export const ASHBEND_STORY_ID = "ember_beneath_ashbend";
@@ -46,7 +47,8 @@ export function syncStoryProgress(world: World): StoryProgress {
 
 export function advanceNightfallTravel(world: World, locationId: string): void {
   const progress = syncStoryProgress(world);
-  if (progress.phase === "nightfall_warning" && (locationId === "inn" || locationId === "square")) {
+  const { hubId, reportId } = storyPhaseLocations(world);
+  if (progress.phase === "nightfall_warning" && (locationId === reportId || locationId === hubId)) {
     progress.phase = "shadow_confrontation";
     unlockPhaseCutscenes(world);
   }

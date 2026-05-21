@@ -8,6 +8,7 @@ import {
 } from "./agents.ts";
 import { combatMoveFor, combatMovesFor } from "./combat.ts";
 import { questItemTargetsFor } from "./quest-targets.ts";
+import { storyConfrontationTargetId } from "./story-context.ts";
 import {
   advanceNightfallTravel,
   ensureStoryProgress,
@@ -297,7 +298,7 @@ export function applyAction(world: World, action: Action): ActionResult {
 }
 
 function isStoryConfrontationTarget(world: World, targetId: string): boolean {
-  return targetId === (world.id === "opm_z_city" ? "pax" : "lena");
+  return targetId === storyConfrontationTargetId(world);
 }
 
 function ensureCombatDefaults(world: World): void {
