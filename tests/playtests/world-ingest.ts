@@ -292,15 +292,23 @@ async function verifyAbyssalLiveLoop(page: Page): Promise<void> {
   const abyssalLiveLoopBeforeHash = await canvasPixelHash(page, ".three-host canvas");
   await startAgentLoopFromUi(page);
   await expect(page.getByLabel("Agent loop controls")).toContainText(`${LIVE_LOOP_INTERVAL_MS}ms`);
-  await expect.poll(() => autonomousTickCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
+  await expect.poll(() => autonomousTickCount(page), { timeout: 10_000 }).toBeGreaterThan(6);
+  await expect(page.getByLabel("Agent loop controls")).toContainText(/Checkpoints\s*\d+/);
   await expect.poll(() => canvasPixelHash(page, ".three-host canvas"), {
     message: "generic imported world live agent loop should visibly update the 3D scene",
     timeout: 10_000,
   }).not.toEqual(abyssalLiveLoopBeforeHash);
   await expect(page.getByLabel("3D agent activity")).toContainText(/Autonomous t\d+/);
   await page.screenshot({ path: join(ARTIFACT_DIR, "08-abyssal-live-loop.png") });
-  await page.getByLabel("Agent loop controls").getByRole("button", { name: "Stop" }).click();
+  await page.getByLabel("Agent loop controls").getByRole("button", { name: "Restore latest" }).click();
+  await expect(page.getByLabel("Agent loop controls")).toContainText(/Restored checkpoint: world tick \d+/);
   await expect(page.getByLabel("Agent loop controls")).toContainText("stopped");
+  await expect(page.getByRole("heading", { name: "Abyssal Salvage Playable Slice" })).toBeVisible();
+  await expect(page.locator(".objective-tracker")).toContainText("Recover Turbine gear for Paxel");
+  await expect(page.getByLabel("3D travel")).toContainText("At Reef Dome");
+  await expect(page.locator(".three-host canvas")).toBeVisible();
+  await expect.poll(() => nonBlankCanvasPixels(page, ".three-host canvas"), { message: "restored Abyssal checkpoint should keep 3D canvas nonblank", timeout: 10_000 }).toBeGreaterThan(40);
+  await page.screenshot({ path: join(ARTIFACT_DIR, "09-abyssal-checkpoint-restore.png") });
 }
 
 async function quickSaveImportedAbyssal(page: Page): Promise<void> {
