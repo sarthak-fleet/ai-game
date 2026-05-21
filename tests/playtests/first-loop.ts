@@ -12,6 +12,7 @@ const TSX = new URL("../../node_modules/tsx/dist/cli.mjs", import.meta.url).path
 const VITE = new URL("../../node_modules/vite/bin/vite.js", import.meta.url).pathname;
 const SERVER = new URL("../../src/server.ts", import.meta.url).pathname;
 const WORLD = new URL("../../worlds/village.json", import.meta.url).pathname;
+const INVALID_SAVE = new URL("../../fixtures/saves/not-json.json", import.meta.url).pathname;
 
 async function main(): Promise<void> {
   mkdirSync(ARTIFACT_DIR, { recursive: true });
@@ -75,6 +76,10 @@ async function runBrowserPlaytest(): Promise<void> {
     await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
     await expect(page.locator(".three-host canvas")).toBeVisible();
     await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
+    await importInvalidSave(page);
+    await expect(page.locator(".header-toast")).toContainText("Restore failed: Save file is not valid JSON", { timeout: 5_000 });
+    await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
+    await expect(page.locator(".three-host canvas")).toBeVisible();
     await clickButton(page, "Slot Load");
     await expect(objective(page)).toContainText("Find Pruning shears");
     await expect(page.getByLabel("3D travel")).toContainText("At Herb Garden");
@@ -112,6 +117,10 @@ async function clickButton(page: Page, label: string): Promise<void> {
 async function clickUnique(locator: Locator): Promise<void> {
   await expect(locator).toHaveCount(1);
   await locator.click();
+}
+
+async function importInvalidSave(page: Page): Promise<void> {
+  await page.locator("input[aria-label='Save or package JSON']").setInputFiles(INVALID_SAVE);
 }
 
 async function restoreWorld(): Promise<void> {
