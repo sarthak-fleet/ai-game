@@ -11,7 +11,7 @@ describe("bundle budget", () => {
     const root = makeBuild({
       "index-shell.js": "console.info('shell');",
       "index-style.css": "body{margin:0}",
-      "ThreeWorld-lazy.js": "x".repeat(900 * 1024),
+      "ThreeWorld-lazy.js": "x".repeat(540 * 1024),
       "PhaserGame-lazy.js": "x".repeat(1_200 * 1024),
     });
 
@@ -34,6 +34,20 @@ describe("bundle budget", () => {
     expect(report.passed).toBe(false);
     expect(report.failures.join("\n")).toContain("first-load JS");
     expect(() => assertBundleBudget(report)).toThrow("first-load JS");
+  });
+
+  test("fails when a named lazy runtime chunk grows beyond its budget", () => {
+    const root = makeBuild({
+      "index-shell.js": "console.info('shell');",
+      "index-style.css": "body{margin:0}",
+      "ThreeWorld-lazy.js": "x".repeat(610 * 1024),
+    });
+
+    const report = bundleBudgetReport(root);
+
+    expect(report.passed).toBe(false);
+    expect(report.failures.join("\n")).toContain("lazy ThreeWorld");
+    expect(() => assertBundleBudget(report)).toThrow("lazy ThreeWorld");
   });
 });
 

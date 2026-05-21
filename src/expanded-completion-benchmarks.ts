@@ -56,8 +56,8 @@ export function expandedCompletionReport(rootDir = process.cwd()): ExpandedCompl
       file("src/bundle-budget.ts"),
       file("tests/bundle-budget.test.ts"),
       packageScript("budget:bundle"),
-      source("src/bundle-budget.ts", ["FIRST_LOAD_JS_MAX_BYTES", "FIRST_LOAD_CSS_MAX_BYTES", "FIRST_LOAD_TOTAL_MAX_BYTES", "FIRST_LOAD_GZIP_MAX_BYTES", "firstLoadAssets", "lazyAssets", "assertBundleBudget"]),
-      source("tests/bundle-budget.test.ts", ["compact first-load shell", "lazy runtime chunks", "first-load shell gets too large"]),
+      source("src/bundle-budget.ts", ["FIRST_LOAD_JS_MAX_BYTES", "FIRST_LOAD_CSS_MAX_BYTES", "FIRST_LOAD_TOTAL_MAX_BYTES", "FIRST_LOAD_GZIP_MAX_BYTES", "LAZY_THREE_WORLD_MAX_BYTES", "LAZY_PHASER_MAX_BYTES", "LAZY_MISC_JS_MAX_BYTES", "firstLoadAssets", "lazyAssets", "lazyAssetFailures", "assertBundleBudget"]),
+      source("tests/bundle-budget.test.ts", ["compact first-load shell", "lazy runtime chunks", "first-load shell gets too large", "named lazy runtime chunk"]),
     ]),
     gate(rootDir, "verification_surface", "Everything tested", [
       packageScript("typecheck"),
