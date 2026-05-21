@@ -1,0 +1,83 @@
+{
+  "title": "Clockwork Conservatory",
+  "worldId": "clockwork_conservatory",
+  "synopsis": "A botanical mystery source used to prove the world compiler can turn non-anime, non-skyport material into a playable slice. Caretakers in a clockwork greenhouse must restore ward keys, repair a glass gear, and expose sabotage before the moon bridge seals.",
+  "themes": ["botanical mystery", "clockwork rooms", "ward magic", "quiet sabotage"],
+  "locations": [
+    { "name": "Atrium Gate", "role": "hub", "description": "A brass-framed greenhouse entrance where ward bells count every visitor." },
+    { "name": "Gear Hall", "role": "repair site", "description": "A warm room of slow clockwork vines and missing access keys." },
+    { "name": "Spore Library", "role": "home route", "description": "Tall shelves of seed ledgers under blue mushroom lamps." },
+    { "name": "Inspector Desk", "role": "report station", "description": "A narrow desk where caretakers compare bridge logs." },
+    { "name": "Moon Bridge", "role": "threat site", "description": "A glass bridge above the night pond, now marked by scratched ward runes." },
+    { "name": "Root Engine", "role": "danger route", "description": "A low machinery pit where roots pull power through ticking pistons." }
+  ],
+  "factions": [
+    { "name": "Conservatory Wardens", "goals": ["keep the wards open", "protect rare seedlings"], "resources": ["keys", "seed ledgers"], "reputation": 2 },
+    { "name": "Night Graft Circle", "goals": ["seal the moon bridge", "steal rare cuttings"], "resources": ["false logs", "root tunnels"], "reputation": -2 }
+  ],
+  "characters": [
+    {
+      "name": "Eda",
+      "role": "head gardener",
+      "faction": "Conservatory Wardens",
+      "description": "A precise gardener trying to keep the public wards open.",
+      "look": { "palette": ["#6aa66a", "#f5d782", "#25362f"], "visualTags": ["gardener", "brass shears", "green apron"] },
+      "goals": ["recover the verdigris key before the atrium locks", "calm the apprentices"],
+      "memories": ["The verdigris key vanished after the Gear Hall bells rang twice."]
+    },
+    {
+      "name": "Brin",
+      "role": "clockwork mechanic",
+      "faction": "Conservatory Wardens",
+      "description": "A patient mechanic who needs a glass gear to restart the ward clock.",
+      "look": { "palette": ["#d09a4d", "#233040", "#d8f3dc"], "visualTags": ["mechanic", "brass goggles", "vine oil"] },
+      "goals": ["recover a glass gear from the Root Engine", "repair the atrium clock"],
+      "memories": ["A glass gear dropped into the Root Engine during the staged bridge alarm."]
+    },
+    {
+      "name": "Sal",
+      "role": "seed archivist",
+      "faction": "Conservatory Wardens",
+      "description": "An archivist who will accuse no one without physical proof.",
+      "look": { "palette": ["#9fc3ff", "#f7edd3", "#283546"], "visualTags": ["archivist", "ledger", "blue lamp"] },
+      "goals": ["collect the luminous shell from the Moon Bridge", "verify the bridge log"],
+      "memories": ["A luminous shell was scratched beside the Moon Bridge ward runes."]
+    },
+    {
+      "name": "Merrow",
+      "role": "pond keeper",
+      "faction": "Conservatory Wardens",
+      "description": "A quiet keeper who hears when the bridge seals before the pond tide shifts.",
+      "look": { "palette": ["#7fd0ff", "#17324a", "#b5e48c"], "visualTags": ["pond keeper", "shell charms", "dark coat"] },
+      "goals": ["watch the moon pond tide", "protect the root tunnels"],
+      "memories": ["The tide is normal; the bridge alarm sounds planted."]
+    },
+    {
+      "name": "Cale",
+      "role": "graft saboteur",
+      "faction": "Night Graft Circle",
+      "description": "A smiling saboteur forging bridge logs to steal rare cuttings.",
+      "look": { "palette": ["#34243f", "#e05f7a", "#ddb08a"], "visualTags": ["saboteur", "pink grafting tape", "root knife"] },
+      "goals": ["seal the Moon Bridge before proof reaches the Inspector Desk", "move rare cuttings through the Root Engine"],
+      "secrets": ["Cale scratched the false ward runes on the Moon Bridge."],
+      "memories": ["False ward runes work best when caretakers fear the bridge first."]
+    }
+  ],
+  "conflicts": [
+    {
+      "title": "A forged ward alarm threatens the moon bridge",
+      "pressure": 52,
+      "involved": ["Cale", "Eda", "Moon Bridge"],
+      "antagonist": "Cale",
+      "objective": "Seal the Moon Bridge with forged ward runes before the ledger proof is gathered.",
+      "clue": "Fresh pink grafting tape on the ward rune points back toward the Atrium Gate."
+    }
+  ],
+  "artifacts": [
+    { "name": "Verdigris key", "description": "A green brass key that keeps the atrium wards open.", "location": "Gear Hall", "clue": "The key slid beneath the second bell housing." },
+    { "name": "Glass gear", "description": "A transparent gear needed to restart the ward clock.", "location": "Root Engine", "clue": "The gear fell during the staged bridge alarm." },
+    { "name": "Luminous shell", "description": "A pond shell scratched with false ward marks.", "location": "Moon Bridge", "clue": "The shell still glows beside the false rune." },
+    { "name": "Ink map", "description": "A paper map showing root-tunnel escape paths.", "location": "Moon Bridge", "clue": "The map redirects rare cuttings away from the wardens." },
+    { "name": "Signal lantern", "description": "A signal lantern used to confirm bridge closures.", "location": "Inspector Desk", "clue": "The lantern needs proof before sealing the bridge." }
+  ]
+}

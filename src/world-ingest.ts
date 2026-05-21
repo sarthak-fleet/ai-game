@@ -22,7 +22,9 @@ export type WorldIngestIssue = AnimeIngestIssue;
 export function validateWorldIngestSource(source: WorldIngestSource): WorldIngestIssue[] {
   return validateAnimeIngestSource(source).map((issue) => ({
     ...issue,
-    message: issue.message.replace(/^Anime title/, "World title"),
+    message: issue.message
+      .replace(/^Anime title/, "World title")
+      .replace("Duplicate anime source entry", "Duplicate world source entry"),
   }));
 }
 
@@ -166,7 +168,7 @@ function remapNpc(
     relationshipAxes: npc.relationshipAxes ? remapRelationshipAxes(npc.relationshipAxes, npcIdMap) : undefined,
     ambitions: npc.ambitions?.map((ambition) => ({
       ...ambition,
-      id: ambition.id.replace(npc.id, nextId),
+      id: ambition.id.replace(npc.id, nextId).replace("_anime_goal_", "_world_goal_"),
       targetId: ambition.targetId ? remapAnyId(locationIdMap, npcIdMap, itemIdMap, questIdMap, villainPlanIdMap, ambition.targetId) : undefined,
     })),
     secrets: npc.secrets?.map((secret) => ({ ...secret, id: secret.id.replace(npc.id, nextId), knownBy: secret.knownBy?.map((id) => remapHolderId(npcIdMap, id)) })),

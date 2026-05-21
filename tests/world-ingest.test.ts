@@ -74,6 +74,62 @@ describe("generic world ingest", () => {
     expect(JSON.stringify(pkg)).not.toMatch(/mira|tomas|lena|orrin|pax|shears|bellows_leather|blue_ember|rumor_note|lantern|return_shears|rekindle_forge|bridge_whisper|overpass_alert/);
   });
 
+  test("compiles a second non-anime genre without anime-specific labels", () => {
+    const world = worldSourceToWorld(source("../fixtures/worlds/conservatory-source.json"));
+    const pkg = storyPackageFromWorld(world);
+
+    expect(world.id).toBe("clockwork_conservatory");
+    expect(world.name).toBe("Clockwork Conservatory Playable Slice");
+    expect(world.story?.title).toBe("Clockwork Conservatory: World Ingest Slice");
+    expect(world.story?.currentObjective).toBe("Stabilize Atrium Gate before the core conflict escalates.");
+    expect(world.story?.opening).toContain("Cale");
+    expect(world.story?.opening).not.toMatch(/anime/i);
+    expect(world.rules?.find((rule) => rule.id === "canon_review")?.text).not.toMatch(/anime/i);
+    expect(world.locations.map((location) => location.id)).toEqual([
+      "atrium_gate",
+      "gear_hall",
+      "spore_library",
+      "inspector_desk",
+      "moon_bridge",
+      "root_engine",
+    ]);
+    expect(world.npcs.map((npc) => npc.id)).toEqual(["eda", "brin", "sal", "merrow", "cale"]);
+    expect(world.quests?.map((quest) => [quest.id, quest.giverId])).toEqual([
+      ["recover_verdigris_key", "eda"],
+      ["recover_glass_gear", "brin"],
+      ["recover_luminous_shell", "sal"],
+    ]);
+    expect(world.items.find((item) => item.id === "verdigris_key")?.visual).toMatchObject({
+      material: "metal",
+      shape: "token",
+    });
+    expect(world.items.find((item) => item.id === "glass_gear")?.visual).toMatchObject({
+      material: "metal",
+      shape: "gear",
+    });
+    expect(world.items.find((item) => item.id === "luminous_shell")?.visual).toMatchObject({
+      material: "organic",
+      shape: "scale",
+    });
+    expect(world.items.find((item) => item.id === "ink_map")?.visual).toMatchObject({
+      material: "paper",
+      shape: "note",
+    });
+    expect(world.interactables?.map((prop) => prop.id)).toContain("world_origin_clue");
+    expect((world.interactables ?? []).flatMap((prop) => prop.clueTags ?? [])).not.toContain("anime");
+    expect(activeObjectives(world)[0]).toMatchObject({
+      questId: "recover_verdigris_key",
+      targetType: "npc",
+      targetId: "eda",
+    });
+    expect(world.tensions?.[0]).toMatchObject({
+      id: "a_forged_ward_alarm_threatens_the_moon_bridge",
+      involvedIds: ["cale", "moon_bridge"],
+    });
+    expect(validateStoryPackage(pkg)).toEqual([]);
+    expect(JSON.stringify(pkg)).not.toMatch(/Anime Ingest Slice|anime conflict|anime_origin|anime_report|anime_antagonist|"id":"(?:mira|tomas|lena|orrin|pax|shears|bellows_leather|blue_ember|rumor_note|lantern)"/);
+  });
+
   test("keeps source-derived generic quest IDs playable through the first objective loop", () => {
     const world = worldSourceToWorld(source("../fixtures/worlds/skyfront-source.json"));
 
@@ -150,5 +206,13 @@ describe("generic world ingest", () => {
     );
     expect(validateWorldIngestSource(invalid).find((issue) => issue.path === "title")?.message).toBe("World title is required.");
     expect(() => worldSourceToWorld(invalid)).toThrow("Invalid world ingest source");
+  });
+
+  test("reports duplicate generic source entries without anime wording", () => {
+    const duplicate = source("../fixtures/worlds/conservatory-source.json");
+    duplicate.locations[1] = { ...duplicate.locations[1]!, name: duplicate.locations[0]!.name };
+
+    expect(validateWorldIngestSource(duplicate).find((issue) => issue.path === "locations")?.message)
+      .toBe("Duplicate world source entry \"Atrium Gate\" is not allowed.");
   });
 });
