@@ -85,6 +85,20 @@ describe("server", () => {
       const stepBody = (await stepRes.json()) as { status: { ticksRun: number }; state: { tick: number } };
       expect(stepBody.status.ticksRun).toBe(1);
       expect(stepBody.state.tick).toBe(1);
+      for (let i = 0; i < 4; i += 1) {
+        const checkpointStep = await fetch(`http://localhost:${port}/api/agent-loop/step`, { method: "POST" });
+        expect(checkpointStep.status).toBe(200);
+      }
+      const checkpointStatus = await fetch(`http://localhost:${port}/api/agent-loop/status`);
+      const checkpointStatusBody = (await checkpointStatus.json()) as { checkpoints: Array<{ tick: number }> };
+      expect(checkpointStatusBody.checkpoints[0]?.tick).toBe(5);
+
+      const restoreCheckpoint = await fetch(`http://localhost:${port}/api/agent-loop/restore-checkpoint`, { method: "POST" });
+      expect(restoreCheckpoint.status).toBe(200);
+      const restored = (await restoreCheckpoint.json()) as { checkpoint: { tick: number }; status: { restoredCheckpoint: { tick: number } }; state: { tick: number } };
+      expect(restored.checkpoint.tick).toBe(5);
+      expect(restored.status.restoredCheckpoint.tick).toBe(5);
+      expect(restored.state.tick).toBe(5);
 
       const html = await fetch(`http://localhost:${port}/`);
       expect(html.status).toBe(200);

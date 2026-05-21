@@ -19,6 +19,7 @@ export interface AgentLoopStatus {
   stoppedAt: string | null;
   lastTick: TickSummary | null;
   lastError: string | null;
+  restoredCheckpoint: { tick: number; capturedAt: string; worldId: string } | null;
   checkpoints: Array<{ tick: number; capturedAt: string; worldId: string }>;
 }
 
@@ -36,6 +37,7 @@ export interface AgentLoop {
   start(): AgentLoopStatus;
   stop(reason?: string): AgentLoopStatus;
   step(): Promise<TickSummary>;
+  restoreCheckpoint(tick?: number): AgentLoopCheckpoint;
   status(): AgentLoopStatus;
   checkpoints(): AgentLoopCheckpoint[];
 }
@@ -56,6 +58,7 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
   let stoppedAt: string | null = null;
   let lastTick: TickSummary | null = null;
   let lastError: string | null = null;
+  let restoredCheckpoint: AgentLoopStatus["restoredCheckpoint"] = null;
 
   const loop: AgentLoop = {
     start() {
@@ -64,6 +67,7 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
       startedAt = now().toISOString();
       stoppedAt = null;
       lastError = null;
+      restoredCheckpoint = null;
       timer = setIntervalFn(() => {
         void loop.step().catch((error) => {
           if ((error as Error).message === "agent_loop_step_in_progress") return;
@@ -92,6 +96,7 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
         ticksRun += 1;
         lastTick = summary;
         lastError = null;
+        restoredCheckpoint = null;
         if (ticksRun % checkpointEveryTicks === 0) captureCheckpoint();
         if (maxTicks !== null && ticksRun >= maxTicks && state === "running") loop.stop("max_ticks");
         return summary;
@@ -104,8 +109,20 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
         stepping = false;
       }
     },
+    restoreCheckpoint(tick) {
+      const checkpoint = findCheckpoint(tick);
+      if (!checkpoint) throw new Error(tick === undefined ? "agent_loop_checkpoint_missing" : "agent_loop_checkpoint_not_found");
+      clearTimer();
+      state = "stopped";
+      stoppedAt = now().toISOString();
+      lastTick = null;
+      lastError = null;
+      engine.setState(checkpoint.world);
+      restoredCheckpoint = checkpointSummary(checkpoint);
+      return cloneCheckpoint(checkpoint);
+    },
     status,
-    checkpoints: () => [...checkpoints],
+    checkpoints: () => checkpoints.map(cloneCheckpoint),
   };
 
   return loop;
@@ -121,12 +138,18 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
       stoppedAt,
       lastTick,
       lastError,
+      restoredCheckpoint,
       checkpoints: checkpoints.map((checkpoint) => ({
         tick: checkpoint.tick,
         capturedAt: checkpoint.capturedAt,
         worldId: checkpoint.world.id,
       })),
     };
+  }
+
+  function findCheckpoint(tick: number | undefined): AgentLoopCheckpoint | undefined {
+    if (tick === undefined) return checkpoints.at(-1);
+    return checkpoints.find((checkpoint) => checkpoint.tick === tick);
   }
 
   function captureCheckpoint(): void {
@@ -148,4 +171,20 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
 
 function cloneWorld(world: World): World {
   return JSON.parse(JSON.stringify(world)) as World;
+}
+
+function cloneCheckpoint(checkpoint: AgentLoopCheckpoint): AgentLoopCheckpoint {
+  return {
+    tick: checkpoint.tick,
+    capturedAt: checkpoint.capturedAt,
+    world: cloneWorld(checkpoint.world),
+  };
+}
+
+function checkpointSummary(checkpoint: AgentLoopCheckpoint): AgentLoopStatus["restoredCheckpoint"] {
+  return {
+    tick: checkpoint.tick,
+    capturedAt: checkpoint.capturedAt,
+    worldId: checkpoint.world.id,
+  };
 }

@@ -106,6 +106,18 @@ const server = createServer(async (req, res) => {
       return json(res, 409, { error: (error as Error).message, status: agentLoop.status() });
     }
   }
+  if (url.pathname === "/api/agent-loop/restore-checkpoint" && req.method === "POST") {
+    const body = await readJson(req).catch(() => null);
+    try {
+      const tick = body && typeof body === "object" && typeof (body as { tick?: unknown }).tick === "number"
+        ? (body as { tick: number }).tick
+        : undefined;
+      const checkpoint = agentLoop.restoreCheckpoint(tick);
+      return json(res, 200, { checkpoint: { tick: checkpoint.tick, capturedAt: checkpoint.capturedAt, worldId: checkpoint.world.id }, status: agentLoop.status(), state: engine.state });
+    } catch (error) {
+      return json(res, 404, { error: (error as Error).message, status: agentLoop.status() });
+    }
+  }
   if (url.pathname === "/api/restore" && req.method === "POST") {
     const body = await readJson(req).catch(() => null);
     try {

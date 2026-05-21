@@ -89,6 +89,32 @@ describe("long-running agent loop", () => {
     await expect(loop.step()).rejects.toThrow("agent_loop_max_ticks_reached");
     expect(loop.status().ticksRun).toBe(1);
   });
+
+  test("restores a captured checkpoint without exposing mutable checkpoint state", async () => {
+    const engine = createEngine(fixture(), { propose: async () => [] });
+    const loop = createAgentLoop(engine, {
+      checkpointEveryTicks: 1,
+      now: () => new Date("2026-05-21T00:00:00.000Z"),
+    });
+
+    await loop.step();
+    const checkpoint = loop.checkpoints()[0]!;
+    await loop.step();
+    expect(engine.state.tick).toBe(2);
+    checkpoint.world.tick = 99;
+
+    const restored = loop.restoreCheckpoint(1);
+
+    expect(restored.tick).toBe(1);
+    expect(engine.state.tick).toBe(1);
+    expect(loop.status()).toMatchObject({
+      state: "stopped",
+      lastTick: null,
+      restoredCheckpoint: { tick: 1, worldId: "ashbend" },
+    });
+    expect(loop.checkpoints()[0]?.world.tick).toBe(1);
+    expect(() => loop.restoreCheckpoint(99)).toThrow("agent_loop_checkpoint_not_found");
+  });
 });
 
 function waitForMicrotasks(): Promise<void> {

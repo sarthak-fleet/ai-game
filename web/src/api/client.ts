@@ -98,6 +98,19 @@ export async function stepAgentLoop(): Promise<{ status: AgentLoopStatus; state:
   return data;
 }
 
+export async function restoreAgentLoopCheckpoint(tick?: number): Promise<{ status: AgentLoopStatus; state: World; checkpoint: { tick: number; capturedAt: string; worldId: string } }> {
+  const res = await fetch("/api/agent-loop/restore-checkpoint", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(tick === undefined ? {} : { tick }),
+  });
+  const data = await readApiJson<
+    { status: AgentLoopStatus; state: World; checkpoint: { tick: number; capturedAt: string; worldId: string } } | { error: string; status: AgentLoopStatus }
+  >(res, "restoreAgentLoopCheckpoint");
+  if ("error" in data) throw new Error(data.error);
+  return data;
+}
+
 async function postAgentLoopCommand(path: string): Promise<AgentLoopStatus> {
   const res = await fetch(path, { method: "POST" });
   return readApiJson<AgentLoopStatus>(res, path);

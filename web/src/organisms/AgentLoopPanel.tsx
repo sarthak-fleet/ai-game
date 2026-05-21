@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { AgentLoopStatus } from "../../../src/agent-loop.ts";
 import type { TickSummary, World } from "../../../src/types.ts";
-import { fetchAgentLoopStatus, startAgentLoop, stepAgentLoop, stopAgentLoop } from "../api/client.ts";
+import { fetchAgentLoopStatus, restoreAgentLoopCheckpoint, startAgentLoop, stepAgentLoop, stopAgentLoop } from "../api/client.ts";
 import { Button } from "../atoms/Button.tsx";
 import { Panel } from "../atoms/Panel.tsx";
 import { useWorldStore } from "../store/world.ts";
@@ -11,7 +11,7 @@ export function AgentLoopPanel() {
   const applyServerTick = useWorldStore((state) => state.applyServerTick);
   const refreshFromServer = useWorldStore((state) => state.refreshFromServer);
   const [status, setStatus] = useState<AgentLoopStatus | null>(null);
-  const [busy, setBusy] = useState<"" | "start" | "stop" | "step">("");
+  const [busy, setBusy] = useState<"" | "start" | "stop" | "step" | "restore">("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function AgentLoopPanel() {
     };
   }, [refreshFromServer, status?.state]);
 
-  const run = async (label: "start" | "stop" | "step", action: () => Promise<RunResult>) => {
+  const run = async (label: typeof busy, action: () => Promise<RunResult>) => {
     setBusy(label);
     try {
       const result = await action();
@@ -44,6 +44,8 @@ export function AgentLoopPanel() {
       setError(null);
       if ("summary" in result) {
         applyServerTick(result.state, result.summary);
+      } else if ("state" in result) {
+        await refreshFromServer();
       } else {
         await refreshFromServer(next.lastTick);
       }
@@ -77,6 +79,14 @@ export function AgentLoopPanel() {
           <Button onClick={() => void run("stop", stopAgentLoop)} disabled={busy !== "" || status?.state !== "running"}>
             {busy === "stop" ? "Stopping..." : "Stop"}
           </Button>
+          <Button
+            onClick={() => void run("restore", async () => {
+              return restoreAgentLoopCheckpoint();
+            })}
+            disabled={busy !== "" || !status?.checkpoints.length}
+          >
+            {busy === "restore" ? "Restoring..." : "Restore latest"}
+          </Button>
         </div>
         <dl className="agent-loop-metrics">
           <div><dt>Interval</dt><dd>{status ? `${status.intervalMs}ms` : "-"}</dd></div>
@@ -86,10 +96,16 @@ export function AgentLoopPanel() {
         {status?.lastTick && (
           <p className="muted">Last tick: {status.lastTick.actions.length} action(s), world tick {status.lastTick.tick}</p>
         )}
+        {status?.restoredCheckpoint && (
+          <p className="muted">Restored checkpoint: world tick {status.restoredCheckpoint.tick}</p>
+        )}
         {(error || status?.lastError) && <p className="agent-loop-error">{error ?? status?.lastError}</p>}
       </div>
     </Panel>
   );
 }
 
-type RunResult = AgentLoopStatus | { status: AgentLoopStatus; state: World; summary: TickSummary };
+type RunResult =
+  | AgentLoopStatus
+  | { status: AgentLoopStatus; state: World; summary: TickSummary }
+  | { status: AgentLoopStatus; state: World; checkpoint: { tick: number; capturedAt: string; worldId: string } };
