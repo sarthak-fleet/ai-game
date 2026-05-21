@@ -75,7 +75,8 @@ async function runBrowserPlaytest(): Promise<void> {
     await clickButton(page, "Go Old Forge");
     await expect(page.getByLabel("3D travel")).toContainText("At Old Forge");
     await expect(objective(page)).toContainText("Pick up");
-    await clickThreeTarget(page, "Pick up Pruning shears");
+    await page.locator(".three-host").focus();
+    await page.keyboard.press("e");
     await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
     await hoverThreeTarget(page, "Inspect Sooty tool rack");
     await page.locator(".three-host").focus();
@@ -123,11 +124,6 @@ async function clickObjective(page: Page, label: string): Promise<void> {
 
 async function clickButton(page: Page, label: string): Promise<void> {
   await clickUnique(page.getByRole("button", { name: label }));
-}
-
-async function clickThreeTarget(page: Page, label: string): Promise<void> {
-  const point = await hoverThreeTarget(page, label);
-  await page.mouse.click(point.x, point.y);
 }
 
 async function hoverThreeTarget(page: Page, label: string): Promise<{ x: number; y: number }> {

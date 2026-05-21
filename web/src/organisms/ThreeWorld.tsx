@@ -21,9 +21,12 @@ export function ThreeWorld() {
     if (isInteractiveTarget(event.target)) return;
     const latestWorld = useWorldStore.getState().world;
     if (!latestWorld) return;
-    if (event.key.toLowerCase() === "e" && hoverTarget) {
+    if (event.key.toLowerCase() === "e") {
+      const target = hoverTarget ?? keyboardTargetFor(latestWorld);
+      if (!target) return;
       event.preventDefault();
-      activateSceneTarget(hoverTarget);
+      setHoverTarget(target);
+      activateSceneTarget(target);
       return;
     }
     const destination = keyboardDestinationFor(latestWorld, event.key);
@@ -150,6 +153,18 @@ function reachableLocations(world: World): World["locations"] {
 
 function isInteractiveTarget(target: EventTarget): boolean {
   return target instanceof HTMLElement && Boolean(target.closest("button, input, select, textarea, summary, a"));
+}
+
+function keyboardTargetFor(world: World): SceneTarget | null {
+  const locationId = world.player.locationId;
+  const item = world.items.find((candidate) => candidate.locationId === locationId && !candidate.holderId);
+  if (item) return { kind: "item", id: item.id, label: item.name, action: "Pick up" };
+  const npc = world.npcs.find((candidate) => candidate.locationId === locationId && candidate.id !== world.player.characterId);
+  if (npc) return { kind: "npc", id: npc.id, label: npc.name, action: "Talk" };
+  const prop = world.interactables?.find((candidate) => candidate.locationId === locationId && !candidate.inspected)
+    ?? world.interactables?.find((candidate) => candidate.locationId === locationId);
+  if (prop) return { kind: "prop", id: prop.id, label: prop.name, action: "Inspect" };
+  return null;
 }
 
 function activateSceneTarget(target: SceneTarget): void {
