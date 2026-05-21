@@ -145,7 +145,8 @@ function isInteractiveTarget(target: EventTarget): boolean {
 }
 
 function latestAutonomousActivity(summary: TickSummary): string | null {
-  const action = summary.actions.find((entry) => entry.action.actorId !== "player");
+  const autonomous = summary.actions.filter((entry) => entry.action.actorId !== "player");
+  const action = autonomous.find((entry) => entry.action.type === "move") ?? autonomous[0];
   if (!action) return null;
   return `Autonomous t${summary.tick}: ${action.text.replace(/\.$/, "")}`;
 }

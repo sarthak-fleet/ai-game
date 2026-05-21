@@ -134,8 +134,8 @@ export class ThreeWorldRenderer {
   private hoverKey: string | null = null;
   private cameraYaw = DEFAULT_CAMERA_YAW;
   private cameraTarget = { x: 0, z: 0 };
-  private previousPlayerPosition: { x: number; z: number } | null = null;
-  private movingPlayer: THREE.Object3D | null = null;
+  private readonly previousActorPositions = new Map<string, { x: number; z: number }>();
+  private readonly movingActors = new Set<THREE.Object3D>();
   private cameraMotion: TravelMotion | null = null;
 
   constructor(private readonly container: HTMLElement, options: ThreeWorldRendererOptions = {}) {
@@ -201,16 +201,16 @@ export class ThreeWorldRenderer {
       if (pickable) this.pickableItems.push(pickable);
     }
     for (const actor of model.actors) {
-      const motion = actor.player ? this.playerMotion(actor) : null;
+      const motion = this.actorMotion(actor);
       const mesh = makeActorMesh(actor, motion);
       this.root.add(mesh);
-      if (actor.player && motion) this.movingPlayer = mesh;
+      if (motion) this.movingActors.add(mesh);
       const pickable = mesh.getObjectByName(`pick:actor:${actor.id}`);
       if (!actor.player && pickable) this.pickableActors.push(pickable);
     }
     this.startCameraMotion(model.cameraTarget);
-    const player = model.actors.find((actor) => actor.player);
-    this.previousPlayerPosition = player ? { x: player.x, z: player.z } : null;
+    this.previousActorPositions.clear();
+    for (const actor of model.actors) this.previousActorPositions.set(actor.id, { x: actor.x, z: actor.z });
     this.updateCamera();
   }
 
@@ -301,8 +301,8 @@ export class ThreeWorldRenderer {
     this.render();
   }
 
-  private playerMotion(actor: SceneActorNode): TravelMotion | null {
-    const previous = this.previousPlayerPosition;
+  private actorMotion(actor: SceneActorNode): TravelMotion | null {
+    const previous = this.previousActorPositions.get(actor.id);
     if (!previous || distance(previous, actor) < 0.01) return null;
     return { from: previous, to: { x: actor.x, z: actor.z }, startedAt: performance.now(), durationMs: TRAVEL_ANIMATION_MS };
   }
@@ -317,14 +317,14 @@ export class ThreeWorldRenderer {
   }
 
   private animateTravel(now: number): void {
-    if (this.movingPlayer) {
-      const motion = readTravelMotion(this.movingPlayer);
+    for (const actor of [...this.movingActors]) {
+      const motion = readTravelMotion(actor);
       if (motion) {
         const progress = easedProgress(motion, now);
-        this.movingPlayer.position.set(lerp(motion.from.x, motion.to.x, progress), 0, lerp(motion.from.z, motion.to.z, progress));
-        if (progress >= 1) {
-          this.movingPlayer = null;
-        }
+        actor.position.set(lerp(motion.from.x, motion.to.x, progress), 0, lerp(motion.from.z, motion.to.z, progress));
+        if (progress >= 1) this.movingActors.delete(actor);
+      } else {
+        this.movingActors.delete(actor);
       }
     }
     if (this.cameraMotion) {

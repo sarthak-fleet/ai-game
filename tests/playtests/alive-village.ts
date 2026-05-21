@@ -61,6 +61,11 @@ async function runAliveVillagePlaytest(): Promise<void> {
     await page.getByLabel("Agent loop controls").getByRole("button", { name: "Step" }).click();
     await expect(page.getByLabel("Agent loop controls")).toContainText("1 autonomous ticks");
     await expect(page.getByLabel("3D agent activity")).toContainText("Autonomous t1");
+    for (let i = 0; i < 5; i += 1) {
+      await page.getByLabel("Agent loop controls").getByRole("button", { name: "Step" }).click();
+    }
+    await expect(page.getByLabel("Agent loop controls")).toContainText("6 autonomous ticks");
+    await expect(page.getByLabel("3D agent activity")).toContainText(/moved to/);
     await page.getByLabel("Agent loop controls").getByRole("button", { name: "Start" }).click();
     await expect(page.getByLabel("Agent loop controls")).toContainText("running");
     await page.getByLabel("Agent loop controls").getByRole("button", { name: "Stop" }).click();
