@@ -1,0 +1,83 @@
+{
+  "title": "Skyfront Couriers",
+  "worldId": "skyfront_couriers",
+  "synopsis": "A non-anime structured source used to prove the ingest path works for any reviewed fictional world. Couriers in a floating harbor must recover route tokens, repair a signal mast, and expose a pirate false alarm before trade shuts down.",
+  "themes": ["floating harbor", "courier guilds", "trade pressure", "false alarms"],
+  "locations": [
+    { "name": "Harbor Ring", "role": "hub", "description": "A circular dock suspended above the cloudline." },
+    { "name": "Signal Mast", "role": "repair site", "description": "A creaking tower where route lamps are maintained." },
+    { "name": "Rookery Deck", "role": "home route", "description": "Nest platforms and quiet ledges used by courier birds." },
+    { "name": "Guild Counter", "role": "report station", "description": "The public desk where route claims are validated." },
+    { "name": "Chain Bridge", "role": "threat site", "description": "A swinging bridge where false pirate flags have appeared." },
+    { "name": "Cloud Engine", "role": "danger route", "description": "A hot machine bay below the harbor ring." }
+  ],
+  "factions": [
+    { "name": "Courier Guild", "goals": ["keep routes open", "protect cargo"], "resources": ["maps", "route lamps"], "reputation": 2 },
+    { "name": "False Flag Crew", "goals": ["raise panic", "redirect cargo"], "resources": ["painted flags", "hidden ledges"], "reputation": -2 }
+  ],
+  "characters": [
+    {
+      "name": "Mara",
+      "role": "route captain",
+      "faction": "Courier Guild",
+      "description": "A practical captain trying to keep routes open without causing panic.",
+      "look": { "palette": ["#6fc7d9", "#f5d782", "#29324a"], "visualTags": ["captain", "blue coat", "route map"] },
+      "goals": ["recover the missing route token before the noon run", "keep apprentices calm"],
+      "memories": ["A route token vanished near the Signal Mast after sunrise."]
+    },
+    {
+      "name": "Ivo",
+      "role": "lamp mechanic",
+      "faction": "Courier Guild",
+      "description": "A careful mechanic who needs a prism gear to restart the route lamps.",
+      "look": { "palette": ["#d09a4d", "#273344", "#f6f0d2"], "visualTags": ["mechanic", "goggles", "lamp oil"] },
+      "goals": ["recover a prism gear from the Cloud Engine", "repair the signal mast"],
+      "memories": ["A prism gear fell into the Cloud Engine during a false alarm."]
+    },
+    {
+      "name": "Nell",
+      "role": "guild witness",
+      "faction": "Courier Guild",
+      "description": "A witness who needs proof before accusing anyone of piracy.",
+      "look": { "palette": ["#76b67b", "#f7edd3", "#1e2a24"], "visualTags": ["witness", "ledger", "green scarf"] },
+      "goals": ["collect proof from the Chain Bridge", "keep the guild counter honest"],
+      "memories": ["A painted pirate flag was seen near the Chain Bridge."]
+    },
+    {
+      "name": "Orric",
+      "role": "weather reader",
+      "faction": "Courier Guild",
+      "description": "A sharp-eyed weather reader who notices when panic moves faster than storms.",
+      "look": { "palette": ["#9fc3ff", "#182236", "#e7b07d"], "visualTags": ["weather reader", "spyglass", "cloak"] },
+      "goals": ["spot whether the storm warning is real", "protect rookery routes"],
+      "memories": ["The cloud pressure is normal; the pirate alarm feels staged."]
+    },
+    {
+      "name": "Vex",
+      "role": "false flag saboteur",
+      "faction": "False Flag Crew",
+      "description": "A theatrical saboteur painting pirate signs to redirect cargo.",
+      "look": { "palette": ["#34243f", "#e05f7a", "#ddb08a"], "visualTags": ["saboteur", "pink flag", "rope knife"] },
+      "goals": ["force the guild to close the Chain Bridge", "redirect cargo to hidden ledges"],
+      "secrets": ["Vex painted the pirate flag at the Chain Bridge."],
+      "memories": ["Painted flags work best when witnesses panic before checking the bridge."]
+    }
+  ],
+  "conflicts": [
+    {
+      "title": "A false pirate alarm threatens the harbor route",
+      "pressure": 47,
+      "involved": ["Vex", "Mara", "Chain Bridge"],
+      "antagonist": "Vex",
+      "objective": "Raise panic with painted pirate signs and close the bridge before proof is gathered.",
+      "clue": "Fresh paint on the Chain Bridge flag points back toward the Harbor Ring."
+    }
+  ],
+  "artifacts": [
+    { "name": "Route token", "description": "A brass token that opens the noon courier route.", "location": "Signal Mast", "clue": "The token slid under the signal crank." },
+    { "name": "Prism gear", "description": "A glass gear needed to restart route lamps.", "location": "Cloud Engine", "clue": "The gear fell during the false alarm." },
+    { "name": "Painted flag scrap", "description": "A torn pirate flag scrap with fresh paint.", "location": "Chain Bridge", "clue": "The paint is still wet." },
+    { "name": "False alarm note", "description": "A note timing the panic with cargo movement.", "location": "Chain Bridge", "clue": "The note redirects cargo away from the guild counter." },
+    { "name": "Guild radio", "description": "A route radio used to confirm bridge closures.", "location": "Guild Counter", "clue": "The radio needs proof before closing the route." }
+  ]
+}

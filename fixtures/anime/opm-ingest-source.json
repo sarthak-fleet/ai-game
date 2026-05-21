@@ -1,0 +1,146 @@
+{
+  "title": "One Punch Man",
+  "worldId": "opm_ingested_z_city",
+  "synopsis": "A reviewed anime-bible draft for a compact Z-City patrol loop. Heroes handle ordinary errands while a theatrical challenger tries to turn a local overpass alert into a public duel.",
+  "themes": ["deadpan power fantasy", "hero bureaucracy", "public safety", "challenge escalation"],
+  "locations": [
+    { "name": "Z-City Plaza", "role": "hub", "description": "Open plaza where reports, errands, and public pressure meet." },
+    { "name": "Training Lot", "role": "first clue site", "description": "Exercise mats, torn concrete, and the place where Saitama dropped a coupon." },
+    { "name": "Apartment Block", "role": "home route", "description": "A quiet block where the strongest hero keeps ordinary routines." },
+    { "name": "Hero Association Kiosk", "role": "report station", "description": "Small official desk where proof turns rumors into action." },
+    { "name": "Ruined Overpass", "role": "threat site", "description": "Broken bridge route with challenge marks and monster traces." },
+    { "name": "Monster Alley", "role": "danger route", "description": "Back lane where repair parts and monster scraps go missing." }
+  ],
+  "factions": [
+    { "name": "Heroes", "goals": ["keep citizens safe", "resolve alerts quickly"], "resources": ["association kiosk", "patrol routes"], "reputation": 2 },
+    { "name": "Challengers", "goals": ["force a duel", "turn routine into spectacle"], "resources": ["speed", "ambush routes"], "reputation": -2 }
+  ],
+  "characters": [
+    {
+      "name": "Saitama",
+      "role": "caped bald hero",
+      "faction": "Heroes",
+      "description": "An overwhelmingly strong hero who treats world-ending threats and grocery discounts with the same flat calm.",
+      "look": {
+        "sourceLook": "Saitama / caped bald hero",
+        "bodyType": "plain average build with relaxed posture",
+        "hair": "bald",
+        "outfit": "yellow bodysuit, white cape, red gloves",
+        "palette": ["#f6d85f", "#f2f2e8", "#b41f2a"],
+        "silhouette": "Simple bald head, round cape shape, and bright yellow suit.",
+        "visualTags": ["bald", "cape", "yellow suit", "deadpan"],
+        "portrait": "/assets/characters/opm_test/saitama.svg"
+      },
+      "traits": ["deadpan", "casual", "direct"],
+      "values": ["simplicity", "fairness", "discounts"],
+      "flaws": ["underreacts to danger"],
+      "fears": ["missing a sale"],
+      "speechStyle": "flat and brief",
+      "goals": ["recover the grocery coupon before the sale ends", "avoid turning every patrol into a duel"],
+      "secrets": ["The coupon matters more to him than the public alert does."],
+      "memories": ["A grocery coupon fell out near the training lot after morning exercise.", "Sonic keeps trying to make everything into a dramatic challenge."]
+    },
+    {
+      "name": "Genos",
+      "role": "cyborg disciple",
+      "faction": "Heroes",
+      "description": "A serious cyborg hero collecting evidence and repair parts while overanalyzing Saitama's routines.",
+      "look": {
+        "sourceLook": "Genos / blond cyborg disciple",
+        "bodyType": "lean athletic build with mechanical arms",
+        "hair": "spiky blond hair",
+        "outfit": "black tactical clothes with gold cyborg arms",
+        "palette": ["#d48b3f", "#1f2735", "#f2c64f"],
+        "silhouette": "Spiky hair, glowing eyes, and heavy mechanical forearms.",
+        "visualTags": ["cyborg", "blond", "disciple", "mechanical arms"],
+        "portrait": "/assets/characters/opm_test/genos.svg"
+      },
+      "traits": ["serious", "loyal", "analytical"],
+      "values": ["discipline", "improvement", "justice"],
+      "flaws": ["overcommits"],
+      "fears": ["failing civilians"],
+      "speechStyle": "formal and intense",
+      "goals": ["recover a spare cyborg core", "document the overpass threat"],
+      "memories": ["A spare cyborg core was lost after a skirmish in Monster Alley.", "Saitama said the grocery coupon is important, so the coupon is important."]
+    },
+    {
+      "name": "Mumen Rider",
+      "role": "steadfast witness hero",
+      "faction": "Heroes",
+      "description": "A brave cyclist hero who needs real proof before sending civilians into panic.",
+      "look": {
+        "sourceLook": "Mumen Rider / armored cyclist hero",
+        "bodyType": "average build, upright and determined",
+        "hair": "hidden under green helmet",
+        "outfit": "green cyclist armor, cream chest plate, utility belt",
+        "palette": ["#2f7d52", "#f7e8a5", "#102c22"],
+        "silhouette": "Helmet, cyclist armor, and square heroic stance.",
+        "visualTags": ["helmet", "cyclist", "brave", "green armor"],
+        "portrait": "/assets/characters/opm_test/mumen-rider.svg"
+      },
+      "traits": ["brave", "earnest", "protective"],
+      "values": ["duty", "civilians", "honesty"],
+      "flaws": ["takes too much on himself"],
+      "fears": ["failing people who need help"],
+      "speechStyle": "earnest and direct",
+      "goals": ["collect proof of the overpass threat", "keep citizens calm"],
+      "memories": ["A jagged monster scale was seen near the ruined overpass.", "The Association radio keeps catching static from Monster Alley."]
+    },
+    {
+      "name": "Tatsumaki",
+      "role": "psychic S-class hero",
+      "faction": "Heroes",
+      "description": "An impatient psychic hero who dislikes slow paperwork and weaker people making danger worse.",
+      "look": {
+        "sourceLook": "Tatsumaki / green-haired psychic",
+        "hair": "short curled green hair",
+        "outfit": "black dress with floating psychic posture",
+        "palette": ["#66c26f", "#141b28", "#e7b07d"],
+        "visualTags": ["psychic", "green hair", "floating", "impatient"],
+        "portrait": "/assets/characters/opm_test/tatsumaki.svg"
+      },
+      "traits": ["impatient", "sharp", "protective"],
+      "goals": ["keep the plaza from wasting time", "spot whether the alert is real"],
+      "memories": ["The overpass pressure feels real, but the reports are too sloppy."]
+    },
+    {
+      "name": "Speed-o'-Sound Sonic",
+      "role": "theatrical rival challenger",
+      "faction": "Challengers",
+      "description": "A flashy ninja rival trying to turn local danger into a dramatic duel.",
+      "look": {
+        "sourceLook": "Speed-o'-Sound Sonic / dark-haired ninja rival",
+        "hair": "long dark hair tied back",
+        "outfit": "dark ninja outfit with purple accents",
+        "palette": ["#2b2337", "#8d5cff", "#ddb08a"],
+        "visualTags": ["ninja", "purple", "rival", "fast"],
+        "portrait": "/assets/characters/opm_test/sonic.svg"
+      },
+      "traits": ["dramatic", "proud", "fast"],
+      "values": ["recognition", "duels", "style"],
+      "flaws": ["overperforms for attention"],
+      "fears": ["being ignored"],
+      "speechStyle": "grand and sharp",
+      "goals": ["force a public duel near the overpass", "make the alert look theatrical"],
+      "secrets": ["Sonic left the challenge marks near the overpass."],
+      "memories": ["Challenge marks near the overpass point back toward the plaza.", "Monster scraps make the alert look worse than it is."]
+    }
+  ],
+  "conflicts": [
+    {
+      "title": "A rival challenger wants attention",
+      "pressure": 44,
+      "involved": ["Speed-o'-Sound Sonic", "Saitama", "Ruined Overpass"],
+      "antagonist": "Speed-o'-Sound Sonic",
+      "objective": "Leave signs, collect monster scraps, and force the caped bald hero into a public duel before the alert clears.",
+      "clue": "Sharp challenge marks point from the ruined overpass back toward the plaza."
+    }
+  ],
+  "artifacts": [
+    { "name": "Grocery coupon", "description": "A limited supermarket discount coupon. Saitama cares about this more than the threat level.", "location": "Training Lot", "clue": "The coupon tore beside the training timer after morning exercise." },
+    { "name": "Spare cyborg core", "description": "A compact repair component Genos can use after patrol damage.", "location": "Monster Alley", "clue": "The core was knocked into Monster Alley during a skirmish." },
+    { "name": "Monster scale", "description": "A jagged scale from an unknown monster. It proves the overpass alert is real.", "location": "Ruined Overpass", "clue": "The scale is physical proof the kiosk report is missing." },
+    { "name": "Challenge note", "description": "A dramatic note promising a duel near the overpass.", "location": "Ruined Overpass", "clue": "The handwriting makes the threat theatrical instead of random." },
+    { "name": "Association radio", "description": "A small radio tuned to Hero Association alert chatter.", "location": "Hero Association Kiosk", "clue": "The radio cannot escalate the alert without proof." }
+  ]
+}

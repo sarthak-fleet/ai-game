@@ -2,17 +2,25 @@ import { readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, normalize } from "node:path";
 
+import { createAgentLoop } from "./agent-loop.ts";
 import { createDirector } from "./director.ts";
 import { createLlmProposer } from "./llm/proposer.ts";
 import { isLlmEnabled, proposeAction } from "./llm/router.ts";
 import { createEngine } from "./simulation.ts";
+import type { CutsceneManifestEntry } from "./story-package.ts";
+import { storyPackageFromWorld, validateStoryPackage, worldFromStoryPackage } from "./story-package.ts";
 import type { PlayerAction, World } from "./types.ts";
+import { validateWorldIngestSource, worldSourceToWorld } from "./world-ingest.ts";
 
 const PORT = Number(process.env["PORT"] ?? 5174);
 const CWD = `file://${process.cwd()}/`;
 const WEB_ROOT = new URL(process.env["WEB_ROOT"] ?? "./web/", CWD);
 const WORLD_PATH = new URL(process.env["WORLD_FILE"] ?? "./worlds/village.json", CWD);
+const CUTSCENE_MANIFEST_PATH = new URL("./web/assets/cutscenes/manifest.json", CWD);
 const LLM_MAX_NPCS = Number(process.env["LLM_MAX_NPCS"] ?? 5);
+const AGENT_LOOP_INTERVAL_MS = Number(process.env["AGENT_LOOP_INTERVAL_MS"] ?? 4_000);
+const AGENT_LOOP_MAX_TICKS = process.env["AGENT_LOOP_MAX_TICKS"] ? Number(process.env["AGENT_LOOP_MAX_TICKS"]) : null;
+const AGENT_LOOP_AUTOSTART = process.env["AGENT_LOOP_AUTOSTART"] === "1";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -20,6 +28,8 @@ const MIME: Record<string, string> = {
   ".ts": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".jpg": "image/jpeg",
+  ".mp4": "video/mp4",
   ".png": "image/png",
   ".svg": "image/svg+xml",
 };
@@ -28,12 +38,48 @@ const world = JSON.parse(readFileSync(WORLD_PATH, "utf8")) as World;
 const propose = isLlmEnabled() ? createLlmProposer({ tier: "normal", maxNpcs: LLM_MAX_NPCS }) : undefined;
 const director = createDirector({ propose: isLlmEnabled() ? proposeAction : undefined });
 const engine = createEngine(world, { propose, director });
+const agentLoop = createAgentLoop(engine, { intervalMs: AGENT_LOOP_INTERVAL_MS, maxTicks: AGENT_LOOP_MAX_TICKS });
+if (AGENT_LOOP_AUTOSTART) agentLoop.start();
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 
   if (url.pathname === "/api/state" && req.method === "GET") {
     return json(res, 200, engine.state);
+  }
+  if (url.pathname === "/api/story-package" && req.method === "GET") {
+    const pkg = storyPackageFromWorld(engine.state, readCutsceneManifest());
+    return json(res, 200, { package: pkg, issues: validateStoryPackage(pkg) });
+  }
+  if (url.pathname === "/api/import-story-package" && req.method === "POST") {
+    const body = await readJson(req).catch(() => null);
+    try {
+      const pkg = body && typeof body === "object" && "package" in body ? (body as { package?: unknown }).package : body;
+      if (!pkg || typeof pkg !== "object" || !("packageVersion" in pkg)) {
+        return json(res, 400, { error: "invalid_story_package", issues: [{ path: "packageVersion", message: "Story package is required." }] });
+      }
+      const issues = validateStoryPackage(pkg as never);
+      if (issues.length > 0) return json(res, 400, { error: "invalid_story_package", issues });
+      engine.setState(worldFromStoryPackage(pkg as never));
+      return json(res, 200, { ok: true, state: engine.state });
+    } catch (error) {
+      return json(res, 400, { error: (error as Error).message });
+    }
+  }
+  if ((url.pathname === "/api/import-world-source" || url.pathname === "/api/import-anime") && req.method === "POST") {
+    const body = await readJson(req).catch(() => null);
+    try {
+      const source = body && typeof body === "object" && "source" in body ? (body as { source?: unknown }).source : body;
+      if (!source || typeof source !== "object") {
+        return json(res, 400, { error: "invalid_world_source", issues: [{ path: "source", message: "World ingest source is required." }] });
+      }
+      const issues = validateWorldIngestSource(source as never);
+      if (issues.length > 0) return json(res, 400, { error: "invalid_world_source", issues });
+      engine.setState(worldSourceToWorld(source as never));
+      return json(res, 200, { ok: true, state: engine.state, issues: [] });
+    } catch (error) {
+      return json(res, 400, { error: (error as Error).message });
+    }
   }
   if (url.pathname === "/api/save" && req.method === "GET") {
     // Snapshot — same shape as /api/state, distinct route so future
@@ -42,6 +88,23 @@ const server = createServer(async (req, res) => {
       capturedAt: new Date().toISOString(),
       world: engine.state,
     });
+  }
+  if (url.pathname === "/api/agent-loop/status" && req.method === "GET") {
+    return json(res, 200, agentLoop.status());
+  }
+  if (url.pathname === "/api/agent-loop/start" && req.method === "POST") {
+    return json(res, 200, agentLoop.start());
+  }
+  if (url.pathname === "/api/agent-loop/stop" && req.method === "POST") {
+    return json(res, 200, agentLoop.stop());
+  }
+  if (url.pathname === "/api/agent-loop/step" && req.method === "POST") {
+    try {
+      const summary = await agentLoop.step();
+      return json(res, 200, { summary, status: agentLoop.status(), state: engine.state });
+    } catch (error) {
+      return json(res, 409, { error: (error as Error).message, status: agentLoop.status() });
+    }
   }
   if (url.pathname === "/api/restore" && req.method === "POST") {
     const body = await readJson(req).catch(() => null);
@@ -109,5 +172,13 @@ function readJson(req: IncomingMessage): Promise<unknown> {
 }
 
 server.listen(PORT, () => {
-  console.info(`Ashbend running at http://localhost:${PORT} (${isLlmEnabled() ? "LLM" : "scripted"} mode)`);
+  console.info(`${engine.state.name} running at http://localhost:${PORT} (${isLlmEnabled() ? "LLM" : "scripted"} mode)`);
 });
+
+function readCutsceneManifest(): CutsceneManifestEntry[] {
+  try {
+    return JSON.parse(readFileSync(CUTSCENE_MANIFEST_PATH, "utf8")) as CutsceneManifestEntry[];
+  } catch {
+    return [];
+  }
+}
