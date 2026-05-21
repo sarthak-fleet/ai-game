@@ -228,6 +228,21 @@ button.primary:hover { filter: brightness(1.05); }
   font-weight: 700;
   line-height: 1.25;
 }
+.three-context-status {
+  min-height: 16px;
+  margin: 0 0 8px;
+  color: rgba(230, 233, 239, 0.68);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.three-context-status.lost {
+  color: #f8d44e;
+}
+.three-context-status.restored {
+  color: #b5e48c;
+}
 .three-camera-controls {
   display: grid;
   grid-template-columns: 32px minmax(58px, 1fr) 32px 58px;

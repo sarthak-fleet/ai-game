@@ -76,6 +76,11 @@ async function runAliveVillagePlaytest(): Promise<void> {
     await page.screenshot({ path: join(ARTIFACT_DIR, "02-ambient-wait.png") });
 
     await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
+    await expect(page.getByLabel("3D renderer status")).toContainText("3D renderer ready");
+    await page.locator(".three-host canvas").dispatchEvent("webglcontextlost");
+    await expect(page.getByLabel("3D renderer status")).toContainText("3D renderer paused");
+    await page.locator(".three-host canvas").dispatchEvent("webglcontextrestored");
+    await expect(page.getByLabel("3D renderer status")).toContainText("3D renderer restored");
     await expect(page.getByLabel("3D camera controls")).toBeVisible();
     await expect(page.getByLabel("3D camera bearing")).toContainText("34 deg");
     const cameraBefore = await canvasPixelHash(page, ".three-host canvas");

@@ -2,7 +2,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import type { TickSummary, World } from "../../../src/types.ts";
 import { useWorldStore } from "../store/world.ts";
-import { type SceneTarget, ThreeWorldRenderer } from "../three/world-scene.ts";
+import { type SceneTarget, ThreeWorldRenderer, type WebglContextStatus } from "../three/world-scene.ts";
 import { keyboardDestinationFor, movePlayerToward } from "../world-travel.ts";
 
 export function ThreeWorld() {
@@ -12,6 +12,7 @@ export function ThreeWorld() {
   const rendererRef = useRef<ThreeWorldRenderer | null>(null);
   const [hoverTarget, setHoverTarget] = useState<SceneTarget | null>(null);
   const [cameraBearing, setCameraBearing] = useState(34);
+  const [contextStatus, setContextStatus] = useState<WebglContextStatus>("ready");
   const currentLocation = world?.locations.find((location) => location.id === world.player.locationId) ?? null;
   const destinations = world ? reachableLocations(world) : [];
   const agentActivity = lastSummary ? latestAutonomousActivity(lastSummary) : null;
@@ -61,6 +62,7 @@ export function ThreeWorld() {
         void useWorldStore.getState().send({ type: "inspect", propId } as never);
       },
       onTargetHover: setHoverTarget,
+      onContextStatus: setContextStatus,
     });
     rendererRef.current = renderer;
     setCameraBearing(renderer.cameraBearingDegrees());
@@ -98,6 +100,9 @@ export function ThreeWorld() {
         </strong>
         <p className="three-agent-feed" aria-label="3D agent activity">
           {agentActivity ?? "Autonomous agents waiting"}
+        </p>
+        <p className={`three-context-status ${contextStatus}`} aria-label="3D renderer status">
+          {contextStatus === "lost" ? "3D renderer paused" : contextStatus === "restored" ? "3D renderer restored" : "3D renderer ready"}
         </p>
         <div className="three-camera-controls" aria-label="3D camera controls">
           <button type="button" aria-label="Rotate camera left" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(-Math.PI / 8) ?? cameraBearing)}>

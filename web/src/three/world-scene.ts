@@ -104,7 +104,10 @@ interface ThreeWorldRendererOptions {
   onItemSelect?: (itemId: string) => void;
   onPropSelect?: (propId: string) => void;
   onTargetHover?: (target: SceneTarget | null) => void;
+  onContextStatus?: (status: WebglContextStatus) => void;
 }
+
+export type WebglContextStatus = "ready" | "lost" | "restored";
 
 export interface SceneTarget {
   kind: "location" | "npc" | "item" | "prop";
@@ -131,12 +134,15 @@ export class ThreeWorldRenderer {
   private onItemSelect: ((itemId: string) => void) | null = null;
   private onPropSelect: ((propId: string) => void) | null = null;
   private onTargetHover: ((target: SceneTarget | null) => void) | null = null;
+  private onContextStatus: ((status: WebglContextStatus) => void) | null = null;
   private hoverKey: string | null = null;
   private cameraYaw = DEFAULT_CAMERA_YAW;
   private cameraTarget = { x: 0, z: 0 };
   private readonly previousActorPositions = new Map<string, { x: number; z: number }>();
   private readonly movingActors = new Set<THREE.Object3D>();
   private cameraMotion: TravelMotion | null = null;
+  private currentWorld: World | null = null;
+  private contextLost = false;
 
   constructor(private readonly container: HTMLElement, options: ThreeWorldRendererOptions = {}) {
     this.onLocationSelect = options.onLocationSelect ?? null;
@@ -144,6 +150,7 @@ export class ThreeWorldRenderer {
     this.onItemSelect = options.onItemSelect ?? null;
     this.onPropSelect = options.onPropSelect ?? null;
     this.onTargetHover = options.onTargetHover ?? null;
+    this.onContextStatus = options.onContextStatus ?? null;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0x070a0f, 1);
@@ -152,6 +159,8 @@ export class ThreeWorldRenderer {
     this.renderer.domElement.addEventListener("pointerdown", this.handlePointerDown);
     this.renderer.domElement.addEventListener("pointermove", this.handlePointerMove);
     this.renderer.domElement.addEventListener("pointerleave", this.handlePointerLeave);
+    this.renderer.domElement.addEventListener("webglcontextlost", this.handleContextLost);
+    this.renderer.domElement.addEventListener("webglcontextrestored", this.handleContextRestored);
     this.scene.add(this.root);
     this.scene.fog = new THREE.FogExp2(0x0a0d12, 0.035);
     this.scene.add(new THREE.HemisphereLight(0xcfe7ff, 0x222018, 1.7));
@@ -171,6 +180,8 @@ export class ThreeWorldRenderer {
   }
 
   renderWorld(world: World): void {
+    this.currentWorld = world;
+    if (this.contextLost) return;
     const model = buildWorldSceneModel(world);
     disposeObjectTree(this.root);
     this.root.clear();
@@ -231,6 +242,7 @@ export class ThreeWorldRenderer {
   }
 
   render(): void {
+    if (this.contextLost) return;
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -253,6 +265,8 @@ export class ThreeWorldRenderer {
     this.renderer.domElement.removeEventListener("pointerdown", this.handlePointerDown);
     this.renderer.domElement.removeEventListener("pointermove", this.handlePointerMove);
     this.renderer.domElement.removeEventListener("pointerleave", this.handlePointerLeave);
+    this.renderer.domElement.removeEventListener("webglcontextlost", this.handleContextLost);
+    this.renderer.domElement.removeEventListener("webglcontextrestored", this.handleContextRestored);
     disposeObjectTree(this.root);
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -289,6 +303,24 @@ export class ThreeWorldRenderer {
     if (!this.hoverKey) return;
     this.hoverKey = null;
     this.onTargetHover?.(null);
+  };
+
+  private readonly handleContextLost = (event: Event): void => {
+    event.preventDefault();
+    this.contextLost = true;
+    this.movingActors.clear();
+    this.cameraMotion = null;
+    this.renderer.domElement.style.cursor = "";
+    this.onTargetHover?.(null);
+    this.onContextStatus?.("lost");
+  };
+
+  private readonly handleContextRestored = (): void => {
+    this.contextLost = false;
+    this.onContextStatus?.("restored");
+    if (this.currentWorld) this.renderWorld(this.currentWorld);
+    this.render();
+    window.setTimeout(() => this.onContextStatus?.("ready"), 900);
   };
 
   private updateCamera(): void {
