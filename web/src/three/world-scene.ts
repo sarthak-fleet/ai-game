@@ -188,6 +188,8 @@ export class ThreeWorldRenderer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0x070a0f, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.container.appendChild(this.renderer.domElement);
     this.renderer.domElement.addEventListener("pointerdown", this.handlePointerDown);
     this.renderer.domElement.addEventListener("pointermove", this.handlePointerMove);
@@ -199,6 +201,14 @@ export class ThreeWorldRenderer {
     this.scene.add(new THREE.HemisphereLight(0xcfe7ff, 0x222018, 1.7));
     const sun = new THREE.DirectionalLight(0xffe1a0, 2.2);
     sun.position.set(6, 10, 5);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 32;
+    sun.shadow.camera.left = -10;
+    sun.shadow.camera.right = 14;
+    sun.shadow.camera.top = 14;
+    sun.shadow.camera.bottom = -10;
     this.scene.add(sun);
     this.resize();
   }
@@ -689,6 +699,7 @@ function makeGround(model: WorldSceneModel): THREE.Object3D {
   const material = new THREE.MeshStandardMaterial({ color: 0x172018, roughness: 0.9, metalness: 0.02 });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(model.bounds.width / 2, -0.06, model.bounds.depth / 2);
+  applyShadows(mesh, { receive: true });
   return mesh;
 }
 
@@ -700,6 +711,7 @@ function makeSkyline(model: WorldSceneModel): THREE.Object3D {
   const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, model.bounds.depth + 2), wallMaterial);
   side.position.set(-1.1, 1.05, model.bounds.depth / 2);
   group.add(back, side);
+  applyShadows(group, { receive: true });
   return group;
 }
 
@@ -712,6 +724,7 @@ function makePathMesh(path: ScenePathNode): THREE.Object3D {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set((path.from.x + path.to.x) / 2, 0.025, (path.from.z + path.to.z) / 2);
   mesh.rotation.y = Math.atan2(dx, dz);
+  applyShadows(mesh, { receive: true });
   return mesh;
 }
 
@@ -767,6 +780,7 @@ function makeLocationMesh(location: SceneLocationNode): THREE.Object3D {
     beacon.position.set(location.x, location.height + 0.52, location.z);
     group.add(beacon);
   }
+  applyShadows(group, { cast: true, receive: true });
   return group;
 }
 
@@ -867,6 +881,7 @@ function makeActorMesh(actor: SceneActorNode, motion: TravelMotion | null = null
   const halo = makeTargetHalo(actor.player ? "#58a6ff" : actor.quest ? "#b5e48c" : actor.color, actor.player ? 0.38 : 0.3, actor.player ? 0.18 : 0.12);
   halo.userData["sceneAnimation"] = pulseAnimation(actor.id, 1, actor.player ? 0.08 : 0.05);
   group.add(shadow, halo, mesh);
+  applyShadows(mesh, { cast: true });
   return group;
 }
 
@@ -891,6 +906,7 @@ function makeItemMesh(item: SceneItemNode): THREE.Object3D {
   mesh.position.set(0, 0.24, 0);
   mesh.userData["sceneAnimation"] = bobAnimation(item.id, 0.24, 0.045);
   group.add(makeTargetHalo(item.color, 0.28, 0.16), hitMesh, mesh);
+  applyShadows(mesh, { cast: true });
   return group;
 }
 
@@ -919,6 +935,7 @@ function makePropMesh(prop: ScenePropNode): THREE.Object3D {
   mesh.position.set(0, prop.inspected ? 0.11 : 0.16, 0);
   if (!prop.inspected) mesh.userData["sceneAnimation"] = bobAnimation(prop.id, 0.16, 0.024);
   group.add(makeTargetHalo(prop.inspected ? "#7d8796" : "#9fc3ff", 0.25, prop.inspected ? 0.08 : 0.14), hitMesh, mesh);
+  applyShadows(mesh, { cast: true });
   return group;
 }
 
@@ -947,6 +964,7 @@ function makeObjectiveBeaconMesh(objective: SceneObjectiveNode): THREE.Object3D 
   marker.position.y = objective.primary ? 1.52 : 1.16;
   marker.userData["sceneAnimation"] = bobAnimation(`objective-marker:${objective.id}`, marker.position.y, objective.primary ? 0.08 : 0.05);
   group.add(beam, ring, marker);
+  applyShadows(marker, { cast: true });
   return group;
 }
 
@@ -958,6 +976,19 @@ function makeTargetHalo(color: string, radius: number, opacity: number): THREE.O
   halo.rotation.x = -Math.PI / 2;
   halo.position.y = 0.052;
   return halo;
+}
+
+function applyShadows(root: THREE.Object3D, options: { cast?: boolean; receive?: boolean }): void {
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = object.material;
+    const visibleMaterial = Array.isArray(material)
+      ? material.some((item) => !item.transparent || item.opacity > 0.01)
+      : !material.transparent || material.opacity > 0.01;
+    if (!visibleMaterial) return;
+    object.castShadow = Boolean(options.cast);
+    object.receiveShadow = Boolean(options.receive);
+  });
 }
 
 function bobAnimation(id: string, baseY: number, amplitude: number): SceneAnimation {
