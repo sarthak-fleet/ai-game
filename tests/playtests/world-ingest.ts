@@ -149,6 +149,7 @@ async function runWorldIngestPlaytest(): Promise<void> {
     await completeAbyssalFirstQuest(page);
     await expect.poll(() => canvasPixelHash(page, ".three-host canvas"), { message: "Abyssal 3D canvas should change after quest movement", timeout: 10_000 }).not.toEqual(abyssalStartHash);
     await page.screenshot({ path: join(ARTIFACT_DIR, "07-abyssal-source.png") });
+    await verifyAbyssalLiveLoop(page);
     await verifyMobileImportedAbyssal(browser);
 
     await importSource(page, OPM);
@@ -281,6 +282,23 @@ async function completeAbyssalFirstQuest(page: Page): Promise<void> {
   await expect(page.locator(".dialogue-panel")).not.toContainText("That matters in Clockwork");
   await clickButton(page, "Close");
   await expect(objective(page)).toContainText("Recover Turbine gear for Paxel");
+}
+
+async function verifyAbyssalLiveLoop(page: Page): Promise<void> {
+  await expect(page.getByLabel("Agent loop controls")).toContainText("stopped");
+  await expect(page.getByLabel("Agent loop controls")).toContainText("0 autonomous ticks");
+  const abyssalLiveLoopBeforeHash = await canvasPixelHash(page, ".three-host canvas");
+  await startAgentLoopFromUi(page);
+  await expect(page.getByLabel("Agent loop controls")).toContainText(`${LIVE_LOOP_INTERVAL_MS}ms`);
+  await expect.poll(() => autonomousTickCount(page), { timeout: 10_000 }).toBeGreaterThan(0);
+  await expect.poll(() => canvasPixelHash(page, ".three-host canvas"), {
+    message: "generic imported world live agent loop should visibly update the 3D scene",
+    timeout: 10_000,
+  }).not.toEqual(abyssalLiveLoopBeforeHash);
+  await expect(page.getByLabel("3D agent activity")).toContainText(/Autonomous t\d+/);
+  await page.screenshot({ path: join(ARTIFACT_DIR, "08-abyssal-live-loop.png") });
+  await page.getByLabel("Agent loop controls").getByRole("button", { name: "Stop" }).click();
+  await expect(page.getByLabel("Agent loop controls")).toContainText("stopped");
 }
 
 async function verifyMobileImportedAbyssal(browser: Awaited<ReturnType<typeof chromium.launch>>): Promise<void> {
