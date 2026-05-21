@@ -12,6 +12,7 @@ export function ThreeWorld() {
   const rendererRef = useRef<ThreeWorldRenderer | null>(null);
   const [hoverTarget, setHoverTarget] = useState<SceneTarget | null>(null);
   const [cameraBearing, setCameraBearing] = useState(34);
+  const [cameraZoom, setCameraZoom] = useState(50);
   const [contextStatus, setContextStatus] = useState<WebglContextStatus>("ready");
   const currentLocation = world?.locations.find((location) => location.id === world.player.locationId) ?? null;
   const destinations = world ? reachableLocations(world) : [];
@@ -44,6 +45,7 @@ export function ThreeWorld() {
     });
     rendererRef.current = renderer;
     setCameraBearing(renderer.cameraBearingDegrees());
+    setCameraZoom(renderer.cameraZoomPercent());
     const resizeObserver = new ResizeObserver(() => renderer.resize());
     resizeObserver.observe(host);
 
@@ -101,7 +103,19 @@ export function ThreeWorld() {
           <button type="button" aria-label="Rotate camera right" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(Math.PI / 8) ?? cameraBearing)}>
             ▶
           </button>
-          <button type="button" aria-label="Reset camera" onClick={() => setCameraBearing(rendererRef.current?.resetCamera() ?? cameraBearing)}>
+          <button type="button" aria-label="Zoom camera in" onClick={() => setCameraZoom(rendererRef.current?.zoomCamera(-1.1) ?? cameraZoom)}>
+            +
+          </button>
+          <output aria-label="3D camera zoom">{cameraZoom}%</output>
+          <button type="button" aria-label="Zoom camera out" onClick={() => setCameraZoom(rendererRef.current?.zoomCamera(1.1) ?? cameraZoom)}>
+            -
+          </button>
+          <button type="button" aria-label="Reset camera" onClick={() => {
+            const renderer = rendererRef.current;
+            if (!renderer) return;
+            setCameraBearing(renderer.resetCamera());
+            setCameraZoom(renderer.cameraZoomPercent());
+          }}>
             Reset
           </button>
         </div>

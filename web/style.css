@@ -274,7 +274,7 @@ button.primary:hover { filter: brightness(1.05); }
 }
 .three-camera-controls {
   display: grid;
-  grid-template-columns: 32px minmax(58px, 1fr) 32px 58px;
+  grid-template-columns: 32px minmax(58px, 1fr) 32px 32px minmax(44px, 0.7fr) 32px 58px;
   gap: 6px;
   align-items: center;
   margin-bottom: 8px;
@@ -1233,7 +1233,7 @@ td, th { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: lef
     width: min(300px, calc(100vw - 20px));
   }
   .three-camera-controls {
-    grid-template-columns: 36px minmax(58px, 1fr) 36px 62px;
+    grid-template-columns: 30px minmax(44px, 1fr) 30px 30px minmax(36px, 0.7fr) 30px 52px;
   }
   .three-camera-controls button,
   .three-location-strip button {

@@ -6,7 +6,9 @@ import { type Exit, type InteractableProp, type Item, type Location, type Npc, t
 const WORLD_SCALE = 0.018;
 const MIN_BUILDING_HEIGHT = 0.45;
 const DEFAULT_CAMERA_YAW = Math.atan2(4.8, 7.2);
-const CAMERA_DISTANCE = Math.hypot(4.8, 7.2);
+const DEFAULT_CAMERA_DISTANCE = Math.hypot(4.8, 7.2);
+const MIN_CAMERA_DISTANCE = 5.8;
+const MAX_CAMERA_DISTANCE = 11.5;
 const CAMERA_HEIGHT = 6.4;
 const TRAVEL_ANIMATION_MS = 520;
 
@@ -187,6 +189,7 @@ export class ThreeWorldRenderer {
   private onContextStatus: ((status: WebglContextStatus) => void) | null = null;
   private hoverKey: string | null = null;
   private cameraYaw = DEFAULT_CAMERA_YAW;
+  private cameraDistance = DEFAULT_CAMERA_DISTANCE;
   private cameraTarget = { x: 0, z: 0 };
   private readonly previousActorPositions = new Map<string, { x: number; z: number }>();
   private readonly movingActors = new Set<THREE.Object3D>();
@@ -294,12 +297,24 @@ export class ThreeWorldRenderer {
 
   resetCamera(): number {
     this.cameraYaw = DEFAULT_CAMERA_YAW;
+    this.cameraDistance = DEFAULT_CAMERA_DISTANCE;
     this.updateCamera();
     return this.cameraBearingDegrees();
   }
 
+  zoomCamera(delta: number): number {
+    this.cameraDistance = clamp(this.cameraDistance + delta, MIN_CAMERA_DISTANCE, MAX_CAMERA_DISTANCE);
+    this.updateCamera();
+    return this.cameraZoomPercent();
+  }
+
   cameraBearingDegrees(): number {
     return Math.round(normalizeRadians(this.cameraYaw) * 180 / Math.PI);
+  }
+
+  cameraZoomPercent(): number {
+    const progress = (MAX_CAMERA_DISTANCE - this.cameraDistance) / (MAX_CAMERA_DISTANCE - MIN_CAMERA_DISTANCE);
+    return Math.round(clamp(progress, 0, 1) * 100);
   }
 
   render(): void {
@@ -386,9 +401,9 @@ export class ThreeWorldRenderer {
 
   private updateCamera(): void {
     this.camera.position.set(
-      this.cameraTarget.x + Math.sin(this.cameraYaw) * CAMERA_DISTANCE,
+      this.cameraTarget.x + Math.sin(this.cameraYaw) * this.cameraDistance,
       CAMERA_HEIGHT,
-      this.cameraTarget.z + Math.cos(this.cameraYaw) * CAMERA_DISTANCE
+      this.cameraTarget.z + Math.cos(this.cameraYaw) * this.cameraDistance
     );
     this.camera.lookAt(this.cameraTarget.x, 0.25, this.cameraTarget.z);
     this.render();
@@ -514,6 +529,10 @@ function easedProgress(motion: TravelMotion, now: number): number {
 
 function lerp(from: number, to: number, progress: number): number {
   return from + (to - from) * progress;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function distance(from: { x: number; z: number }, to: { x: number; z: number }): number {
