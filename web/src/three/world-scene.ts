@@ -7,6 +7,7 @@ const MIN_BUILDING_HEIGHT = 0.45;
 const DEFAULT_CAMERA_YAW = Math.atan2(4.8, 7.2);
 const CAMERA_DISTANCE = Math.hypot(4.8, 7.2);
 const CAMERA_HEIGHT = 6.4;
+const TRAVEL_ANIMATION_MS = 520;
 
 export interface SceneLocationNode {
   id: string;
@@ -133,6 +134,9 @@ export class ThreeWorldRenderer {
   private hoverKey: string | null = null;
   private cameraYaw = DEFAULT_CAMERA_YAW;
   private cameraTarget = { x: 0, z: 0 };
+  private previousPlayerPosition: { x: number; z: number } | null = null;
+  private movingPlayer: THREE.Object3D | null = null;
+  private cameraMotion: TravelMotion | null = null;
 
   constructor(private readonly container: HTMLElement, options: ThreeWorldRendererOptions = {}) {
     this.onLocationSelect = options.onLocationSelect ?? null;
@@ -187,20 +191,26 @@ export class ThreeWorldRenderer {
     for (const prop of model.props) {
       const mesh = makePropMesh(prop);
       this.root.add(mesh);
-      this.pickableProps.push(mesh);
+      const pickable = mesh.getObjectByName(`pick:prop:${prop.id}`);
+      if (pickable) this.pickableProps.push(pickable);
     }
     for (const item of model.items) {
       const mesh = makeItemMesh(item);
       this.root.add(mesh);
-      this.pickableItems.push(mesh);
+      const pickable = mesh.getObjectByName(`pick:item:${item.id}`);
+      if (pickable) this.pickableItems.push(pickable);
     }
     for (const actor of model.actors) {
-      const mesh = makeActorMesh(actor);
+      const motion = actor.player ? this.playerMotion(actor) : null;
+      const mesh = makeActorMesh(actor, motion);
       this.root.add(mesh);
+      if (actor.player && motion) this.movingPlayer = mesh;
       const pickable = mesh.getObjectByName(`pick:actor:${actor.id}`);
       if (!actor.player && pickable) this.pickableActors.push(pickable);
     }
-    this.cameraTarget = model.cameraTarget;
+    this.startCameraMotion(model.cameraTarget);
+    const player = model.actors.find((actor) => actor.player);
+    this.previousPlayerPosition = player ? { x: player.x, z: player.z } : null;
     this.updateCamera();
   }
 
@@ -228,7 +238,10 @@ export class ThreeWorldRenderer {
     const animate = () => {
       if (this.disposed) return;
       this.frame = requestAnimationFrame(animate);
-      this.root.rotation.y = Math.sin(performance.now() / 5800) * 0.015;
+      const now = performance.now();
+      this.root.rotation.y = Math.sin(now / 5800) * 0.015;
+      this.animateTravel(now);
+      this.animateSceneAffordances(now);
       this.render();
     };
     animate();
@@ -288,6 +301,53 @@ export class ThreeWorldRenderer {
     this.render();
   }
 
+  private playerMotion(actor: SceneActorNode): TravelMotion | null {
+    const previous = this.previousPlayerPosition;
+    if (!previous || distance(previous, actor) < 0.01) return null;
+    return { from: previous, to: { x: actor.x, z: actor.z }, startedAt: performance.now(), durationMs: TRAVEL_ANIMATION_MS };
+  }
+
+  private startCameraMotion(target: { x: number; z: number }): void {
+    if (distance(this.cameraTarget, target) < 0.01) {
+      this.cameraTarget = target;
+      this.cameraMotion = null;
+      return;
+    }
+    this.cameraMotion = { from: this.cameraTarget, to: target, startedAt: performance.now(), durationMs: TRAVEL_ANIMATION_MS };
+  }
+
+  private animateTravel(now: number): void {
+    if (this.movingPlayer) {
+      const motion = readTravelMotion(this.movingPlayer);
+      if (motion) {
+        const progress = easedProgress(motion, now);
+        this.movingPlayer.position.set(lerp(motion.from.x, motion.to.x, progress), 0, lerp(motion.from.z, motion.to.z, progress));
+        if (progress >= 1) {
+          this.movingPlayer = null;
+        }
+      }
+    }
+    if (this.cameraMotion) {
+      const progress = easedProgress(this.cameraMotion, now);
+      this.cameraTarget = {
+        x: lerp(this.cameraMotion.from.x, this.cameraMotion.to.x, progress),
+        z: lerp(this.cameraMotion.from.z, this.cameraMotion.to.z, progress),
+      };
+      if (progress >= 1) this.cameraMotion = null;
+      this.updateCamera();
+    }
+  }
+
+  private animateSceneAffordances(now: number): void {
+    this.root.traverse((object) => {
+      const animation = object.userData["sceneAnimation"];
+      if (!isSceneAnimation(animation)) return;
+      const phase = now / animation.speedMs + animation.offset;
+      if (animation.kind === "bob") object.position.y = animation.baseY + Math.sin(phase) * animation.amplitude;
+      if (animation.kind === "pulse") object.scale.setScalar(animation.baseScale + Math.sin(phase) * animation.amplitude);
+    });
+  }
+
   private targetAt(event: PointerEvent): SceneTarget | null {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -309,6 +369,22 @@ export class ThreeWorldRenderer {
   }
 }
 
+interface TravelMotion {
+  from: { x: number; z: number };
+  to: { x: number; z: number };
+  startedAt: number;
+  durationMs: number;
+}
+
+interface SceneAnimation {
+  kind: "bob" | "pulse";
+  baseY: number;
+  baseScale: number;
+  amplitude: number;
+  speedMs: number;
+  offset: number;
+}
+
 function normalizeRadians(value: number): number {
   const fullTurn = Math.PI * 2;
   return ((value % fullTurn) + fullTurn) % fullTurn;
@@ -316,6 +392,28 @@ function normalizeRadians(value: number): number {
 
 function isSceneTarget(value: unknown): value is SceneTarget {
   return Boolean(value && typeof value === "object" && typeof (value as SceneTarget).id === "string" && typeof (value as SceneTarget).label === "string");
+}
+
+function isSceneAnimation(value: unknown): value is SceneAnimation {
+  return Boolean(value && typeof value === "object" && typeof (value as SceneAnimation).kind === "string");
+}
+
+function readTravelMotion(object: THREE.Object3D): TravelMotion | null {
+  const motion = object.userData["travelMotion"];
+  return motion && typeof motion === "object" ? motion as TravelMotion : null;
+}
+
+function easedProgress(motion: TravelMotion, now: number): number {
+  const raw = Math.min(1, Math.max(0, (now - motion.startedAt) / motion.durationMs));
+  return raw * raw * (3 - 2 * raw);
+}
+
+function lerp(from: number, to: number, progress: number): number {
+  return from + (to - from) * progress;
+}
+
+function distance(from: { x: number; z: number }, to: { x: number; z: number }): number {
+  return Math.hypot(to.x - from.x, to.z - from.z);
 }
 
 function worldBounds(locations: Location[]): { width: number; depth: number } {
@@ -597,7 +695,7 @@ function makeLabelSprite(text: string, x: number, y: number, z: number, active: 
   return sprite;
 }
 
-function makeActorMesh(actor: SceneActorNode): THREE.Object3D {
+function makeActorMesh(actor: SceneActorNode, motion: TravelMotion | null = null): THREE.Object3D {
   const radius = actor.player ? 0.18 : 0.14;
   const height = actor.player ? 0.72 : actor.quest ? 0.62 : 0.52;
   const geometry = new THREE.CapsuleGeometry(radius, height, 5, 10);
@@ -606,30 +704,40 @@ function makeActorMesh(actor: SceneActorNode): THREE.Object3D {
   mesh.name = `pick:actor:${actor.id}`;
   mesh.userData["actorId"] = actor.id;
   mesh.userData["target"] = { kind: "npc", id: actor.id, label: actor.name, action: "Talk" } satisfies SceneTarget;
-  mesh.position.set(actor.x, height / 2 + 0.16, actor.z);
+  mesh.position.set(0, height / 2 + 0.16, 0);
   const shadow = new THREE.Mesh(
     new THREE.CircleGeometry(radius * 1.45, 18),
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: actor.player ? 0.32 : 0.22 })
   );
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(actor.x, 0.035, actor.z);
+  shadow.position.set(0, 0.035, 0);
   const group = new THREE.Group();
-  group.add(shadow, mesh);
+  group.position.set(motion?.from.x ?? actor.x, 0, motion?.from.z ?? actor.z);
+  if (motion) group.userData["travelMotion"] = motion;
+  const halo = makeTargetHalo(actor.player ? "#58a6ff" : actor.quest ? "#b5e48c" : actor.color, actor.player ? 0.38 : 0.3, actor.player ? 0.18 : 0.12);
+  halo.userData["sceneAnimation"] = pulseAnimation(actor.id, 1, actor.player ? 0.08 : 0.05);
+  group.add(shadow, halo, mesh);
   return group;
 }
 
 function makeItemMesh(item: SceneItemNode): THREE.Object3D {
+  const group = new THREE.Group();
+  group.position.set(item.x, 0, item.z);
   const geometry = new THREE.IcosahedronGeometry(0.11, 1);
   const material = new THREE.MeshStandardMaterial({ color: new THREE.Color(item.color), emissive: 0x4a3300, roughness: 0.32 });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = item.name;
+  mesh.name = `pick:item:${item.id}`;
   mesh.userData["itemId"] = item.id;
   mesh.userData["target"] = { kind: "item", id: item.id, label: item.name, action: "Pick up" } satisfies SceneTarget;
-  mesh.position.set(item.x, 0.24, item.z);
-  return mesh;
+  mesh.position.set(0, 0.24, 0);
+  mesh.userData["sceneAnimation"] = bobAnimation(item.id, 0.24, 0.045);
+  group.add(makeTargetHalo(item.color, 0.28, 0.16), mesh);
+  return group;
 }
 
 function makePropMesh(prop: ScenePropNode): THREE.Object3D {
+  const group = new THREE.Group();
+  group.position.set(prop.x, 0, prop.z);
   const geometry = new THREE.BoxGeometry(0.16, prop.inspected ? 0.1 : 0.18, 0.16);
   const material = new THREE.MeshStandardMaterial({
     color: prop.inspected ? 0x7d8796 : 0x9fc3ff,
@@ -637,11 +745,37 @@ function makePropMesh(prop: ScenePropNode): THREE.Object3D {
     roughness: 0.56,
   });
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = prop.name;
+  mesh.name = `pick:prop:${prop.id}`;
   mesh.userData["propId"] = prop.id;
   mesh.userData["target"] = { kind: "prop", id: prop.id, label: prop.name, action: "Inspect" } satisfies SceneTarget;
-  mesh.position.set(prop.x, prop.inspected ? 0.11 : 0.16, prop.z);
-  return mesh;
+  mesh.position.set(0, prop.inspected ? 0.11 : 0.16, 0);
+  if (!prop.inspected) mesh.userData["sceneAnimation"] = bobAnimation(prop.id, 0.16, 0.024);
+  group.add(makeTargetHalo(prop.inspected ? "#7d8796" : "#9fc3ff", 0.25, prop.inspected ? 0.08 : 0.14), mesh);
+  return group;
+}
+
+function makeTargetHalo(color: string, radius: number, opacity: number): THREE.Object3D {
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(radius * 0.72, radius, 24),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity, side: THREE.DoubleSide })
+  );
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.052;
+  return halo;
+}
+
+function bobAnimation(id: string, baseY: number, amplitude: number): SceneAnimation {
+  return { kind: "bob", baseY, baseScale: 1, amplitude, speedMs: 420, offset: animationOffset(id) };
+}
+
+function pulseAnimation(id: string, baseScale: number, amplitude: number): SceneAnimation {
+  return { kind: "pulse", baseY: 0, baseScale, amplitude, speedMs: 560, offset: animationOffset(id) };
+}
+
+function animationOffset(id: string): number {
+  let hash = 0;
+  for (const char of id) hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
+  return hash / 97;
 }
 
 function disposeObjectTree(root: THREE.Object3D): void {
