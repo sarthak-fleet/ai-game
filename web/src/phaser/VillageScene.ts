@@ -25,11 +25,12 @@ const PLAYER_RADIUS = 16;
 const ARRIVE_DISTANCE = 8;
 const INTERACT_DISTANCE = 54;
 const MINIMAP_HUD_CLEARANCE = 18;
-const USE_EXTERNAL_GROUND_TILES = false;
+const USE_EXTERNAL_GROUND_TILES = true;
 
 interface ActorState {
   graphic: Phaser.GameObjects.Container;
   bubble: Phaser.GameObjects.Text | null;
+  status: Phaser.GameObjects.Text | null;
   flashUntil: number;
   home: Phaser.Math.Vector2;
   target: Phaser.Math.Vector2 | null;
@@ -171,6 +172,19 @@ export class VillageScene extends Phaser.Scene {
     this.world = world;
     if (!this.ready) return;
     this.drawWorld(first);
+  }
+
+  setCameraZoom(zoom: number, duration = 0) {
+    if (duration > 0) {
+      this.tweens.add({
+        targets: this.cameras.main,
+        zoom,
+        duration,
+        ease: "Cubic.Out",
+      });
+    } else {
+      this.cameras.main.setZoom(zoom);
+    }
   }
 
   previewPlayerMove(locationId: string) {
@@ -1211,14 +1225,14 @@ export class VillageScene extends Phaser.Scene {
       this.player.setPosition(previous.x, previous.y);
       this.playerAppearanceKey = appearanceKey;
       this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-      this.cameras.main.setZoom(1);
+      this.cameras.main.setZoom(1.35);
     }
     if (!this.player) {
       this.player = makeActor(this, "player", playerFillForWorld(this.world), PLAYER_RADIUS, this.world.player.appearance);
       this.player.setPosition(pos.x, pos.y);
       this.playerAppearanceKey = appearanceKey;
       this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-      this.cameras.main.setZoom(1);
+      this.cameras.main.setZoom(1.35);
     } else if (first) {
       this.player.setPosition(pos.x, pos.y);
     }
@@ -1249,6 +1263,7 @@ export class VillageScene extends Phaser.Scene {
         actor = {
           graphic,
           bubble: null,
+          status: null,
           flashUntil: 0,
           home: new Phaser.Math.Vector2(target.x, target.y),
           target: null,
@@ -1909,7 +1924,7 @@ export class VillageScene extends Phaser.Scene {
   }
 
   private updateActors(dt: number) {
-    for (const actor of this.actors.values()) {
+    for (const [id, actor] of this.actors) {
       const was = new Phaser.Math.Vector2(actor.graphic.x, actor.graphic.y);
       const walking = this.updateNpcWander(actor, dt);
       const facing = walking ? new Phaser.Math.Vector2(actor.graphic.x - was.x, actor.graphic.y - was.y).normalize() : new Phaser.Math.Vector2(0, 1);
@@ -1920,6 +1935,28 @@ export class VillageScene extends Phaser.Scene {
       }
       actor.graphic.setDepth(Math.round(actor.graphic.y));
       actor.bubble?.setPosition(actor.graphic.x, actor.graphic.y - 26);
+
+      const npc = id === "player" ? null : this.world?.npcs.find((n) => n.id === id);
+      const intent = npc?.plan?.currentIntent;
+      const playerDist = this.player ? Phaser.Math.Distance.Between(this.player.x, this.player.y, actor.graphic.x, actor.graphic.y) : 999;
+      const shouldShowStatus = playerDist < 180 && intent && !actor.bubble;
+
+      if (shouldShowStatus) {
+        if (!actor.status) {
+          actor.status = this.add.text(actor.graphic.x, actor.graphic.y - 48, intent.kind.toUpperCase(), {
+            fontFamily: "ui-sans-serif, system-ui",
+            fontSize: "9px",
+            fontStyle: "bold",
+            color: "#f8d44e",
+            backgroundColor: "rgba(16, 21, 29, 0.7)",
+            padding: { x: 4, y: 2 },
+          }).setOrigin(0.5, 1).setDepth(175);
+        } else {
+          actor.status.setText(intent.kind.toUpperCase()).setPosition(actor.graphic.x, actor.graphic.y - 48).setVisible(true);
+        }
+      } else if (actor.status) {
+        actor.status.setVisible(false);
+      }
     }
     this.player?.setDepth(Math.round(this.player.y) + 5);
   }

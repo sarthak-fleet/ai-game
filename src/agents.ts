@@ -60,6 +60,38 @@ export function refreshAgentIntents(world: World): void {
   }
 }
 
+export function refreshMoods(world: World): void {
+  const isNightTime = world.clock.hour >= 20 || world.clock.hour < 6;
+  const directorPressure = world.directorState?.pressure ?? 0;
+
+  for (const npc of world.npcs) {
+    if (!npc.mood) continue;
+
+    // Gradual mood shifts
+    if (isNightTime) {
+      npc.mood.stress = Math.max(0, npc.mood.stress - 3);
+      npc.mood.suspicion = Math.min(100, npc.mood.suspicion + 2);
+    } else {
+      npc.mood.stress = Math.min(100, npc.mood.stress + 1);
+      npc.mood.suspicion = Math.max(0, npc.mood.suspicion - 1);
+    }
+
+    // High director pressure raises village-wide anxiety
+    if (directorPressure > 65) {
+      npc.mood.stress = Math.min(100, npc.mood.stress + 4);
+      npc.mood.emotion = "anxious";
+    } else if (npc.mood.stress > 70) {
+      npc.mood.emotion = "stressed";
+    } else if (npc.mood.suspicion > 70) {
+      npc.mood.emotion = "wary";
+    } else if (npc.mood.stress < 20 && npc.mood.suspicion < 20) {
+      npc.mood.emotion = "calm";
+    } else {
+      npc.mood.emotion = "focused";
+    }
+  }
+}
+
 export function advanceStoryPressure(world: World, actions: AppliedAction[]): void {
   if (world.directorState) {
     world.directorState.quietTicks = actions.length > 0 ? 0 : world.directorState.quietTicks + 1;

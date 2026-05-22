@@ -19,6 +19,7 @@ import { RelationshipsPanel } from "../organisms/RelationshipsPanel.tsx";
 import { ReplayInspector } from "../organisms/ReplayInspector.tsx";
 import { SoundToggle } from "../organisms/SoundToggle.tsx";
 import { StoryPanel } from "../organisms/StoryPanel.tsx";
+import { useWorldStore } from "../store/world.ts";
 
 const ThreeWorld = lazy(async () => {
   const module = await import("../organisms/ThreeWorld.tsx");
@@ -31,6 +32,8 @@ const PhaserGame = lazy(async () => {
 });
 
 export function AppShell() {
+  const drawerNpcId = useWorldStore((s) => s.drawerNpcId);
+  const zoom = useWorldStore((s) => s.zoom);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
   const [focusMode, setFocusMode] = useState(false);
 
@@ -44,7 +47,10 @@ export function AppShell() {
   }, [focusMode]);
 
   return (
-    <div className={`app-shell${focusMode ? " focus-mode" : ""}`}>
+    <div
+      className={`app-shell${focusMode ? " focus-mode" : ""}${drawerNpcId ? " dialogue-mode" : ""}`}
+      style={{ "--zoom-level": zoom } as React.CSSProperties}
+    >
       <AppHeader />
       <AmbienceToggle />
       <SoundToggle />

@@ -3,6 +3,7 @@ import {
   ensureAgentStateDefaults,
   memoryMetaFromText,
   refreshAgentIntents,
+  refreshMoods,
   retrieveRelevantMemories,
   scheduledBlockFor,
 } from "./agents.ts";
@@ -127,6 +128,7 @@ export async function runTick(
 
   world.tick += 1;
   advanceClock(world);
+  refreshMoods(world);
   syncStoryProgress(world);
   advanceStoryPressure(world, actions);
   refreshAgentIntents(world);

@@ -70,4 +70,25 @@ describe("Agent State v1", () => {
     expect(engine.npc("orrin")?.locationId).toBe("inn");
     expect(engine.npc("orrin")?.plan?.currentIntent?.updatedTick).toBe(engine.state.tick);
   });
+
+  test("refreshMoods updates NPC emotion and stress based on time and pressure", async () => {
+    const engine = createEngine(fixture(), { propose: async () => [] });
+    const mira = engine.npc("mira")!;
+    mira.mood = { emotion: "calm", stress: 10, confidence: 50, suspicion: 10 };
+
+    // Tick forward to night
+    engine.state.clock.hour = 22;
+    await engine.tick(); // refreshMoods is called in tick
+
+    expect(mira.mood.stress).toBeLessThan(10);
+    expect(mira.mood.suspicion).toBeGreaterThan(10);
+
+    // Tick with high director pressure during the day
+    engine.state.clock.hour = 12;
+    engine.state.directorState!.pressure = 80;
+    await engine.tick();
+
+    expect(mira.mood.emotion).toBe("anxious");
+    expect(mira.mood.stress).toBeGreaterThan(8);
+  });
 });

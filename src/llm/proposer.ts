@@ -59,6 +59,8 @@ function buildSystem(npc: Npc): string {
   return [
     `You are ${npc.name} (id: ${npc.id}) in a small village simulation.`,
     `Role: ${npc.role ?? npc.tier ?? "villager"}.`,
+    npc.factionId ? `Faction: ${npc.factionId}.` : "",
+    npc.description ? `Description: ${npc.description}` : "",
     `Personality / goals: ${goals || "live your life"}.`,
     traits ? `Traits: ${traits}.` : "",
     npc.traits?.speechStyle ? `Speech style: ${npc.traits.speechStyle}.` : "",
@@ -80,6 +82,7 @@ function buildContext(world: World, npc: Npc): string {
   const relationshipAxes = Object.entries(npc.relationshipAxes ?? {})
     .map(([id, axes]) => `${id}:${Object.entries(axes).map(([key, value]) => `${key}=${value}`).join("/")}`)
     .join(", ") || "(none)";
+  const needs = npc.needs ? Object.entries(npc.needs).map(([key, value]) => `${key}=${value}`).join(", ") : "(unknown)";
   const mood = npc.mood ? `${npc.mood.emotion}; stress=${npc.mood.stress}; confidence=${npc.mood.confidence}; suspicion=${npc.mood.suspicion}` : "(unknown)";
   const intent = npc.plan?.currentIntent ? `${npc.plan.currentIntent.kind}: ${npc.plan.currentIntent.reason}` : "(none)";
   const ambitions = (npc.ambitions ?? [])
@@ -111,6 +114,7 @@ function buildContext(world: World, npc: Npc): string {
     `All location ids: ${locations}`,
     `Reachable move location ids this tick: ${exits}`,
     `World rules:\n${publicRules}`,
+    `Needs: ${needs}`,
     `Mood: ${mood}`,
     `Current intent: ${intent}`,
     `Active ambitions:\n${ambitions}`,

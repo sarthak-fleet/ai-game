@@ -38,6 +38,7 @@ interface WorldStore {
   lastSummary: TickSummary | null;
   agentLoopStatus: AgentLoopStatus | null;
   bubbles: BubbleEvent[];
+  zoom: number;
   init: () => Promise<void>;
   send: (action: PlayerAction | null) => Promise<void>;
   saveSnapshot: () => Promise<Snapshot>;
@@ -47,6 +48,7 @@ interface WorldStore {
   refreshFromServer: (summary?: TickSummary | null) => Promise<void>;
   applyServerTick: (world: World, summary: TickSummary) => void;
   setAgentLoopStatus: (status: AgentLoopStatus | null) => void;
+  setZoom: (zoom: number) => void;
   openDrawer: (npcId: string) => void;
   closeDrawer: () => void;
   clearError: () => void;
@@ -63,6 +65,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   lastSummary: null,
   agentLoopStatus: null,
   bubbles: [],
+  zoom: 1.35,
 
   async init() {
     set({ loading: true, error: null });
@@ -148,6 +151,9 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   },
   setAgentLoopStatus(status) {
     set({ agentLoopStatus: status });
+  },
+  setZoom(zoom) {
+    set({ zoom });
   },
 
   openDrawer(npcId) {
