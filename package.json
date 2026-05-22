@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "build": "tsc -p tsconfig.build.json && vite build",
+    "build": "tsc -p tsconfig.build.json && vite build && node scripts/copy-web-assets.mjs",
     "budget:bundle": "tsx src/bundle-budget.ts",
     "dev": "vite",
     "dev:server": "tsx watch --env-file-if-exists=.env src/server.ts",
@@ -27,8 +27,9 @@
     "playtest:alive": "tsx tests/playtests/alive-village.ts",
     "playtest:opm": "tsx tests/playtests/opm-world.ts",
     "playtest:world-ingest": "tsx tests/playtests/world-ingest.ts",
+    "playtest:production": "tsx tests/playtests/production-build.ts",
     "playtest:astro-landing": "tsx tests/playtests/astro-landing.ts",
-    "playtest:all": "pnpm playtest:first-loop && pnpm playtest:basic-v0 && pnpm playtest:alive && pnpm playtest:opm && pnpm playtest:world-ingest && pnpm playtest:astro-landing",
+    "playtest:all": "pnpm playtest:first-loop && pnpm playtest:basic-v0 && pnpm playtest:alive && pnpm playtest:opm && pnpm playtest:world-ingest && pnpm playtest:production && pnpm playtest:astro-landing",
     "verify:readiness": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm budget:bundle && pnpm bench:completion && pnpm bench:expanded && pnpm playtest:all",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
