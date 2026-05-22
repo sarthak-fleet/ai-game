@@ -144,7 +144,7 @@ function advanceTensions(world: World): void {
 
 export function counterplayForTension(worldId: string, tensionId: string): string {
   const hints: Record<string, Record<string, string>> = {
-    ashbend: {
+    ashment: {
       missing_metal: "inspect the bridge marks, return Mira's shears, or bring bridge proof to Lena",
       forge_unlit: "recover dry bellows leather and rekindle Tomas's forge",
     },

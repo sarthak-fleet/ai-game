@@ -15,8 +15,8 @@ function memoryStorage(): StorageLike {
 const snapshot = (): Snapshot => ({
   capturedAt: "2026-05-21T00:00:00.000Z",
   world: {
-    id: "ashbend",
-    name: "Ashbend Village",
+    id: "ashment",
+    name: "Ashment Village",
     tick: 7,
     player: { locationId: "garden" },
     clock: { day: 1, hour: 14, hoursPerTick: 1 },
@@ -33,7 +33,7 @@ describe("quick save slots", () => {
     const storage = memoryStorage();
     const slot = saveQuickSlot(storage, snapshot());
 
-    expect(slot.worldId).toBe("ashbend");
+    expect(slot.worldId).toBe("ashment");
     expect(slot.day).toBe(1);
     expect(slot.hour).toBe(14);
     expect(slot.tick).toBe(7);
@@ -43,7 +43,7 @@ describe("quick save slots", () => {
   test("describes a slot in player-facing terms", () => {
     const slot = saveQuickSlot(memoryStorage(), snapshot());
 
-    expect(describeQuickSlot(slot)).toBe("Ashbend Village · Day 1, 14:00 · t7");
+    expect(describeQuickSlot(slot)).toBe("Ashment Village · Day 1, 14:00 · t7");
   });
 
   test("drops malformed slot data instead of returning a broken save", () => {

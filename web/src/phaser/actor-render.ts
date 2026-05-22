@@ -324,7 +324,7 @@ export function makeActor(
 ): Phaser.GameObjects.Container {
   const variant = [...id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 5;
   const styleKey = appearance ? `${appearance.sourceLook ?? ""}-${appearance.visualTags?.join("-") ?? ""}`.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "default";
-  const key = `ashbend-actor-${id}-${styleKey}`;
+  const key = `ashment-actor-${id}-${styleKey}`;
   ensureActorSpritesheet(scene, key, id, fill, variant, appearance);
   const shadow = scene.add.ellipse(0, radius + 12, radius * 2.35, radius * 0.72, 0x000000, 0.26);
   const sprite = scene.add.sprite(0, radius + 9, key, 0).setOrigin(0.5, 1).setScale(ACTOR_SCALE);

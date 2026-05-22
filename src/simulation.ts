@@ -382,7 +382,7 @@ function applyQuestCompletionConsequences(world: World, quest: Quest, completerI
 
 function resolveQuestTensions(world: World, questId: string): void {
   const impact: Record<string, Partial<Record<string, number>>> = {
-    ashbend: {
+    ashment: {
       return_shears: -8,
       rekindle_forge: -35,
       bridge_whisper: -28,
@@ -394,7 +394,7 @@ function resolveQuestTensions(world: World, questId: string): void {
     },
   };
   const tensionByQuest: Record<string, Partial<Record<string, string[]>>> = {
-    ashbend: {
+    ashment: {
       return_shears: ["missing_metal"],
       rekindle_forge: ["forge_unlit"],
       bridge_whisper: ["missing_metal"],
@@ -410,7 +410,7 @@ function resolveQuestTensions(world: World, questId: string): void {
   for (const tension of world.tensions ?? []) {
     if (!ids.includes(tension.id) || tension.status === "resolved") continue;
     tension.pressure = clampPressure(tension.pressure + delta);
-    if (questId === "rekindle_forge" && world.id === "ashbend") {
+    if (questId === "rekindle_forge" && world.id === "ashment") {
       tension.status = "resolved";
     } else if (questId === "bridge_whisper") {
       tension.status = tension.pressure <= 20 ? "resolved" : "quiet";
@@ -445,7 +445,7 @@ function questRelationshipBranch(npc: Npc, actorId: string): { label: "Trusted" 
 
 function questConsequenceLine(world: World, questId: string, branch: { tone: "trusted" | "wary" | "neutral" }): string {
   const lines: Record<string, Record<string, Record<string, string>>> = {
-    ashbend: {
+    ashment: {
       return_shears: {
         trusted: "Mira shares the bridge-dew clue without holding back.",
         wary: "Mira accepts the shears but keeps watching how you handle Tomas.",

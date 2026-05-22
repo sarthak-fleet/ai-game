@@ -34,7 +34,7 @@ describe("server", () => {
       const stateRes = await fetch(`http://localhost:${port}/api/state`);
       expect(stateRes.status).toBe(200);
       const state = (await stateRes.json()) as { id: string; npcs: unknown[] };
-      expect(state.id).toBe("ashbend");
+      expect(state.id).toBe("ashment");
       expect(Array.isArray(state.npcs)).toBe(true);
 
       const tickRes = await fetch(`http://localhost:${port}/api/tick`, {
@@ -50,7 +50,7 @@ describe("server", () => {
       const pkgRes = await fetch(`http://localhost:${port}/api/story-package`);
       expect(pkgRes.status).toBe(200);
       const pkg = (await pkgRes.json()) as { package: { worldId: string; assets: { cutscenes: unknown[] } }; issues: unknown[] };
-      expect(pkg.package.worldId).toBe("ashbend");
+      expect(pkg.package.worldId).toBe("ashment");
       expect(pkg.issues).toEqual([]);
       expect(Array.isArray(pkg.package.assets.cutscenes)).toBe(true);
 
@@ -61,7 +61,7 @@ describe("server", () => {
       });
       expect(importRes.status).toBe(200);
       const imported = (await importRes.json()) as { state: { id: string; tick: number; player: { locationId: string } } };
-      expect(imported.state.id).toBe("ashbend");
+      expect(imported.state.id).toBe("ashment");
       expect(imported.state.tick).toBe(0);
       expect(imported.state.player.locationId).toBe("square");
 
@@ -104,7 +104,7 @@ describe("server", () => {
 
       const html = await fetch(`http://localhost:${port}/`);
       expect(html.status).toBe(200);
-      expect(await html.text()).toMatch(/Ashbend Village/);
+      expect(await html.text()).toMatch(/Ashment Village/);
     } finally {
       child.kill();
     }

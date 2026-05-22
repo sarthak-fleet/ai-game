@@ -310,7 +310,7 @@ Arin remembers and changes behavior later.
 Done:
 
 - TypeScript world/action schemas with validation.
-- Ashbend Village world JSON with 5 NPCs, locations, exits, items, one quest, clock, and event log.
+- Ashment Village world JSON with 5 NPCs, locations, exits, items, one quest, clock, and event log.
 - Simulation engine for ticks, player actions, NPC actions, movement, memory, relationships, items, quests, checksums, and time.
 - Scripted NPC proposer that proves gossip/confront/remember loops without requiring an LLM.
 - OpenAI-compatible LLM router with normal/quest model tiers, JSON action parsing, timeout handling, and per-call logging.
@@ -721,13 +721,13 @@ Done enough when:
 
 ## 11. Grand Plan: AI World Simulator
 
-This project is a persistent AI-agent world simulator presented as a playable RPG. The grand plan has five product categories: compile worlds, simulate characters, orchestrate story pressure, present the simulation as a game, and raise media quality. Ashbend is the first proof world for all five.
+This project is a persistent AI-agent world simulator presented as a playable RPG. The grand plan has five product categories: compile worlds, simulate characters, orchestrate story pressure, present the simulation as a game, and raise media quality. Ashment is the first proof world for all five.
 
 ### Five Product Categories
 
 | Category | Role | Current Direction |
 |---|---|---|
-| 1. Lore Ingestion / World Compiler | Convert stories and world bibles into structured playable world data. | Keep Ashbend hand-authored for now: `world.json`, quests, items, NPCs, and cutscene manifest entries. Defer wiki/fandom import until the loop works. |
+| 1. Lore Ingestion / World Compiler | Convert stories and world bibles into structured playable world data. | Keep Ashment hand-authored for now: `world.json`, quests, items, NPCs, and cutscene manifest entries. Defer wiki/fandom import until the loop works. |
 | 2. Character / Agent Simulation | Make NPCs remember, act, talk, relate, and pursue goals. | Deepen memory, goals, relationships, schedules, ambitions, secrets, and model-eval coverage. The LLM proposes; the engine validates and owns state. |
 | 3. Narrative Director / Story Orchestrator | Keep the world interesting without railroading. | Separate villain plans, director pressure, quiet-world nudges, reveals, and escalation beats from ordinary NPC behavior. |
 | 4. Game Runtime / Spatial UX | Make the simulation playable, readable, and fun. | Keep the 2D Phaser RPG loop focused on movement, quests, interactions, objectives, minimap, hints, and visible consequences. |
@@ -735,13 +735,13 @@ This project is a persistent AI-agent world simulator presented as a playable RP
 
 ### Where We Are Now
 
-- Ashbend has playable Phaser 2D movement, NPCs, quests, items, minimap, ambient systems, objective routing, and automated tests/playtests.
-- Ashbend and Z-City now include world-data `interactables` that render as clickable inspection hotspots, feed clues into the event log, and stay package/import-ready.
+- Ashment has playable Phaser 2D movement, NPCs, quests, items, minimap, ambient systems, objective routing, and automated tests/playtests.
+- Ashment and Z-City now include world-data `interactables` that render as clickable inspection hotspots, feed clues into the event log, and stay package/import-ready.
 - Story packages can now be exported from the app and imported back through a validated server route; package shape includes factions, tensions, villain plans, interactables, quests, and cutscene references.
 - The three starter quests are playable end-to-end.
 - The cutscene catalog exists, scoped by world/story/arc/order, with Q4 Phosphene shipped `.mp4` assets.
-- Nightfall progression now exists: starter quest completion unlocks the Lantern Inn objective, the player confronts the Lantern Shadow, and Dawn Over Ashbend unlocks after resolution.
-- A v1 story-package export shape exists for Ashbend with validation for world/NPC/item/quest/cutscene references.
+- Nightfall progression now exists: starter quest completion unlocks the Lantern Inn objective, the player confronts the Lantern Shadow, and Dawn Over Ashment unlocks after resolution.
+- A v1 story-package export shape exists for Ashment with validation for world/NPC/item/quest/cutscene references.
 - Story-package validation now covers duplicate IDs, exit endpoints, item holders, interactable quest links, tension references, villain-plan actors, and cutscene metadata; the app has a package review popover with counts and structural issues.
 - A local One Punch Man/Z-City test world exists as the first anime-style import rehearsal. It reuses the shared quest/objective/story systems, adds character appearance metadata and local portrait assets, and has its own smoke playtest.
 - The Interact panel now includes explicit adjacent-location travel controls, so room/path movement is available through UI controls as well as click-to-move.
@@ -751,8 +751,8 @@ This project is a persistent AI-agent world simulator presented as a playable RP
 - Combat actions now produce visible 2D feedback: target flash, hit burst, slash, knockback, camera shake, and combat-specific toast styling.
 - Combat is now stateful: hostile NPCs have HP/posture/defeated state, non-finishers weaken them, and finishers resolve encounters.
 - Optional local SFX cues now mark combat, pickups/gifts, inspections, quest outcomes, and director beats without adding generated media or runtime model dependency.
-- Optional procedural music now runs locally through WebAudio, with different harmonic palettes for Ashbend, Z-City, and nightfall/shadow phases. This is a prototype score layer, not a replacement for composed music assets.
-- The music control now exposes the active theme name (`Ashbend Dawn`, `Nightfall Warning`, `Lantern Shadow`, `Z-City Pulse`, `Overpass Duel`) so phase-specific score changes are visible and testable.
+- Optional procedural music now runs locally through WebAudio, with different harmonic palettes for Ashment, Z-City, and nightfall/shadow phases. This is a prototype score layer, not a replacement for composed music assets.
+- The music control now exposes the active theme name (`Ashment Dawn`, `Nightfall Warning`, `Lantern Shadow`, `Z-City Pulse`, `Overpass Duel`) so phase-specific score changes are visible and testable.
 - Music themes now have distinct tempo, chord, motif, bass, pulse, and voice-level definitions instead of one shared generic loop.
 - Character movement animation now has stronger squash/stretch, shadow response, and footstep dust for player and NPC movement.
 - Fight presentation now has stronger scene staging: cinematic bars, move-name cut-ins, speed lines, impact arcs, lunge/knockback, shake, combat stingers, HP/damage overlay, and combat-specific toast styling.
@@ -790,7 +790,7 @@ The next target is not "final product"; it is an 80%-ready 2D vertical slice whe
 2. Character / Agent Simulation: make schedules affect behavior more visibly and let relationship/memory state change more dialogue and quest outcomes.
 3. Narrative Director / Story Orchestrator: make villain plan progression produce more player-facing consequences if ignored.
 4. Media / Cutscene Layer: improve the authored feel with better sprites, portraits, sound cues, and shipped cutscenes only.
-5. Lore Ingestion / World Compiler: keep external import frozen, but use the story-package shape for any new Ashbend content.
+5. Lore Ingestion / World Compiler: keep external import frozen, but use the story-package shape for any new Ashment content.
 
 ## 12. Phase Plan
 
@@ -798,7 +798,7 @@ The next target is not "final product"; it is an 80%-ready 2D vertical slice whe
 
 Status:
 
-- Ashbend world JSON exists.
+- Ashment world JSON exists.
 - State engine, validation, memory, relationships, quests, replay, server, React shell, and local model path exist.
 - Phaser scene exists but is still prototype-quality.
 
@@ -825,7 +825,7 @@ Build:
 
 Exit criteria:
 
-- 10-minute Ashbend playtest is understandable and at least somewhat fun
+- 10-minute Ashment playtest is understandable and at least somewhat fun
 - NPC behavior references prior events without hallucinating world state
 - player can intentionally improve or damage a relationship
 - at least one antagonist or pressure source advances a valid plan if ignored
@@ -907,7 +907,7 @@ Exit criteria:
 | Model backend / evals | Support only | local baseline and regression checks for agent/gameplay work |
 | Narrative director | Support now | director pressure separate from villain plans; quiet-world nudges, reveals, consequences, grounded hints |
 | Persistence / replay | Hold except debug support | save/load after the first playable loop is clearer |
-| Authoring tools | Hold | no editor until Ashbend proves the model |
+| Authoring tools | Hold | no editor until Ashment proves the model |
 | Story import | Frozen | no wiki/fandom/subtitle work until tracks 1 and 2 are right |
 | Media / character design | Support now | local Q4 Phosphene/LTX cutscene pack as shipped `.mp4` assets only; no runtime generation |
 | Packaging / onboarding | Frozen | no packaging until there is a playable vertical slice |
@@ -958,10 +958,10 @@ Risk controls:
 - Use cases: game intro, quest completion beats, villain hints, location reveals, dream/vision moments.
 - Runtime rule: Phaser/React only plays cached assets; generation never happens during gameplay.
 - Scale rule: cutscenes are catalog entries scoped by `worldId`, `storyId`, `arcId`, `order`, and declarative triggers. Imported external stories/worlds should add catalog rows and assets, not React conditionals.
-- Progression rule: Ashbend uses engine-owned `world.storyProgress.phase`, `unlockedCutsceneIds`, and `playedCutsceneIds`. The LLM never mutates these fields directly.
+- Progression rule: Ashment uses engine-owned `world.storyProgress.phase`, `unlockedCutsceneIds`, and `playedCutsceneIds`. The LLM never mutates these fields directly.
 - Trigger types for now: `session_start`, `quest_completed`, `story_phase`, and `manual`. Add new trigger kinds only when gameplay exposes a stable state event.
-- Current vertical slice target: starter quests unlock quest scenes, starter completion unlocks the Lantern Shadow beat, and resolving the shadow confrontation unlocks Dawn Over Ashbend.
-- Next asset-quality path: image-to-video from actual Ashbend screenshots or concept stills, not text-to-video alone.
+- Current vertical slice target: starter quests unlock quest scenes, starter completion unlocks the Lantern Shadow beat, and resolving the shadow confrontation unlocks Dawn Over Ashment.
+- Next asset-quality path: image-to-video from actual Ashment screenshots or concept stills, not text-to-video alone.
 - Later note: run a Q8 trial only after Q4 standard/I2V is stable. Benchmark memory pressure, peak RSS, elapsed time, and visual gain before adopting Q8 for hero cutscenes.
 
 ## 16. Non-Negotiable Build Rules

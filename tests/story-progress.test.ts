@@ -15,7 +15,7 @@ describe("story progress", () => {
     syncStoryProgress(world);
 
     expect(world.storyProgress?.phase).toBe("starter");
-    expect(isCutsceneUnlocked(world, "ashbend_intro_square")).toBe(true);
+    expect(isCutsceneUnlocked(world, "ashment_intro_square")).toBe(true);
     expect(isCutsceneUnlocked(world, "villain_lantern_shadow")).toBe(false);
     expect(isCutsceneUnlocked(world, "dawn_after_tasks")).toBe(false);
   });

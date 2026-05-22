@@ -75,7 +75,7 @@ describe("director", () => {
     const world = fixture();
     world.storyProgress = {
       phase: "nightfall_warning",
-      unlockedCutsceneIds: ["ashbend_intro_square", "villain_lantern_shadow"],
+      unlockedCutsceneIds: ["ashment_intro_square", "villain_lantern_shadow"],
       playedCutsceneIds: [],
     };
     world.directorState = { pressure: 45, quietTicks: 1, pendingReveals: [] };
@@ -106,7 +106,7 @@ describe("director", () => {
     expect(directed?.action.actorId).toBe("nell");
     expect(directed?.text).toContain("Guild Counter");
     expect(directed?.text).toContain("false pirate alarm");
-    expect(directed?.text).not.toMatch(/Lantern|Lena|Ashbend|village/i);
+    expect(directed?.text).not.toMatch(/Lantern|Lena|Ashment|village/i);
   });
 
   test("OPM world gets Z-City director story beats", async () => {
@@ -127,7 +127,7 @@ describe("director", () => {
     expect(directed?.action.actorId).toBe("lena");
     expect(directed?.text).toContain("Hero Association kiosk");
     expect(directed?.text).toContain("monster alert");
-    expect(directed?.text).not.toMatch(/Lantern|Ashbend|village/i);
+    expect(directed?.text).not.toMatch(/Lantern|Ashment|village/i);
   });
 
   test("generic imported worlds get source-derived pressure reveals", () => {
@@ -147,7 +147,7 @@ describe("director", () => {
     expect(reveals).toContain("Skyfront Couriers Playable Slice has gone quiet enough");
     expect(reveals).toContain("Vex is exposed while Nell watches");
     expect(reveals).toContain("A false pirate alarm threatens the harbor route is close to breaking into the open");
-    expect(reveals).not.toMatch(/Lantern|Lena|Ashbend|village|bridge whisper|blue pulse/i);
+    expect(reveals).not.toMatch(/Lantern|Lena|Ashment|village|bridge whisper|blue pulse/i);
   });
 
   test("ignored world tensions escalate into visible status", async () => {

@@ -188,7 +188,7 @@ async function runAliveVillagePlaytest(api: ChildProcess): Promise<void> {
     allowRecoverableNetworkError = true;
     await page.getByRole("button", { name: "Wait" }).click();
     await expect(page.getByLabel("Recoverable app error")).toContainText("Action failed");
-    await expect(page.getByRole("heading", { name: "Ashbend Village" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ashment Village" })).toBeVisible();
     await expect(page.locator(".three-host canvas")).toBeVisible();
     await page.screenshot({ path: join(ARTIFACT_DIR, "05-recoverable-error.png") });
     await page.getByRole("button", { name: "Dismiss" }).click();

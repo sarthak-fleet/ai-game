@@ -94,7 +94,7 @@ async function runBasicV0Playtest(): Promise<void> {
     await clickObjective(page, "Confront");
     await expect(objective(page)).toContainText("Nightfall held");
     await closeCutsceneIfVisible(page);
-    await expect(sceneRow(page, "Dawn Over Ashbend").getByRole("button", { name: "Play" })).toBeEnabled();
+    await expect(sceneRow(page, "Dawn Over Ashment").getByRole("button", { name: "Play" })).toBeEnabled();
     await expect(objective(page).getByText("Nightfall held")).toBeVisible();
     await page.screenshot({ path: join(ARTIFACT_DIR, "10-nightfall-resolved.png") });
   } finally {

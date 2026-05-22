@@ -13,15 +13,15 @@ describe("story package shape", () => {
     const world = fixture();
     const manifest: CutsceneManifestEntry[] = [
       {
-        id: "ashbend_intro_square",
-        worldId: "ashbend",
-        storyId: "ember_beneath_ashbend",
+        id: "ashment_intro_square",
+        worldId: "ashment",
+        storyId: "ember_beneath_ashment",
         arcId: "arrival",
         order: 10,
-        title: "Ashbend Arrival",
+        title: "Ashment Arrival",
         moment: "Opening",
-        src: "/assets/cutscenes/ashbend_intro_square.mp4",
-        poster: "/assets/cutscenes/ashbend_intro_square.jpg",
+        src: "/assets/cutscenes/ashment_intro_square.mp4",
+        poster: "/assets/cutscenes/ashment_intro_square.jpg",
         triggers: [{ kind: "session_start" }],
       },
       {
@@ -41,13 +41,13 @@ describe("story package shape", () => {
     const pkg = storyPackageFromWorld(world, manifest);
 
     expect(pkg.packageVersion).toBe(1);
-    expect(pkg.worldId).toBe("ashbend");
+    expect(pkg.worldId).toBe("ashment");
     expect(pkg.world.npcs.length).toBeGreaterThan(0);
     expect(pkg.world.factions.length).toBeGreaterThan(0);
     expect(pkg.world.tensions.length).toBeGreaterThan(0);
     expect(pkg.world.villainPlans.length).toBeGreaterThan(0);
     expect(pkg.world.interactables.map((prop) => prop.id)).toContain("bridge_scars");
-    expect(pkg.assets.cutscenes.map((cutscene) => cutscene.id)).toEqual(["ashbend_intro_square"]);
+    expect(pkg.assets.cutscenes.map((cutscene) => cutscene.id)).toEqual(["ashment_intro_square"]);
     expect(validateStoryPackage(pkg)).toEqual([]);
   });
 
@@ -67,7 +67,7 @@ describe("story package shape", () => {
     const pkg = storyPackageFromWorld(fixture());
     const world = worldFromStoryPackage(pkg);
 
-    expect(world.id).toBe("ashbend");
+    expect(world.id).toBe("ashment");
     expect(world.tick).toBe(0);
     expect(world.player.locationId).toBe("square");
     expect(world.eventLog).toEqual([]);

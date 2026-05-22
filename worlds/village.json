@@ -1,9 +1,9 @@
 {
-  "id": "ashbend",
-  "name": "Ashbend Village",
+  "id": "ashment",
+  "name": "Ashment Village",
   "story": {
-    "title": "The Ember Beneath Ashbend",
-    "premise": "Ashbend is a riverside village built around an old forge, a herb garden, and a bridge that hums at night. For years the forge flame kept the river fog away. This week the flame guttered out, tools began vanishing, and something under the bridge started scratching back.",
+    "title": "The Ember Beneath Ashment",
+    "premise": "Ashment is a riverside village built around an old forge, a herb garden, and a bridge that hums at night. For years the forge flame kept the river fog away. This week the flame guttered out, tools began vanishing, and something under the bridge started scratching back.",
     "opening": "The Wanderer arrives at dawn after seeing a pale blue glow from the old bridge. The villagers are trying to act normal, but every small errand points back to the same worry: the forge, the bridge, and the sealed hollow in the wood are connected.",
     "currentObjective": "Earn the villagers' trust, recover the missing tools, and learn why the bridge is whispering before the next nightfall.",
     "mysteries": [
@@ -21,7 +21,7 @@
   },
   "storyProgress": {
     "phase": "starter",
-    "unlockedCutsceneIds": ["ashbend_intro_square"],
+    "unlockedCutsceneIds": ["ashment_intro_square"],
     "playedCutsceneIds": []
   },
   "tick": 0,
@@ -30,10 +30,10 @@
   "rules": [
     { "id": "forge_flame", "kind": "magic", "text": "The old forge flame keeps river fog and bridge whispers weak while it burns." },
     { "id": "bright_metal", "kind": "magic", "text": "Cold blue embers pull small bright metal objects toward the bridge unless hidden in wood or cloth." },
-    { "id": "village_trust", "kind": "social", "text": "Ashbend villagers cooperate faster with people who return tools, keep promises, and do not spread cruel rumors." }
+    { "id": "village_trust", "kind": "social", "text": "Ashment villagers cooperate faster with people who return tools, keep promises, and do not spread cruel rumors." }
   ],
   "factions": [
-    { "id": "village", "name": "Ashbend villagers", "goals": ["keep the village calm", "restore the forge flame"], "resources": ["notice board", "shared stores"], "reputation": 0 },
+    { "id": "village", "name": "Ashment villagers", "goals": ["keep the village calm", "restore the forge flame"], "resources": ["notice board", "shared stores"], "reputation": 0 },
     { "id": "bridge_whisper", "name": "The Bridge Whisper", "goals": ["draw bright metal to the river", "keep villagers divided"], "resources": ["cold blue ember", "night fog"], "reputation": -3 }
   ],
   "tensions": [
@@ -284,7 +284,7 @@
       "memories": [
         { "tick": 0, "text": "A traveler heard scratching beneath the old bridge.", "meta": { "importance": 7, "tags": ["traveler", "scratching", "bridge"], "visibility": "shared", "emotionalWeight": 4, "sourceActorId": "world" } },
         { "tick": 0, "text": "The brass lantern burned blue for three seconds when pointed at Hollow Wood.", "meta": { "importance": 8, "tags": ["lantern", "blue", "wood"], "visibility": "private", "emotionalWeight": 3, "sourceActorId": "world" } },
-        { "tick": 0, "text": "Lena promised the Wanderer a room if they help calm Ashbend before nightfall.", "meta": { "importance": 6, "tags": ["wanderer", "promise", "nightfall"], "visibility": "shared", "emotionalWeight": 2, "sourceActorId": "world" } }
+        { "tick": 0, "text": "Lena promised the Wanderer a room if they help calm Ashment before nightfall.", "meta": { "importance": 6, "tags": ["wanderer", "promise", "nightfall"], "visibility": "shared", "emotionalWeight": 2, "sourceActorId": "world" } }
       ]
     },
     {

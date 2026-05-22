@@ -84,7 +84,7 @@ async function runBrowserPlaytest(): Promise<void> {
     await expect(page.locator(".outcome-toast")).toContainText("Fresh soot outlines a missing pair of shears");
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
-    await expect(page.getByRole("heading", { name: "Ashbend Village" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ashment Village" })).toBeVisible();
     await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
     await expect(page.locator(".three-host canvas")).toBeVisible();
     await expect(objective(page)).toContainText("Bring Pruning shears to Mira");

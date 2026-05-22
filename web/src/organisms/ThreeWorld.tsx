@@ -64,10 +64,10 @@ export function ThreeWorld() {
       const detail = (event as CustomEvent<{ locationId?: string }>).detail;
       if (detail?.locationId) void movePlayerToward(detail.locationId);
     };
-    window.addEventListener("ashbend:travel-to", onTravelRequest);
+    window.addEventListener("ashment:travel-to", onTravelRequest);
 
     return () => {
-      window.removeEventListener("ashbend:travel-to", onTravelRequest);
+      window.removeEventListener("ashment:travel-to", onTravelRequest);
       unsub();
       resizeObserver.disconnect();
       renderer.dispose();

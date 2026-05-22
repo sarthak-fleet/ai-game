@@ -1,12 +1,12 @@
 import { storyPhaseLocations } from "./story-context.ts";
 import type { Quest, StoryProgress, World } from "./types.ts";
 
-export const ASHBEND_STORY_ID = "ember_beneath_ashbend";
+export const ASHMENT_STORY_ID = "ember_beneath_ashment";
 
 export const STARTER_QUEST_IDS = ["return_shears", "rekindle_forge", "bridge_whisper"] as const;
 
 export const STORY_CUTSCENES = {
-  intro: "ashbend_intro_square",
+  intro: "ashment_intro_square",
   shears: "garden_morning",
   forge: "forge_rekindled",
   bridge: "bridge_whisper",

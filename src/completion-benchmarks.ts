@@ -43,7 +43,7 @@ interface TestEvidence {
 }
 
 export function projectCompletionBenchmarks(rootDir = process.cwd()): CompletionBenchmark[] {
-  const ashbend = hydrateWorld(readWorld(rootDir, "worlds/village.json"));
+  const ashment = hydrateWorld(readWorld(rootDir, "worlds/village.json"));
   const secondWorld = hydrateWorld(readWorld(rootDir, "worlds/one-punch-man.json"));
   const cutscenes = readJson<CutsceneManifestEntry[]>(rootDir, "web/assets/cutscenes/manifest.json", []);
   const webFiles: WebEvidence = {
@@ -66,11 +66,11 @@ export function projectCompletionBenchmarks(rootDir = process.cwd()): Completion
   };
 
   return [
-    loreBenchmark(ashbend, secondWorld, cutscenes, tests),
-    characterBenchmark(ashbend, secondWorld, tests),
-    directorBenchmark(ashbend, secondWorld, tests),
-    runtimeBenchmark(ashbend, secondWorld, webFiles, tests),
-    mediaBenchmark(ashbend, secondWorld, cutscenes, webFiles),
+    loreBenchmark(ashment, secondWorld, cutscenes, tests),
+    characterBenchmark(ashment, secondWorld, tests),
+    directorBenchmark(ashment, secondWorld, tests),
+    runtimeBenchmark(ashment, secondWorld, webFiles, tests),
+    mediaBenchmark(ashment, secondWorld, cutscenes, webFiles),
   ];
 }
 
@@ -82,7 +82,7 @@ export function assertCompletionTarget(benchmarks: CompletionBenchmark[], target
 }
 
 function loreBenchmark(
-  ashbend: World,
+  ashment: World,
   secondWorld: World,
   cutscenes: CutsceneManifestEntry[],
   tests: { storyPackage: boolean; opm: boolean }
@@ -90,21 +90,21 @@ function loreBenchmark(
   return score("lore_ingestion", "Lore Ingestion / World Compiler", [
     check(Boolean(secondWorld), "second structured world fixture exists", "add a second structured world fixture"),
     check(Boolean(secondWorld && validateStoryPackage(storyPackageFromWorld(secondWorld, cutscenes)).length === 0), "second world exports as a valid story package", "make the second world package-valid"),
-    check(hasAll(ashbend, ["locations", "exits", "npcs", "items", "quests", "interactables"]), "primary world includes playable schema pieces", "complete primary world schema pieces"),
+    check(hasAll(ashment, ["locations", "exits", "npcs", "items", "quests", "interactables"]), "primary world includes playable schema pieces", "complete primary world schema pieces"),
     check(hasAll(secondWorld, ["locations", "exits", "npcs", "items", "quests", "interactables"]), "second world includes playable schema pieces", "complete second world schema pieces"),
-    check(hasFactionTensionAndPlans(ashbend) && hasFactionTensionAndPlans(secondWorld), "world packages carry factions, tensions, and villain plans", "add factions, tensions, and villain plans to both worlds"),
+    check(hasFactionTensionAndPlans(ashment) && hasFactionTensionAndPlans(secondWorld), "world packages carry factions, tensions, and villain plans", "add factions, tensions, and villain plans to both worlds"),
     check(hasAppearanceData(secondWorld), "second world carries appearance metadata", "add appearance metadata to second world characters"),
-    check(cutscenes.some((entry) => entry.worldId === ashbend.id), "cutscene references are package-exportable", "add cutscene manifest references"),
+    check(cutscenes.some((entry) => entry.worldId === ashment.id), "cutscene references are package-exportable", "add cutscene manifest references"),
     check(tests.storyPackage && tests.opm, "package and second-world tests exist", "add package and second-world tests"),
   ]);
 }
 
-function characterBenchmark(ashbend: World, secondWorld: World | null, tests: { agentState: boolean }): CompletionBenchmark {
+function characterBenchmark(ashment: World, secondWorld: World | null, tests: { agentState: boolean }): CompletionBenchmark {
   return score("character_simulation", "Character / Agent Simulation", [
-    check(allNpcsHave(ashbend, hasMemory), "NPCs have memories", "seed memories for every primary NPC"),
-    check(allNpcsHave(ashbend, hasRelationships), "NPC relationships are stateful", "add relationship state to NPCs"),
-    check(allNpcsHave(ashbend, hasAgentState), "NPCs have needs, moods, ambitions, and secrets/plans where relevant", "fill out agent state"),
-    check(allNpcsHave(ashbend, hasSchedule), "NPC schedules drive routine movement", "add schedules to NPC plans"),
+    check(allNpcsHave(ashment, hasMemory), "NPCs have memories", "seed memories for every primary NPC"),
+    check(allNpcsHave(ashment, hasRelationships), "NPC relationships are stateful", "add relationship state to NPCs"),
+    check(allNpcsHave(ashment, hasAgentState), "NPCs have needs, moods, ambitions, and secrets/plans where relevant", "fill out agent state"),
+    check(allNpcsHave(ashment, hasSchedule), "NPC schedules drive routine movement", "add schedules to NPC plans"),
     check(hasQuestAftermathEvidence(), "quest outcomes branch through relationship and memory state", "wire quest aftermath into memory and relationships"),
     check(hasDialogueMemoryEvidence(), "dialogue surfaces relevant memory and intent", "surface memory/intent in dialogue"),
     check(allNpcsHave(secondWorld, hasAppearanceOrRole), "second-world characters carry roles or appearance", "add role/appearance data to second-world NPCs"),
@@ -112,11 +112,11 @@ function characterBenchmark(ashbend: World, secondWorld: World | null, tests: { 
   ]);
 }
 
-function directorBenchmark(ashbend: World, secondWorld: World | null, tests: { director: boolean }): CompletionBenchmark {
+function directorBenchmark(ashment: World, secondWorld: World | null, tests: { director: boolean }): CompletionBenchmark {
   return score("narrative_director", "Narrative Director / Story Orchestrator", [
-    check(Boolean(ashbend.directorState), "director state exists", "add director state"),
-    check(Boolean(ashbend.villainPlans?.length && secondWorld?.villainPlans?.length), "villain plans exist in both worlds", "add villain plans to both worlds"),
-    check(Boolean(ashbend.tensions?.length && secondWorld?.tensions?.length), "tensions exist in both worlds", "add world tensions"),
+    check(Boolean(ashment.directorState), "director state exists", "add director state"),
+    check(Boolean(ashment.villainPlans?.length && secondWorld?.villainPlans?.length), "villain plans exist in both worlds", "add villain plans to both worlds"),
+    check(Boolean(ashment.tensions?.length && secondWorld?.tensions?.length), "tensions exist in both worlds", "add world tensions"),
     check(hasDirectorEscalationEvidence(), "ignored pressure escalates into reveals and statuses", "make pressure escalation visible"),
     check(hasCounterplayEvidence(), "escalated pressure exposes counterplay", "add player-facing counterplay hints"),
     check(hasStoryPhaseEvidence(), "story phases produce recoverable objectives", "add story phase objectives"),
@@ -126,15 +126,15 @@ function directorBenchmark(ashbend: World, secondWorld: World | null, tests: { d
 }
 
 function runtimeBenchmark(
-  ashbend: World,
+  ashment: World,
   secondWorld: World,
   webFiles: WebEvidence,
   tests: TestEvidence
 ): CompletionBenchmark {
   return score("game_runtime", "Game Runtime / Spatial UX", [
     check(webFiles.phaserScene, "Phaser 2D runtime exists", "add Phaser runtime"),
-    check(Boolean(ashbend.exits.length && secondWorld?.exits.length), "rooms and travel graph exist", "add reliable room exits"),
-    check(Boolean(ashbend.quests?.length && ashbend.items.length && ashbend.interactables?.length), "quests, items, and inspectable props exist", "add quests, items, and props"),
+    check(Boolean(ashment.exits.length && secondWorld?.exits.length), "rooms and travel graph exist", "add reliable room exits"),
+    check(Boolean(ashment.quests?.length && ashment.items.length && ashment.interactables?.length), "quests, items, and inspectable props exist", "add quests, items, and props"),
     check(webFiles.appHeader && webFiles.quickSave, "file save/load and browser quick slot exist", "add resumable save/load"),
     check(hasCombatEvidence(), "stateful fights are playable", "add stateful fight flow"),
     check(hasObjectiveEvidence(), "objectives and hints drive the loop", "add objective/hint UI"),
@@ -144,15 +144,15 @@ function runtimeBenchmark(
 }
 
 function mediaBenchmark(
-  ashbend: World,
+  ashment: World,
   secondWorld: World,
   cutscenes: CutsceneManifestEntry[],
   webFiles: WebEvidence
 ): CompletionBenchmark {
   return score("media_cutscene", "Media / Cutscene Layer", [
-    check(cutscenes.filter((entry) => entry.worldId === ashbend.id).length >= 5, "primary world has a shipped cutscene catalog", "ship a fuller cutscene catalog"),
+    check(cutscenes.filter((entry) => entry.worldId === ashment.id).length >= 5, "primary world has a shipped cutscene catalog", "ship a fuller cutscene catalog"),
     check(cutscenes.every((entry) => assetExists(entry.src) && assetExists(entry.poster)), "cutscene videos and posters exist", "add missing cutscene media files"),
-    check(hasAppearanceData(ashbend) && hasAppearanceData(secondWorld), "characters have appearance metadata", "add character appearance metadata"),
+    check(hasAppearanceData(ashment) && hasAppearanceData(secondWorld), "characters have appearance metadata", "add character appearance metadata"),
     check(hasPortraitAssets(secondWorld), "anime test world uses local portrait assets", "add portrait assets"),
     check(webFiles.cutscenePlayer, "cutscene player exists", "add cutscene playback UI"),
     check(webFiles.fightOverlay, "fight presentation overlay exists", "add fight presentation overlay"),

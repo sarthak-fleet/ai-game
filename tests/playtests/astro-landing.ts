@@ -46,8 +46,8 @@ async function runLandingSmoke(): Promise<void> {
 
   try {
     await page.goto(BASE_URL, { waitUntil: "commit" });
-    await expect(page).toHaveTitle("Ashbend | Interactive AI World");
-    await expect(page.getByRole("heading", { name: "ASHBEND" }).first()).toBeVisible();
+    await expect(page).toHaveTitle("Ashment | Interactive AI World");
+    await expect(page.getByRole("heading", { name: "ASHMENT" }).first()).toBeVisible();
     await expect(page.locator("body")).toContainText("playable 3D RPG simulation");
     await expect(page.locator("body")).toContainText("World Ingest");
     await expect(page.locator("body")).toContainText("Long-Running Agents");
@@ -63,7 +63,7 @@ async function runLandingSmoke(): Promise<void> {
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
     try {
       await mobile.goto(BASE_URL, { waitUntil: "commit" });
-      await expect(mobile.getByRole("heading", { name: "ASHBEND" }).first()).toBeVisible();
+      await expect(mobile.getByRole("heading", { name: "ASHMENT" }).first()).toBeVisible();
       await expect(mobile.locator("#three-ambient canvas")).toBeVisible();
       await expect.poll(() => nonBlankCanvasPixels(mobile, "#three-ambient canvas"), {
         message: "mobile landing Three.js background should render nonblank pixels",

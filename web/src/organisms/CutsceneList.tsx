@@ -3,11 +3,11 @@ import { Panel } from "../atoms/Panel.tsx";
 import { cutscenesForScope, isCutsceneUnlocked, playCutscene } from "../cutscenes.ts";
 import { useWorldStore } from "../store/world.ts";
 
-const DEFAULT_STORY_ID = "ember_beneath_ashbend";
+const DEFAULT_STORY_ID = "ember_beneath_ashment";
 
 export function CutsceneList() {
   const world = useWorldStore((s) => s.world);
-  const worldId = world?.id ?? "ashbend";
+  const worldId = world?.id ?? "ashment";
   const cutscenes = cutscenesForScope({ worldId, storyId: DEFAULT_STORY_ID });
 
   return (

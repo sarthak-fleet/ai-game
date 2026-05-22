@@ -407,10 +407,10 @@ export class VillageScene extends Phaser.Scene {
   }
 
   private createTileTextures() {
-    if (this.textures.exists("ashbend-tiles")) return;
+    if (this.textures.exists("ashment-tiles")) return;
     const tileCount = Object.keys(TILE).length;
 
-    // Russpuppy CC0 tileset → ashbend terrain mapping. Indices into the
+    // Russpuppy CC0 tileset → ashment terrain mapping. Indices into the
     // 10-col × 11-row, 16×16-per-tile source grid, chosen by inspecting
     // open_tileset_16.png. If the texture didn't load (e.g. dev server
     // path miss), fall through to the procedural renderer below.
@@ -451,7 +451,7 @@ export class VillageScene extends Phaser.Scene {
           this.textures as unknown as {
             addCanvas: (key: string, canvas: HTMLCanvasElement) => void;
           }
-        ).addCanvas("ashbend-tiles", canvas);
+        ).addCanvas("ashment-tiles", canvas);
         return;
       }
     }
@@ -507,13 +507,13 @@ export class VillageScene extends Phaser.Scene {
     drawTile(TILE.plaza, 0x515967, 0x7b8493, 0x363d49);
     drawTile(TILE.garden, 0x35633d, 0xa5c76b, 0x24432b);
     drawTile(TILE.forest, 0x203f2c, 0x4d7f45, 0x12261a);
-    g.generateTexture("ashbend-tiles", TILE_SIZE * tileCount, TILE_SIZE);
+    g.generateTexture("ashment-tiles", TILE_SIZE * tileCount, TILE_SIZE);
     g.destroy();
   }
 
   private drawTilemap() {
     const map = this.make.tilemap({ data: buildGroundLayer(), tileWidth: TILE_SIZE, tileHeight: TILE_SIZE });
-    const tiles = map.addTilesetImage("ashbend-tiles", "ashbend-tiles", TILE_SIZE, TILE_SIZE);
+    const tiles = map.addTilesetImage("ashment-tiles", "ashment-tiles", TILE_SIZE, TILE_SIZE);
     if (tiles) {
       this.groundLayer = map.createLayer(0, tiles, 0, 0) ?? undefined;
       this.groundLayer?.setDepth(-20);

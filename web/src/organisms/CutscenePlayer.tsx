@@ -4,7 +4,7 @@ import type { Cutscene, CutsceneId } from "../cutscenes.ts";
 import { CUTSCENE_EVENT, cutsceneById, cutsceneForSummary, introCutsceneForScope, isCutsceneUnlocked } from "../cutscenes.ts";
 import { useWorldStore } from "../store/world.ts";
 
-const DEFAULT_STORY_ID = "ember_beneath_ashbend";
+const DEFAULT_STORY_ID = "ember_beneath_ashment";
 
 export function CutscenePlayer() {
   const world = useWorldStore((s) => s.world);
@@ -13,7 +13,7 @@ export function CutscenePlayer() {
   const [pending, setPending] = useState<Cutscene[]>([]);
   const activeRef = useRef<Cutscene | null>(null);
   const lastSummaryCutsceneKey = useRef<string | null>(null);
-  const scope = useMemo(() => ({ worldId: world?.id ?? "ashbend", storyId: DEFAULT_STORY_ID }), [world?.id]);
+  const scope = useMemo(() => ({ worldId: world?.id ?? "ashment", storyId: DEFAULT_STORY_ID }), [world?.id]);
   const introSeenKey = `cutscene:intro:${scope.worldId}:${scope.storyId}`;
 
   useEffect(() => {

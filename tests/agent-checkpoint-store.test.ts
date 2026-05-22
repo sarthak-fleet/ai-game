@@ -60,7 +60,7 @@ function checkpointAt(tick: number, name = `world ${tick}`): AgentLoopCheckpoint
     tick,
     capturedAt: "2026-05-21T00:00:00.000Z",
     world: {
-      id: "ashbend",
+      id: "ashment",
       name,
       tick,
       player: { locationId: "square" },

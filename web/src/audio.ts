@@ -9,7 +9,7 @@ let enabled = localStorage.getItem(SFX_STORAGE_KEY) === "true";
 let musicEnabled = localStorage.getItem(MUSIC_STORAGE_KEY) === "true";
 let musicTimer: number | null = null;
 let musicStep = 0;
-let musicMood: { worldId: string; phase: string } = { worldId: "ashbend", phase: "starter" };
+let musicMood: { worldId: string; phase: string } = { worldId: "ashment", phase: "starter" };
 let activeStepMs = 760;
 
 export interface MusicMoodInput {
@@ -55,7 +55,7 @@ export function musicThemeName(mood: MusicMoodInput): string {
   }
   if (phase === "shadow_confrontation") return "Lantern Shadow";
   if (phase === "nightfall_warning") return "Nightfall Warning";
-  return "Ashbend Dawn";
+  return "Ashment Dawn";
 }
 
 export function playActionCues(entries: TickSummary["actions"], world?: World): void {

@@ -59,7 +59,7 @@ async function runWorldIngestPlaytest(): Promise<void> {
   try {
     await page.goto(BASE_URL);
     await page.waitForLoadState("domcontentloaded");
-    await expect(page.getByRole("heading", { name: "Ashbend Village" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ashment Village" })).toBeVisible();
     await openAgentsPanel(page);
     await expect(page.getByLabel("Agent loop controls")).toContainText("idle");
     await startAgentLoopFromUi(page);
@@ -234,7 +234,7 @@ async function completeSkyfrontQuest(
   await clickButton(page, quest.completeButton);
   await expect(page.locator(".outcome-toast")).toContainText(quest.completedText);
   await expect(page.locator(".dialogue-panel")).toContainText("That matters in Skyfront Couriers Playable Slice");
-  await expect(page.locator(".dialogue-panel")).not.toContainText("That matters in Ashbend");
+  await expect(page.locator(".dialogue-panel")).not.toContainText("That matters in Ashment");
   await expect(page.getByRole("button", { name: "Ask about world" })).toBeVisible();
   await clickButton(page, "Close");
   await expect(objective(page)).toContainText(quest.nextText);
@@ -472,7 +472,15 @@ async function travelViaObjectiveOr3dStrip(page: Page, travelText: string): Prom
 }
 
 async function clickThreeTarget(page: Page, label: string): Promise<void> {
-  await hoverThreeTarget(page, label);
+  try {
+    await hoverThreeTarget(page, label);
+  } catch (error) {
+    if (!String((error as Error).message).includes("Could not find 3D target")) throw error;
+    await page.locator(".three-host").focus();
+    await page.keyboard.press("e");
+    await expect(page.getByLabel("3D target")).toContainText(label);
+    return;
+  }
   await page.getByRole("button", { name: `Interact with ${sceneTargetName(label)}` }).click();
 }
 

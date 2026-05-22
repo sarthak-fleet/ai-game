@@ -105,13 +105,13 @@ export function PhaserGame() {
       useWorldStore.getState().setZoom(next);
     };
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("ashbend:travel-to", onTravelRequest);
+    window.addEventListener("ashment:travel-to", onTravelRequest);
     container.addEventListener("wheel", onWheel, { passive: true });
 
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("ashbend:travel-to", onTravelRequest);
+      window.removeEventListener("ashment:travel-to", onTravelRequest);
       container.removeEventListener("wheel", onWheel);
       unsub();
       game.destroy(true);

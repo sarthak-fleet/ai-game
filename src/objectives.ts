@@ -90,7 +90,7 @@ function storyLabelsFor(world: World) {
       doneText: "The first Z-City patrol loop is resolved. Keep exploring, talking, saving, or replaying scenes.",
     };
   }
-  if (world.id !== "ashbend") {
+  if (world.id !== "ashment") {
     const { hubId, reportId } = storyPhaseLocations(world);
     const hub = locationById(world, hubId);
     const report = locationById(world, reportId) ?? hub;
@@ -121,7 +121,7 @@ function storyLabelsFor(world: World) {
     confrontAction: "confront_shadow" as const,
     confrontTargetId: "lena",
     doneTitle: "Nightfall held",
-    doneText: "The first Ashbend night loop is resolved. Keep exploring, talking, saving, or replaying scenes.",
+    doneText: "The first Ashment night loop is resolved. Keep exploring, talking, saving, or replaying scenes.",
   };
 }
 

@@ -2,7 +2,7 @@ import { isCutsceneUnlocked as worldUnlocksCutscene } from "../../src/story-prog
 import type { TickSummary, World } from "../../src/types.ts";
 
 export type CutsceneId =
-  | "ashbend_intro_square"
+  | "ashment_intro_square"
   | "forge_rekindled"
   | "garden_morning"
   | "bridge_whisper"
@@ -30,21 +30,21 @@ export interface Cutscene {
 
 export const CUTSCENES: Cutscene[] = [
   {
-    id: "ashbend_intro_square",
-    worldId: "ashbend",
-    storyId: "ember_beneath_ashbend",
+    id: "ashment_intro_square",
+    worldId: "ashment",
+    storyId: "ember_beneath_ashment",
     arcId: "arrival",
     order: 10,
-    title: "Ashbend Arrival",
+    title: "Ashment Arrival",
     moment: "Opening",
-    src: "/assets/cutscenes/ashbend_intro_square.mp4",
-    poster: "/assets/cutscenes/ashbend_intro_square.jpg",
+    src: "/assets/cutscenes/ashment_intro_square.mp4",
+    poster: "/assets/cutscenes/ashment_intro_square.jpg",
     triggers: [{ kind: "session_start" }, { kind: "manual" }],
   },
   {
     id: "forge_rekindled",
-    worldId: "ashbend",
-    storyId: "ember_beneath_ashbend",
+    worldId: "ashment",
+    storyId: "ember_beneath_ashment",
     arcId: "starter_path",
     order: 30,
     title: "Forge Rekindled",
@@ -58,8 +58,8 @@ export const CUTSCENES: Cutscene[] = [
   },
   {
     id: "garden_morning",
-    worldId: "ashbend",
-    storyId: "ember_beneath_ashbend",
+    worldId: "ashment",
+    storyId: "ember_beneath_ashment",
     arcId: "starter_path",
     order: 20,
     title: "Mira's Garden",
@@ -73,8 +73,8 @@ export const CUTSCENES: Cutscene[] = [
   },
   {
     id: "bridge_whisper",
-    worldId: "ashbend",
-    storyId: "ember_beneath_ashbend",
+    worldId: "ashment",
+    storyId: "ember_beneath_ashment",
     arcId: "starter_path",
     order: 40,
     title: "Bridge Whisper",
@@ -88,8 +88,8 @@ export const CUTSCENES: Cutscene[] = [
   },
   {
     id: "villain_lantern_shadow",
-    worldId: "ashbend",
-    storyId: "ember_beneath_ashbend",
+    worldId: "ashment",
+    storyId: "ember_beneath_ashment",
     arcId: "threat",
     order: 50,
     title: "Lantern Shadow",
@@ -100,11 +100,11 @@ export const CUTSCENES: Cutscene[] = [
   },
   {
     id: "dawn_after_tasks",
-    worldId: "ashbend",
-    storyId: "ember_beneath_ashbend",
+    worldId: "ashment",
+    storyId: "ember_beneath_ashment",
     arcId: "resolution",
     order: 60,
-    title: "Dawn Over Ashbend",
+    title: "Dawn Over Ashment",
     moment: "Resolution",
     src: "/assets/cutscenes/dawn_after_tasks.mp4",
     poster: "/assets/cutscenes/dawn_after_tasks.jpg",

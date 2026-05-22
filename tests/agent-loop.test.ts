@@ -110,7 +110,7 @@ describe("long-running agent loop", () => {
     expect(loop.status()).toMatchObject({
       state: "stopped",
       lastTick: null,
-      restoredCheckpoint: { tick: 1, worldId: "ashbend" },
+      restoredCheckpoint: { tick: 1, worldId: "ashment" },
     });
     expect(loop.checkpoints()[0]?.world.tick).toBe(1);
     expect(() => loop.restoreCheckpoint(99)).toThrow("agent_loop_checkpoint_not_found");

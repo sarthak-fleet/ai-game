@@ -6,7 +6,7 @@ describe("research utilities", () => {
   test("extractReadableText removes non-content tags and normalizes text", () => {
     const html = `
       <html>
-        <head><title>Ashbend &amp; Forge</title><style>.x{display:none}</style></head>
+        <head><title>Ashment &amp; Forge</title><style>.x{display:none}</style></head>
         <body>
           <h1>Village Square</h1>
           <script>window.nope = true</script>
@@ -15,7 +15,7 @@ describe("research utilities", () => {
       </html>
     `;
 
-    expect(extractTitle(html)).toBe("Ashbend & Forge");
+    expect(extractTitle(html)).toBe("Ashment & Forge");
     expect(extractReadableText(html)).toBe("Village Square\nMira hears a rumor near the well.");
   });
 

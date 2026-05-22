@@ -254,8 +254,8 @@ function questDialogueLine(
   if (!questId) return null;
   if (world.id === "opm_z_city") return opmQuestDialogueLine(npcId, questId, state);
   if (state.done) {
-    return world.id === "ashbend"
-      ? "You did what you said you would. That matters in Ashbend."
+    return world.id === "ashment"
+      ? "You did what you said you would. That matters in Ashment."
       : `You did what you said you would. That matters in ${world.name}.`;
   }
   if (state.hasRelevantItem) return "You have what we needed. Hand it over and we can move this forward.";

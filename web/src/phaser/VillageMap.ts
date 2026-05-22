@@ -1,4 +1,4 @@
-import ashbendMap from "./maps/ashbend.ldtk.json" with { type: "json" };
+import ashmentMap from "./maps/ashment.ldtk.json" with { type: "json" };
 
 export interface RectArea {
   id: string;
@@ -43,7 +43,7 @@ interface LdtkLikeMap {
   };
 }
 
-export const VILLAGE_MAP = ashbendMap as LdtkLikeMap;
+export const VILLAGE_MAP = ashmentMap as LdtkLikeMap;
 export const TILE_SIZE = VILLAGE_MAP.tileSize;
 export const MAP_COLS = VILLAGE_MAP.width;
 export const MAP_ROWS = VILLAGE_MAP.height;

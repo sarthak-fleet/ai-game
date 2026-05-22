@@ -18,7 +18,7 @@ const fixture = (): World => JSON.parse(readFileSync(new URL("../worlds/village.
 
 describe("LDtk-style village map data", () => {
   test("imports a complete editor-style map contract", () => {
-    expect(VILLAGE_MAP.identifier).toBe("ashbend_village");
+    expect(VILLAGE_MAP.identifier).toBe("ashment_village");
     expect(MAP_COLS).toBe(50);
     expect(MAP_ROWS).toBe(33);
     expect(Object.keys(AREA_LAYOUT).sort()).toEqual(["bridge", "forge", "garden", "inn", "square", "wood"]);

@@ -14,8 +14,8 @@ const CHECKPOINT_FILE = join(ARTIFACT_DIR, "agent-loop-checkpoints.json");
 const NOIR = new URL("../../fixtures/worlds/noir-source.json", import.meta.url).pathname;
 const REQUIRED_ASSETS = [
   "/assets/cc0/russpuppy/open_tileset_16.png",
-  "/assets/cutscenes/ashbend_intro_square.mp4",
-  "/assets/cutscenes/ashbend_intro_square.jpg",
+  "/assets/cutscenes/ashment_intro_square.mp4",
+  "/assets/cutscenes/ashment_intro_square.jpg",
   "/assets/cutscenes/bridge_whisper.mp4",
 ];
 
@@ -51,7 +51,7 @@ function assertBuiltWebApp(): void {
   const required = [
     join(WEB_ROOT, "index.html"),
     join(WEB_ROOT, "assets", "cc0", "russpuppy", "open_tileset_16.png"),
-    join(WEB_ROOT, "assets", "cutscenes", "ashbend_intro_square.mp4"),
+    join(WEB_ROOT, "assets", "cutscenes", "ashment_intro_square.mp4"),
     join(WEB_ROOT, "assets", "cutscenes", "bridge_whisper.jpg"),
     SERVER,
   ];
@@ -87,8 +87,8 @@ async function runProductionPlaytest(): Promise<void> {
   try {
     await page.goto(BASE_URL);
     await page.waitForLoadState("domcontentloaded");
-    await expect(page).toHaveTitle("Ashbend Village");
-    await expect(page.getByRole("heading", { name: "Ashbend Village" })).toBeVisible({ timeout: 15_000 });
+    await expect(page).toHaveTitle("Ashment Village");
+    await expect(page.getByRole("heading", { name: "Ashment Village" })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
     await expect(page.locator(".three-host canvas")).toBeVisible();
     await expect.poll(() => nonBlankCanvasPixels(page, ".three-host canvas"), {

@@ -827,7 +827,7 @@ button.primary:hover {
   gap: 24px;
 }
 .banner::before {
-  content: 'ASHBEND';
+  content: 'ASHMENT';
   font-size: 8rem;
   font-weight: 900;
   letter-spacing: 0.1em;
