@@ -51,7 +51,7 @@ async function runLandingSmoke(): Promise<void> {
     await expect(page.getByRole("heading", { name: "ALIVEVILLE" }).first()).toBeVisible();
     await expect(page.locator("body")).toContainText("playable 3D RPG simulation");
     await expect(page.locator("body")).toContainText("World Ingest");
-    await expect(page.locator("body")).toContainText("Long-Running Agents");
+    await expect(page.locator("body")).toContainText("long-running agents");
     await expect(page.locator("body")).toContainText("browser-tested 3D world view");
     await expect(page.locator("body")).toContainText("Import structured world source JSON");
     await expect(page.locator("#three-ambient canvas")).toBeVisible();

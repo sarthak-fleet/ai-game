@@ -104,7 +104,7 @@ export function expandedCompletionReport(rootDir = process.cwd()): ExpandedCompl
       file("tests/playtests/astro-landing.ts"),
       file("astro-landing/src/pages/index.astro"),
       source("astro-landing/src/pages/index.astro", ["playable 3D RPG simulation", "3D Playability", "World Ingest", "Import structured world source JSON", "Long-Running Agents", "Autonomous loops continue", "Use W A S D to explore the 3D world"]),
-      source("tests/playtests/astro-landing.ts", ["Aliveville | AI World Simulator", "playable 3D RPG simulation", "World Ingest", "Long-Running Agents", "browser-tested 3D world view", "Import structured world source JSON", "#three-ambient canvas", "landing Three.js background should render nonblank pixels", "bodyWidth", "viewportWidth", "01-desktop.png", "02-mobile.png"]),
+      source("tests/playtests/astro-landing.ts", ["Aliveville | AI World Simulator", "playable 3D RPG simulation", "World Ingest", "long-running agents", "browser-tested 3D world view", "Import structured world source JSON", "#three-ambient canvas", "landing Three.js background should render nonblank pixels", "bodyWidth", "viewportWidth", "01-desktop.png", "02-mobile.png"]),
       file("docs/ai-dungeon-differentiation.md"),
       source("docs/ai-dungeon-differentiation.md", ["AI Dungeon", "AI World Simulator is a playable 3D world simulator", "Structured world compiler", "Long-running autonomous agents", "Playable objectives over open-ended prose drift", "Persistence and recoverability", "Do not claim \"infinite text adventure\"", "Browser-tested desktop and mobile playability"]),
     ]),
