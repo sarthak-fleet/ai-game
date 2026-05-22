@@ -1,0 +1,83 @@
+{
+  "title": "Neon Nocturne",
+  "worldId": "neon_nocturne",
+  "synopsis": "A neon noir investigation source used to prove the world compiler can ingest grounded mystery worlds, not only anime, fantasy, skyport, botanical, or undersea settings. Night-shift investigators in a rain-soaked market must recover evidence, repair a signal lens, and expose a forged confession before the precinct closes the case.",
+  "themes": ["neon noir", "rain market", "evidence chain", "forged confession"],
+  "locations": [
+    { "name": "Rain Market", "role": "hub", "description": "A wet plaza of noodle steam, flickering signs, and witness stalls." },
+    { "name": "Signal Booth", "role": "repair site", "description": "A narrow city booth where broken lenses scatter police-band light." },
+    { "name": "Rooftop Laundry", "role": "home route", "description": "Clotheslines and apartment ladders above the market noise." },
+    { "name": "Evidence Desk", "role": "report station", "description": "A precinct counter where chain-of-custody slips are checked." },
+    { "name": "Floodlit Overpass", "role": "threat site", "description": "A concrete overpass where forged witness marks were painted." },
+    { "name": "Substation Alley", "role": "danger route", "description": "A humming service lane where old transformers hide blackmail drops." }
+  ],
+  "factions": [
+    { "name": "Night Desk", "goals": ["keep evidence clean", "protect witnesses"], "resources": ["case files", "signal lamps"], "reputation": 2 },
+    { "name": "Glass Jackals", "goals": ["forge a confession", "close the case early"], "resources": ["fake badges", "blackmail tapes"], "reputation": -2 }
+  ],
+  "characters": [
+    {
+      "name": "Reva",
+      "role": "case runner",
+      "faction": "Night Desk",
+      "description": "A careful runner trying to recover the badge that proves which officer touched the file.",
+      "look": { "palette": ["#64d2ff", "#f5d782", "#182236"], "visualTags": ["case runner", "rain coat", "case slips"] },
+      "goals": ["recover the witness badge before the desk closes", "keep witnesses from vanishing"],
+      "memories": ["The witness badge disappeared near the Signal Booth after midnight."]
+    },
+    {
+      "name": "Milo",
+      "role": "signal tech",
+      "faction": "Night Desk",
+      "description": "A precise tech who needs a glass signal lens to replay the police-band flash.",
+      "look": { "palette": ["#d09a4d", "#273344", "#9fc3ff"], "visualTags": ["signal tech", "neon lens", "tool vest"] },
+      "goals": ["recover the glass signal lens from the Substation Alley", "repair the signal booth"],
+      "memories": ["A signal lens rolled into the alley during the staged overpass alarm."]
+    },
+    {
+      "name": "Aya",
+      "role": "witness advocate",
+      "faction": "Night Desk",
+      "description": "An advocate who needs physical proof before naming the forger.",
+      "look": { "palette": ["#76b67b", "#f7edd3", "#1e2a24"], "visualTags": ["advocate", "umbrella", "green scarf"] },
+      "goals": ["recover the blackmail tape from the overpass", "keep the Evidence Desk honest"],
+      "memories": ["A blackmail tape was seen under the Floodlit Overpass."]
+    },
+    {
+      "name": "Sol",
+      "role": "rooftop watcher",
+      "faction": "Night Desk",
+      "description": "A sleepless watcher who knows the market lights did not fail naturally.",
+      "look": { "palette": ["#9fc3ff", "#182236", "#e7b07d"], "visualTags": ["watcher", "binoculars", "laundry lines"] },
+      "goals": ["watch the rooftop routes", "protect the witness stairs"],
+      "memories": ["The market power stayed steady; the confession panic feels staged."]
+    },
+    {
+      "name": "Kade",
+      "role": "confession forger",
+      "faction": "Glass Jackals",
+      "description": "A polished fixer painting fake witness marks to force a quick confession.",
+      "look": { "palette": ["#34243f", "#e05f7a", "#ddb08a"], "visualTags": ["fixer", "pink neon gloves", "badge knife"] },
+      "goals": ["close the case before proof reaches the Evidence Desk", "move the blackmail tape through Substation Alley"],
+      "secrets": ["Kade painted the false witness marks under the Floodlit Overpass."],
+      "memories": ["Forged witness marks work best when the desk panics before checking the tape."]
+    }
+  ],
+  "conflicts": [
+    {
+      "title": "A forged confession threatens the rain market case",
+      "pressure": 55,
+      "involved": ["Kade", "Reva", "Floodlit Overpass"],
+      "antagonist": "Kade",
+      "objective": "Force the Night Desk to close the case before the evidence chain is repaired.",
+      "clue": "Pink neon paint on the false witness marks points back toward the Rain Market."
+    }
+  ],
+  "artifacts": [
+    { "name": "Witness badge", "description": "A brass desk badge proving which officer handled the file.", "location": "Signal Booth", "clue": "The badge slid beneath the signal switch." },
+    { "name": "Signal lens", "description": "A glass lens needed to replay the police-band flash.", "location": "Substation Alley", "clue": "The lens rolled away during the staged overpass alarm." },
+    { "name": "Blackmail tape", "description": "A magnetic tape with the real confession timing.", "location": "Floodlit Overpass", "clue": "The tape is wet but still readable." },
+    { "name": "Forged confession note", "description": "A note timing the panic with the early case closure.", "location": "Floodlit Overpass", "clue": "The note redirects blame away from the Glass Jackals." },
+    { "name": "Desk radio", "description": "A precinct radio used to confirm evidence-chain repairs.", "location": "Evidence Desk", "clue": "The radio needs proof before closing the case." }
+  ]
+}

@@ -202,6 +202,93 @@ describe("generic world ingest", () => {
     expect(JSON.stringify(pkg)).not.toMatch(/Anime Ingest Slice|anime conflict|anime_origin|anime_report|anime_antagonist/);
   });
 
+  test("compiles a neon noir mystery genre with source-derived evidence loops", () => {
+    const world = worldSourceToWorld(source("../fixtures/worlds/noir-source.json"));
+    const pkg = storyPackageFromWorld(world);
+
+    expect(world.id).toBe("neon_nocturne");
+    expect(world.name).toBe("Neon Nocturne Playable Slice");
+    expect(world.story?.title).toBe("Neon Nocturne: World Ingest Slice");
+    expect(world.story?.currentObjective).toBe("Stabilize Rain Market before the core conflict escalates.");
+    expect(world.story?.opening).toContain("Kade");
+    expect(world.story?.opening).not.toMatch(/anime/i);
+    expect(world.locations.map((location) => location.id)).toEqual([
+      "rain_market",
+      "signal_booth",
+      "rooftop_laundry",
+      "evidence_desk",
+      "floodlit_overpass",
+      "substation_alley",
+    ]);
+    expect(world.locations.find((location) => location.id === "rain_market")?.visual).toMatchObject({
+      palette: { ground: "#2b3244", structure: "#687386", accent: "#8d5cff" },
+      landmarks: ["notice_board"],
+    });
+    expect(world.locations.find((location) => location.id === "floodlit_overpass")?.visual).toMatchObject({
+      palette: { ground: "#2b3244", structure: "#687386", accent: "#8d5cff" },
+      landmarks: expect.arrayContaining(["bridge_span"]),
+    });
+    expect(world.npcs.map((npc) => npc.id)).toEqual(["reva", "milo", "aya", "sol", "kade"]);
+    expect(world.npcs.every((npc) => npc.appearance?.portrait?.startsWith("data:image/svg+xml,"))).toBe(true);
+    expect(world.quests?.map((quest) => [quest.id, quest.giverId])).toEqual([
+      ["recover_witness_badge", "reva"],
+      ["recover_signal_lens", "milo"],
+      ["recover_blackmail_tape", "aya"],
+    ]);
+    expect(world.items.find((item) => item.id === "witness_badge")?.visual).toMatchObject({
+      material: "metal",
+      shape: "token",
+    });
+    expect(world.items.find((item) => item.id === "signal_lens")?.visual).toMatchObject({
+      material: "radio",
+      shape: "radio",
+    });
+    expect(world.items.find((item) => item.id === "desk_radio")?.visual).toMatchObject({
+      material: "radio",
+      shape: "radio",
+    });
+    expect(world.tensions?.[0]).toMatchObject({
+      id: "a_forged_confession_threatens_the_rain_market_case",
+      involvedIds: ["kade", "floodlit_overpass"],
+    });
+    expect(world.villainPlans?.[0]).toMatchObject({
+      id: "a_forged_confession_threatens_the_rain_market_case_plan",
+      actorId: "kade",
+    });
+    expect(activeObjectives(world)[0]).toMatchObject({
+      questId: "recover_witness_badge",
+      targetType: "npc",
+      targetId: "reva",
+    });
+    expect(validateStoryPackage(pkg)).toEqual([]);
+    expect(JSON.stringify(pkg)).not.toMatch(/Anime Ingest Slice|anime conflict|anime_origin|anime_report|anime_antagonist/);
+  });
+
+  test("covers a diverse set of non-anime world genres through one compiler", () => {
+    const fixturePaths = [
+      "../fixtures/worlds/skyfront-source.json",
+      "../fixtures/worlds/conservatory-source.json",
+      "../fixtures/worlds/abyssal-source.json",
+      "../fixtures/worlds/noir-source.json",
+    ];
+    const worlds = fixturePaths.map((path) => worldSourceToWorld(source(path)));
+
+    expect(worlds.map((world) => world.id)).toEqual([
+      "skyfront_couriers",
+      "clockwork_conservatory",
+      "abyssal_salvage",
+      "neon_nocturne",
+    ]);
+    expect(new Set(worlds.flatMap((world) => world.locations.flatMap((location) => location.visual?.visualTags ?? []))).size).toBeGreaterThanOrEqual(18);
+    for (const world of worlds) {
+      expect(validateStoryPackage(storyPackageFromWorld(world))).toEqual([]);
+      expect(world.quests?.length).toBeGreaterThanOrEqual(3);
+      expect(world.tensions?.length).toBeGreaterThanOrEqual(1);
+      expect(world.villainPlans?.length).toBeGreaterThanOrEqual(1);
+      expect(activeObjectives(world)[0]?.targetType).toBe("npc");
+    }
+  });
+
   test("keeps source-derived generic quest IDs playable through the first objective loop", () => {
     const world = worldSourceToWorld(source("../fixtures/worlds/skyfront-source.json"));
 
