@@ -95,6 +95,11 @@ async function runProductionPlaytest(): Promise<void> {
       message: "production 3D canvas should render nonblank pixels",
       timeout: 10_000,
     }).toBeGreaterThan(40);
+    const desktopStatusCard = await page.locator(".three-status-card").boundingBox();
+    expect(desktopStatusCard?.x ?? 0).toBeGreaterThan(120);
+    expect(desktopStatusCard?.width ?? 999).toBeLessThanOrEqual(480);
+    const desktopInteract = await page.locator(".three-interact-button").boundingBox();
+    expect(desktopInteract?.width ?? 999).toBeLessThan(220);
     const villageStartHash = await canvasPixelHash(page, ".three-host canvas");
     await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
     await page.getByRole("button", { name: "Go Herb Garden" }).click();
@@ -115,7 +120,8 @@ async function runProductionPlaytest(): Promise<void> {
     try {
       await mobile.goto(BASE_URL);
       await mobile.waitForLoadState("domcontentloaded");
-      await expect(mobile.getByRole("heading", { name: "Neon Nocturne Playable Slice" })).toBeVisible({ timeout: 15_000 });
+      await expect(mobile.locator(".app-shell")).toHaveClass(/focus-mode/);
+      await expect(mobile.getByRole("button", { name: "HUD" })).toHaveAttribute("aria-pressed", "true");
       await expect(mobile.getByLabel("3D travel")).toContainText("At Rain Market");
       await expect(mobile.locator(".three-host canvas")).toBeVisible();
       await expect.poll(() => nonBlankCanvasPixels(mobile, ".three-host canvas"), {

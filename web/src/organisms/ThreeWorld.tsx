@@ -78,57 +78,63 @@ export function ThreeWorld() {
   return (
     <div className="three-stage">
       <div className="three-overlay" aria-label="3D travel">
-        <span>At {currentLocation?.name ?? "Unknown"}</span>
-        <strong className="three-target-readout" aria-label="3D target">
-          {hoverTarget ? `${hoverTarget.action} ${hoverTarget.label}` : "Hover a scene target"}
-        </strong>
-        <button
-          type="button"
-          className="three-interact-button"
-          disabled={!hoverTarget}
-          aria-label={hoverTarget ? `Interact with ${hoverTarget.label}` : "No scene target selected"}
-          onClick={() => {
-            if (hoverTarget) activateSceneTarget(hoverTarget);
-          }}
-        >
-          {hoverTarget ? hoverTarget.action : "Interact"}
-        </button>
-        <p className="three-agent-feed" aria-label="3D agent activity">
-          {agentActivity ?? "Autonomous agents waiting"}
-        </p>
-        <p className={`three-context-status ${contextStatus}`} aria-label="3D renderer status">
-          {contextStatus === "lost" ? "3D renderer paused" : contextStatus === "restored" ? "3D renderer restored" : "3D renderer ready"}
-        </p>
-        <div className="three-camera-controls" aria-label="3D camera controls">
-          <button type="button" aria-label="Rotate camera left" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(-Math.PI / 8) ?? cameraBearing)}>
-            ◀
-          </button>
-          <output aria-label="3D camera bearing">{cameraBearing} deg</output>
-          <button type="button" aria-label="Rotate camera right" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(Math.PI / 8) ?? cameraBearing)}>
-            ▶
-          </button>
-          <button type="button" aria-label="Zoom camera in" onClick={() => setCameraZoom(rendererRef.current?.zoomCamera(-1.1) ?? cameraZoom)}>
-            +
-          </button>
-          <output aria-label="3D camera zoom">{cameraZoom}%</output>
-          <button type="button" aria-label="Zoom camera out" onClick={() => setCameraZoom(rendererRef.current?.zoomCamera(1.1) ?? cameraZoom)}>
-            -
-          </button>
-          <button type="button" aria-label="Reset camera" onClick={() => {
-            const renderer = rendererRef.current;
-            if (!renderer) return;
-            setCameraBearing(renderer.resetCamera());
-            setCameraZoom(renderer.cameraZoomPercent());
-          }}>
-            Reset
-          </button>
-        </div>
-        <div className="three-location-strip">
-          {destinations.map((location) => (
-            <button type="button" key={location.id} onClick={() => void movePlayerToward(location.id)}>
-              Go {location.name}
+        <div className="three-status-card">
+          <span>At {currentLocation?.name ?? "Unknown"}</span>
+          <strong className="three-target-readout" aria-label="3D target">
+            {hoverTarget ? `${hoverTarget.action} ${hoverTarget.label}` : "Hover a scene target"}
+          </strong>
+          <div className="three-status-actions">
+            <button
+              type="button"
+              className="three-interact-button"
+              disabled={!hoverTarget}
+              aria-label={hoverTarget ? `Interact with ${hoverTarget.label}` : "No scene target selected"}
+              onClick={() => {
+                if (hoverTarget) activateSceneTarget(hoverTarget);
+              }}
+            >
+              {hoverTarget ? hoverTarget.action : "Interact"}
             </button>
-          ))}
+            <p className={`three-context-status ${contextStatus}`} aria-label="3D renderer status">
+              {contextStatus === "lost" ? "3D renderer paused" : contextStatus === "restored" ? "3D renderer restored" : "3D renderer ready"}
+            </p>
+          </div>
+          <p className="three-agent-feed" aria-label="3D agent activity">
+            {agentActivity ?? "Autonomous agents waiting"}
+          </p>
+        </div>
+        <div className="three-control-rail">
+          <div className="three-camera-controls" aria-label="3D camera controls">
+            <button type="button" aria-label="Rotate camera left" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(-Math.PI / 8) ?? cameraBearing)}>
+              ◀
+            </button>
+            <output aria-label="3D camera bearing">{cameraBearing} deg</output>
+            <button type="button" aria-label="Rotate camera right" onClick={() => setCameraBearing(rendererRef.current?.orbitCamera(Math.PI / 8) ?? cameraBearing)}>
+              ▶
+            </button>
+            <button type="button" aria-label="Zoom camera in" onClick={() => setCameraZoom(rendererRef.current?.zoomCamera(-1.1) ?? cameraZoom)}>
+              +
+            </button>
+            <output aria-label="3D camera zoom">{cameraZoom}%</output>
+            <button type="button" aria-label="Zoom camera out" onClick={() => setCameraZoom(rendererRef.current?.zoomCamera(1.1) ?? cameraZoom)}>
+              -
+            </button>
+            <button type="button" aria-label="Reset camera" onClick={() => {
+              const renderer = rendererRef.current;
+              if (!renderer) return;
+              setCameraBearing(renderer.resetCamera());
+              setCameraZoom(renderer.cameraZoomPercent());
+            }}>
+              Reset
+            </button>
+          </div>
+          <div className="three-location-strip">
+            {destinations.map((location) => (
+              <button type="button" key={location.id} onClick={() => void movePlayerToward(location.id)}>
+                Go {location.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div

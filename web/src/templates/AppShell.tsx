@@ -35,7 +35,7 @@ export function AppShell() {
   const drawerNpcId = useWorldStore((s) => s.drawerNpcId);
   const zoom = useWorldStore((s) => s.zoom);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("3d");
-  const [focusMode, setFocusMode] = useState(false);
+  const [focusMode, setFocusMode] = useState(isCompactViewport);
 
   useEffect(() => {
     if (!focusMode) return undefined;
@@ -123,4 +123,8 @@ export function AppShell() {
       <NpcDrawer />
     </div>
   );
+}
+
+function isCompactViewport(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches;
 }

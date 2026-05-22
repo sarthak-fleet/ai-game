@@ -163,11 +163,12 @@ async function runAliveVillagePlaytest(api: ChildProcess): Promise<void> {
     try {
       await mobile.goto(BASE_URL);
       await mobile.waitForLoadState("domcontentloaded");
+      await expect(mobile.locator(".app-shell")).toHaveClass(/focus-mode/);
       await expect(mobile.getByRole("button", { name: "3D" })).toHaveClass(/active/);
+      await expect(mobile.getByRole("button", { name: "HUD" })).toHaveAttribute("aria-pressed", "true");
       await expect(mobile.locator(".three-host canvas")).toBeVisible();
       await expect.poll(() => nonBlankCanvasPixels(mobile, ".three-host canvas")).toBeGreaterThan(40);
-      await expectWithinViewport(mobile, ".header-actions");
-      await expectNoVerticalOverlap(mobile, ".header-actions", ".ambience-toggle");
+      await expectWithinViewport(mobile, ".three-overlay");
       await expect(mobile.getByLabel("3D travel")).toContainText("At Herb Garden");
       await expect(mobile.getByRole("button", { name: "Go Village Square" })).toBeVisible();
       await mobile.getByRole("button", { name: "Go Village Square" }).click();

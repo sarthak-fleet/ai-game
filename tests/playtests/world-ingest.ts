@@ -387,7 +387,8 @@ async function verifyMobileImportedAbyssal(browser: Awaited<ReturnType<typeof ch
   try {
     await mobile.goto(BASE_URL);
     await mobile.waitForLoadState("domcontentloaded");
-    await expect(mobile.getByRole("heading", { name: "Abyssal Salvage Playable Slice" })).toBeVisible();
+    await expect(mobile.locator(".app-shell")).toHaveClass(/focus-mode/);
+    await expect(mobile.getByRole("button", { name: "HUD" })).toHaveAttribute("aria-pressed", "true");
     await expect(mobile.getByRole("button", { name: "3D" })).toHaveClass(/active/);
     await expect(mobile.locator(".three-host canvas")).toBeVisible();
     await expect.poll(() => nonBlankCanvasPixels(mobile, ".three-host canvas"), { message: "Abyssal mobile 3D canvas should render nonblank pixels", timeout: 10_000 }).toBeGreaterThan(40);
