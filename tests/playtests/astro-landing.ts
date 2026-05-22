@@ -35,6 +35,7 @@ async function main(): Promise<void> {
 async function runLandingSmoke(): Promise<void> {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+  await blockExternalFonts(page);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -61,6 +62,7 @@ async function runLandingSmoke(): Promise<void> {
     await page.screenshot({ path: join(ARTIFACT_DIR, "01-desktop.png"), fullPage: true });
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
+    await blockExternalFonts(mobile);
     try {
       await mobile.goto(BASE_URL, { waitUntil: "commit" });
       await expect(mobile.getByRole("heading", { name: "ASHMENT" }).first()).toBeVisible();
@@ -81,6 +83,12 @@ async function runLandingSmoke(): Promise<void> {
     await page.close();
     await browser.close();
   }
+}
+
+async function blockExternalFonts(page: Page): Promise<void> {
+  await page.route(/https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/, (route) => {
+    void route.fulfill({ status: 200, contentType: "text/css", body: "" });
+  });
 }
 
 async function nonBlankCanvasPixels(page: Page, selector: string): Promise<number> {
