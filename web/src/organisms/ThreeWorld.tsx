@@ -17,13 +17,13 @@ export function ThreeWorld() {
   const currentLocation = world?.locations.find((location) => location.id === world.player.locationId) ?? null;
   const destinations = world ? reachableLocations(world) : [];
   const agentActivity = lastSummary ? latestAutonomousActivity(lastSummary) : null;
-  const sceneTarget = hoverTarget ?? (world ? keyboardTargetFor(world) : null);
+  const sceneTarget = world ? validSceneTarget(world, hoverTarget) ?? keyboardTargetFor(world) : null;
   const handleKeyboardTravel = (event: KeyboardEvent<HTMLDivElement>) => {
     if (isInteractiveTarget(event.target)) return;
     const latestWorld = useWorldStore.getState().world;
     if (!latestWorld) return;
     if (event.key.toLowerCase() === "e") {
-      const target = hoverTarget ?? keyboardTargetFor(latestWorld);
+      const target = validSceneTarget(latestWorld, hoverTarget) ?? keyboardTargetFor(latestWorld);
       if (!target) return;
       event.preventDefault();
       setHoverTarget(target);
@@ -173,6 +173,23 @@ function keyboardTargetFor(world: World): SceneTarget | null {
     ?? world.interactables?.find((candidate) => candidate.locationId === locationId);
   if (prop) return { kind: "prop", id: prop.id, label: prop.name, action: "Inspect" };
   return null;
+}
+
+function validSceneTarget(world: World, target: SceneTarget | null): SceneTarget | null {
+  if (!target) return null;
+  if (target.kind === "location") {
+    return reachableLocations(world).some((location) => location.id === target.id) ? target : null;
+  }
+  if (target.kind === "npc") {
+    const npc = world.npcs.find((candidate) => candidate.id === target.id);
+    return npc?.locationId === world.player.locationId ? target : null;
+  }
+  if (target.kind === "item") {
+    const item = world.items.find((candidate) => candidate.id === target.id);
+    return item?.locationId === world.player.locationId && !item.holderId ? target : null;
+  }
+  const prop = world.interactables?.find((candidate) => candidate.id === target.id);
+  return prop?.locationId === world.player.locationId ? target : null;
 }
 
 function activateSceneTarget(target: SceneTarget): void {
