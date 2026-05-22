@@ -95,6 +95,7 @@ async function runProductionPlaytest(): Promise<void> {
       message: "production 3D canvas should render nonblank pixels",
       timeout: 10_000,
     }).toBeGreaterThan(40);
+    const villageStartHash = await canvasPixelHash(page, ".three-host canvas");
     await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
     await page.getByRole("button", { name: "Go Herb Garden" }).click();
     await expect(page.getByLabel("3D travel")).toContainText("At Herb Garden");
@@ -108,7 +109,7 @@ async function runProductionPlaytest(): Promise<void> {
       timeout: 10_000,
     }).not.toEqual(before);
     await page.screenshot({ path: join(ARTIFACT_DIR, "01-production-3d.png") });
-    await importProductionWorldSource(page);
+    await importProductionWorldSource(page, villageStartHash);
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
     try {
@@ -184,7 +185,7 @@ async function openAgentsPanel(page: Page): Promise<void> {
   if (await agents.getAttribute("open") === null) await agents.locator("summary").click();
 }
 
-async function importProductionWorldSource(page: Page): Promise<void> {
+async function importProductionWorldSource(page: Page, villageStartHash: string): Promise<void> {
   await page.locator("input[aria-label='World source JSON']").setInputFiles(NOIR);
   await expect(page.locator(".header-toast")).toContainText("World source imported.", { timeout: 8_000 });
   await expect(page.getByRole("heading", { name: "Neon Nocturne Playable Slice" })).toBeVisible({ timeout: 15_000 });
@@ -195,6 +196,10 @@ async function importProductionWorldSource(page: Page): Promise<void> {
     message: "production imported noir 3D canvas should render nonblank pixels",
     timeout: 10_000,
   }).toBeGreaterThan(40);
+  await expect.poll(() => canvasPixelHash(page, ".three-host canvas"), {
+    message: "production noir 3D canvas should visually differ from village",
+    timeout: 10_000,
+  }).not.toEqual(villageStartHash);
   await page.getByRole("button", { name: "Review" }).click();
   await expect(page.locator(".header-toast")).toContainText("Package healthy.", { timeout: 5_000 });
   const review = page.getByRole("dialog", { name: "Story package review" });
