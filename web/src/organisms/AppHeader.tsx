@@ -22,7 +22,7 @@ export function AppHeader() {
   const [quickSlot, setQuickSlot] = useState<QuickSaveSlot | null>(() => initialQuickSlot());
   const [packageReview, setPackageReview] = useState<{ package: StoryPackage; issues: StoryPackageIssue[] } | null>(null);
 
-  if (!world) return <header><h1>AI World Simulator</h1></header>;
+  if (!world) return <header><h1>ASHMENT</h1></header>;
 
   function flash(message: string): void {
     setToast(message);

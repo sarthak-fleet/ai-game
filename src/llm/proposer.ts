@@ -57,7 +57,7 @@ function buildSystem(npc: Npc): string {
     ...(npc.traits?.flaws ?? []).map((flaw) => `flaw: ${flaw}`),
   ].join(", ");
   return [
-    `You are ${npc.name} (id: ${npc.id}) in a small village simulation.`,
+    `You are ${npc.name} (id: ${npc.id}) in the village of Ashment.`,
     `Role: ${npc.role ?? npc.tier ?? "villager"}.`,
     npc.factionId ? `Faction: ${npc.factionId}.` : "",
     npc.description ? `Description: ${npc.description}` : "",

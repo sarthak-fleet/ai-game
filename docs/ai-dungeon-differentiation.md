@@ -19,7 +19,7 @@ That is a strong product, but it is a different lane. This repo should not chase
 
 ## Product Position
 
-AI World Simulator is a playable 3D world simulator with an ingestible world compiler and long-running autonomous agents. The core promise is not "type anything and receive prose." The core promise is "turn a reviewed world source into a spatial, stateful, playable 3D RPG slice with agents that keep acting when the player is not directly prompting them."
+Ashment is the branded proof world for AI World Simulator, a playable 3D world simulator with an ingestible world compiler and long-running autonomous agents. The core promise is not "type anything and receive prose." The core promise is "turn a reviewed world source into a spatial, stateful, playable 3D RPG slice with agents that keep acting when the player is not directly prompting them."
 
 ## Differentiation Pillars
 
@@ -57,7 +57,7 @@ AI World Simulator is a playable 3D world simulator with an ingestible world com
 
 ## Claims To Lead With
 
-- "3D playable world compiler for reviewed fandom and original worlds."
+- "Ashment: A 3D playable world compiler for reviewed fandom and original worlds."
 - "Stateful NPC agents that keep acting and can be checkpoint-restored."
 - "World source ingest turns lore into locations, quests, items, factions, visuals, and story pressure."
 - "Browser-tested desktop and mobile playability, including imported worlds."
