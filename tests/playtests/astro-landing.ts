@@ -45,8 +45,7 @@ async function runLandingSmoke(): Promise<void> {
   });
 
   try {
-    await page.goto(BASE_URL);
-    await page.waitForLoadState("domcontentloaded");
+    await page.goto(BASE_URL, { waitUntil: "commit" });
     await expect(page).toHaveTitle("Aliveville | AI World Simulator");
     await expect(page.getByRole("heading", { name: "ALIVEVILLE" }).first()).toBeVisible();
     await expect(page.locator("body")).toContainText("playable 3D RPG simulation");
@@ -63,8 +62,7 @@ async function runLandingSmoke(): Promise<void> {
 
     const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true });
     try {
-      await mobile.goto(BASE_URL);
-      await mobile.waitForLoadState("domcontentloaded");
+      await mobile.goto(BASE_URL, { waitUntil: "commit" });
       await expect(mobile.getByRole("heading", { name: "ALIVEVILLE" }).first()).toBeVisible();
       await expect(mobile.locator("#three-ambient canvas")).toBeVisible();
       await expect.poll(() => nonBlankCanvasPixels(mobile, "#three-ambient canvas"), {
