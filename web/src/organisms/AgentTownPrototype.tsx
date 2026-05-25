@@ -1,18 +1,19 @@
 import Phaser from "phaser";
 import { useEffect, useRef, useState } from "react";
 
-type Direction = "down" | "up" | "left" | "right";
-
-interface CastMember {
-  id: string;
-  name: string;
-  role: string;
-  sprite: string;
-  x: number;
-  y: number;
-  line: string;
-  memory: string;
-}
+import {
+  CAST,
+  type CastMember,
+  type Direction,
+  initialSnapshot,
+  nextObjective,
+  PROPS,
+  propVisible,
+  type StorySnapshot,
+  type WorldProp,
+  ZONES,
+  zoneUnlocked,
+} from "./agent-town-world.ts";
 
 const FRAME_WIDTH = 48;
 const FRAME_HEIGHT = 96;
@@ -42,33 +43,39 @@ const TILESETS = [
   ["16_Grocery_store_48x48", "16_Grocery_store_48x48.png"],
 ] as const;
 
-const CAST: CastMember[] = [
-  { id: "saitama", name: "Saitama", role: "Errand hero", sprite: "character_01", x: 420, y: 310, line: "I lost a coupon somewhere. That is the important part.", memory: "Saitama is treating the patrol like a grocery detour." },
-  { id: "genos", name: "Genos", role: "Cyborg disciple", sprite: "character_02", x: 565, y: 285, line: "I am collecting incident data and improving the patrol model.", memory: "Genos is logging every clue and over-indexing on Saitama's priorities." },
-  { id: "mumen", name: "Mumen Rider", role: "Witness hero", sprite: "character_03", x: 755, y: 310, line: "If we get proof, I can file the alert properly.", memory: "Mumen needs evidence before escalating the public warning." },
-  { id: "sonic", name: "Sonic", role: "Ninja rival", sprite: "character_04", x: 880, y: 455, line: "This office is small, but the duel can still be legendary.", memory: "Sonic wants any quiet task to become a public challenge." },
-  { id: "fubuki", name: "Fubuki", role: "Psychic leader", sprite: "character_05", x: 335, y: 480, line: "A team works when everyone stops fighting the plan.", memory: "Fubuki is watching hierarchy and group control." },
-  { id: "king", name: "King", role: "Legend", sprite: "character_06", x: 660, y: 520, line: "I am just standing here. Somehow that helps.", memory: "King calms the room by doing almost nothing." },
-  { id: "bang", name: "Bang", role: "Master", sprite: "character_01", x: 1015, y: 325, line: "Footwork gives away intent before words do.", memory: "Bang is reading the challenger instead of the rumor." },
-  { id: "metal_bat", name: "Metal Bat", role: "Backup", sprite: "character_02", x: 240, y: 650, line: "Tell me when this stops being paperwork.", memory: "Metal Bat is waiting for a real threat." },
-  { id: "child_emperor", name: "Child Emperor", role: "Analyst", sprite: "character_03", x: 950, y: 650, line: "The marks and the monster scale do not match. That matters.", memory: "Child Emperor thinks one clue is bait and one clue is real." },
-];
-
 const DIRECTIONS = ["right", "up", "left", "down"] as const;
 
 export function AgentTownPrototype() {
   const hostRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<OfficePrototypeScene | null>(null);
+  const snapshotRef = useRef<StorySnapshot>(initialSnapshot());
   const [active, setActive] = useState<CastMember>(CAST[0]!);
+  const [snapshot, setSnapshot] = useState<StorySnapshot>(() => initialSnapshot());
   const [met, setMet] = useState<Set<string>>(() => new Set());
   const [log, setLog] = useState<string[]>(() => ["Walk the office. Press E near a character."]);
+
+  const applyCharacterTalk = (character: CastMember) => {
+    setActive(character);
+    setMet((current) => new Set(current).add(character.id));
+    const result = reduceCharacterTalk(snapshotRef.current, character);
+    snapshotRef.current = result.snapshot;
+    setSnapshot(result.snapshot);
+    setLog((existing) => [...result.entries, `${character.name}: ${character.memory}`, ...existing].slice(0, 6));
+  };
+
+  const applyPropInspect = (prop: WorldProp) => {
+    const result = reducePropInspect(snapshotRef.current, prop);
+    snapshotRef.current = result.snapshot;
+    setSnapshot(result.snapshot);
+    setLog((existing) => [...result.entries, ...existing].slice(0, 6));
+  };
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
     const scene = new OfficePrototypeScene((character) => {
-      setActive(character);
-      setMet((current) => new Set(current).add(character.id));
-      setLog((current) => [`${character.name}: ${character.memory}`, ...current].slice(0, 5));
+      applyCharacterTalk(character);
+    }, (prop) => {
+      applyPropInspect(prop);
     });
     sceneRef.current = scene;
     const game = new Phaser.Game({
@@ -92,12 +99,20 @@ export function AgentTownPrototype() {
     };
   }, []);
 
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+    sceneRef.current?.applySnapshot(snapshot);
+  }, [snapshot]);
+
+  const activeZone = ZONES.find((zone) => zone.id === snapshot.activeZone) ?? ZONES[0]!;
+  const primaryAction = primaryStoryAction(snapshot);
+
   return (
     <div className="agent-town-shell">
       <div className="agent-town-game" ref={hostRef} aria-label="Agent town prototype" />
       <aside className="agent-town-panel" aria-label="Character interaction">
         <div className="agent-town-kicker">
-          <span>New prototype</span>
+          <span>{activeZone.name}</span>
           <b>{met.size + 1}/10 met</b>
         </div>
         <section className="agent-town-card">
@@ -107,8 +122,50 @@ export function AgentTownPrototype() {
           <button type="button" onClick={() => sceneRef.current?.focusCharacter(active.id)}>Find</button>
         </section>
         <section className="agent-town-objective">
-          <strong>{met.size === CAST.length ? "Everyone has a memory in the log." : "Talk to the cast."}</strong>
-          <p>WASD to move. Press E near someone. Click a character to walk over.</p>
+          <strong>{snapshot.objective}</strong>
+          <p>{activeZone.description}</p>
+          {primaryAction && (
+            <button
+              type="button"
+              onClick={() => {
+                if (primaryAction.kind === "prop") {
+                  applyPropInspect(primaryAction.prop);
+                  sceneRef.current?.focusProp(primaryAction.prop.id);
+                } else {
+                  const character = CAST.find((candidate) => candidate.id === primaryAction.characterId);
+                  if (character) {
+                    applyCharacterTalk(character);
+                    sceneRef.current?.focusCharacter(character.id);
+                  }
+                }
+              }}
+            >
+              {primaryAction.label}
+            </button>
+          )}
+        </section>
+        <section className="agent-town-zones" aria-label="World zones">
+          {ZONES.map((zone) => {
+            const unlocked = zoneUnlocked(zone, snapshot.flags);
+            return (
+              <button
+                key={zone.id}
+                type="button"
+                disabled={!unlocked}
+                className={zone.id === snapshot.activeZone ? "active" : ""}
+                onClick={() => {
+                  setSnapshot((current) => ({ ...current, activeZone: zone.id }));
+                  sceneRef.current?.goToZone(zone.id);
+                }}
+              >
+                {zone.name}
+              </button>
+            );
+          })}
+        </section>
+        <section className="agent-town-inventory" aria-label="Inventory">
+          <small>Inventory</small>
+          <p>{snapshot.inventory.length > 0 ? snapshot.inventory.join(", ") : "Empty"}</p>
         </section>
         <section className="agent-town-log">
           {log.map((entry, index) => <p key={`${index}-${entry}`}>{entry}</p>)}
@@ -126,13 +183,19 @@ class OfficePrototypeScene extends Phaser.Scene {
   private eKey?: Phaser.Input.Keyboard.Key;
   private collisionGroup?: Phaser.Physics.Arcade.StaticGroup;
   private characters = new Map<string, { data: CastMember; sprite: Phaser.Physics.Arcade.Sprite; prompt: Phaser.GameObjects.Text; tag: Phaser.GameObjects.Text }>();
+  private props = new Map<string, { data: WorldProp; marker: Phaser.GameObjects.Container; tag: Phaser.GameObjects.Text }>();
   private target: { x: number; y: number } | null = null;
   private facing: Direction = "down";
   private prompt?: Phaser.GameObjects.Text;
   private playerTag?: Phaser.GameObjects.Text;
+  private alertTint?: Phaser.GameObjects.Rectangle;
+  private currentSnapshot: StorySnapshot = initialSnapshot();
   private selectedId = CAST[0]!.id;
 
-  constructor(private readonly onTalk: (character: CastMember) => void) {
+  constructor(
+    private readonly onTalk: (character: CastMember) => void,
+    private readonly onInspect: (prop: WorldProp) => void,
+  ) {
     super("OfficePrototypeScene");
   }
 
@@ -189,6 +252,8 @@ class OfficePrototypeScene extends Phaser.Scene {
     this.cameras.main.setZoom(0.95);
 
     for (const character of CAST) this.addCharacter(character);
+    for (const prop of PROPS) this.addProp(prop);
+    this.alertTint = this.add.rectangle(0, 0, 2400, 1600, 0xff3b30, 0).setOrigin(0).setDepth(2).setScrollFactor(1);
 
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key>;
@@ -201,6 +266,7 @@ class OfficePrototypeScene extends Phaser.Scene {
 
     this.prompt = this.add.text(0, 0, "Press E", promptStyle()).setOrigin(0.5, 1).setDepth(30).setVisible(false);
     this.onTalk(CAST[0]!);
+    this.applySnapshot(this.currentSnapshot);
   }
 
   override update() {
@@ -229,12 +295,16 @@ class OfficePrototypeScene extends Phaser.Scene {
     this.syncAnimation();
     this.playerTag?.setPosition(this.player.x, this.player.y + 34);
     this.updateCharacterLabels();
-    const nearest = this.nearestCharacter();
+    const nearest = this.nearestInteractable();
     if (this.prompt) {
       this.prompt.setVisible(Boolean(nearest));
-      if (nearest) this.prompt.setPosition(nearest.sprite.x, nearest.sprite.y - 48);
+      if (nearest) this.prompt.setPosition(nearest.x, nearest.y - 48);
+      if (nearest) this.prompt.setText(nearest.kind === "character" ? "Press E" : "Inspect");
     }
-    if (nearest && this.eKey && Phaser.Input.Keyboard.JustDown(this.eKey)) this.talk(nearest.data);
+    if (nearest && this.eKey && Phaser.Input.Keyboard.JustDown(this.eKey)) {
+      if (nearest.kind === "character") this.talk(nearest.data);
+      else this.inspect(nearest.data);
+    }
   }
 
   focusCharacter(id: string) {
@@ -242,7 +312,38 @@ class OfficePrototypeScene extends Phaser.Scene {
     if (!character) return;
     this.selectedId = id;
     this.target = { x: character.sprite.x, y: character.sprite.y + 34 };
-    this.talk(character.data);
+  }
+
+  focusProp(id: string) {
+    const prop = this.props.get(id);
+    if (!prop) return;
+    this.target = { x: prop.data.x, y: prop.data.y + 34 };
+  }
+
+  goToZone(zoneId: string) {
+    const zone = ZONES.find((candidate) => candidate.id === zoneId);
+    if (!zone || !this.player) return;
+    this.currentSnapshot = { ...this.currentSnapshot, activeZone: zone.id };
+    this.player.setPosition(zone.spawn.x, zone.spawn.y);
+    this.target = null;
+    this.cameras.main.pan(zone.focus.x, zone.focus.y, 280, "Quad.easeOut", true);
+  }
+
+  applySnapshot(snapshot: StorySnapshot) {
+    this.currentSnapshot = snapshot;
+    this.alertTint?.setAlpha(snapshot.flags.alertRaised ? 0.08 : 0);
+    for (const entry of this.props.values()) {
+      const visible = propVisible(entry.data, snapshot.flags);
+      entry.marker.setVisible(visible);
+      entry.tag.setVisible(visible);
+    }
+    for (const entry of this.characters.values()) {
+      const zone = ZONES.find((candidate) => candidate.id === entry.data.zoneId);
+      const unlocked = !zone || zoneUnlocked(zone, snapshot.flags);
+      entry.sprite.setVisible(unlocked);
+      entry.tag.setVisible(unlocked);
+      entry.prompt.setVisible(unlocked && entry.data.id === this.selectedId);
+    }
   }
 
   private addCharacter(character: CastMember) {
@@ -272,6 +373,30 @@ class OfficePrototypeScene extends Phaser.Scene {
       padding: { x: 7, y: 1 },
     }).setOrigin(0.5).setDepth(24).setVisible(false);
     this.characters.set(character.id, { data: character, sprite, prompt, tag });
+  }
+
+  private addProp(prop: WorldProp) {
+    const base = this.add.circle(0, 0, 15, prop.color, 0.95);
+    const label = this.add.text(0, 0, prop.symbol, {
+      fontFamily: "Montserrat, sans-serif",
+      fontSize: "15px",
+      color: "#111827",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
+    const marker = this.add.container(prop.x, prop.y, [base, label]).setDepth(14).setSize(34, 34);
+    marker.setInteractive(new Phaser.Geom.Circle(0, 0, 22), Phaser.Geom.Circle.Contains);
+    marker.on("pointerup", () => {
+      this.target = { x: prop.x, y: prop.y + 34 };
+      this.inspect(prop);
+    });
+    const tag = this.add.text(prop.x, prop.y + 21, prop.label, {
+      fontFamily: "Montserrat, sans-serif",
+      fontSize: "11px",
+      color: "#f6f1e8",
+      backgroundColor: "rgba(11, 18, 32, 0.78)",
+      padding: { x: 6, y: 3 },
+    }).setOrigin(0.5, 0).setDepth(24);
+    this.props.set(prop.id, { data: prop, marker, tag });
   }
 
   private inputVector() {
@@ -309,14 +434,29 @@ class OfficePrototypeScene extends Phaser.Scene {
     }
   }
 
-  private nearestCharacter() {
+  private nearestInteractable():
+    | { kind: "character"; data: CastMember; x: number; y: number }
+    | { kind: "prop"; data: WorldProp; x: number; y: number }
+    | null {
     if (!this.player) return null;
-    let nearest: { data: CastMember; sprite: Phaser.Physics.Arcade.Sprite } | null = null;
+    let nearest:
+      | { kind: "character"; data: CastMember; x: number; y: number }
+      | { kind: "prop"; data: WorldProp; x: number; y: number }
+      | null = null;
     let distance = Number.POSITIVE_INFINITY;
     for (const entry of this.characters.values()) {
+      if (!entry.sprite.visible) continue;
       const candidateDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, entry.sprite.x, entry.sprite.y);
       if (candidateDistance < distance) {
-        nearest = entry;
+        nearest = { kind: "character", data: entry.data, x: entry.sprite.x, y: entry.sprite.y };
+        distance = candidateDistance;
+      }
+    }
+    for (const entry of this.props.values()) {
+      if (!entry.marker.visible) continue;
+      const candidateDistance = Phaser.Math.Distance.Between(this.player.x, this.player.y, entry.data.x, entry.data.y);
+      if (candidateDistance < distance) {
+        nearest = { kind: "prop", data: entry.data, x: entry.data.x, y: entry.data.y };
         distance = candidateDistance;
       }
     }
@@ -327,6 +467,64 @@ class OfficePrototypeScene extends Phaser.Scene {
     this.selectedId = character.id;
     this.onTalk(character);
   }
+
+  private inspect(prop: WorldProp) {
+    this.onInspect(prop);
+  }
+}
+
+function reduceCharacterTalk(snapshot: StorySnapshot, character: CastMember): { snapshot: StorySnapshot; entries: string[] } {
+  if (character.id === "saitama" && snapshot.flags.couponFound && !snapshot.flags.couponReturned) {
+    const flags = { ...snapshot.flags, couponReturned: true };
+    return {
+      snapshot: {
+        ...snapshot,
+        flags,
+        inventory: snapshot.inventory.filter((item) => item !== "Grocery coupon"),
+        activeZone: "hq",
+        objective: nextObjective(flags),
+      },
+      entries: ["Saitama takes the coupon. Market Street opens and the alert board starts flashing."],
+    };
+  }
+  if (character.id === "sonic" && snapshot.flags.sonicChallenged) {
+    return { snapshot, entries: ["Sonic accepts the confrontation. The duel can become the next combat slice."] };
+  }
+  return { snapshot, entries: [`${character.name} is now available as a conversation lead.`] };
+}
+
+function reducePropInspect(snapshot: StorySnapshot, prop: WorldProp): { snapshot: StorySnapshot; entries: string[] } {
+  const missing = (prop.requires ?? []).filter((flag) => !snapshot.flags[flag]);
+  if (missing.length > 0) {
+    return { snapshot, entries: [`${prop.label} is not useful yet.`] };
+  }
+  const flags = { ...snapshot.flags };
+  for (const flag of prop.grants ?? []) flags[flag] = true;
+  const inventory = prop.givesItem && !snapshot.inventory.includes(prop.givesItem)
+    ? [...snapshot.inventory, prop.givesItem]
+    : snapshot.inventory;
+  const nextZone = prop.id === "challenge_mark" ? "alley" : snapshot.activeZone;
+  return {
+    snapshot: {
+      ...snapshot,
+      flags,
+      inventory,
+      activeZone: nextZone,
+      objective: nextObjective(flags),
+    },
+    entries: [prop.inspectText],
+  };
+}
+
+function primaryStoryAction(snapshot: StorySnapshot):
+  | { kind: "prop"; label: string; prop: WorldProp }
+  | { kind: "character"; label: string; characterId: string }
+  | null {
+  if (!snapshot.flags.couponFound) return { kind: "prop", label: "Inspect coupon box", prop: PROPS.find((prop) => prop.id === "coupon_box")! };
+  if (!snapshot.flags.couponReturned) return { kind: "character", label: "Give coupon to Saitama", characterId: "saitama" };
+  if (!snapshot.flags.alertRaised) return { kind: "prop", label: "Inspect alert board", prop: PROPS.find((prop) => prop.id === "alert_board")! };
+  if (!snapshot.flags.sonicChallenged) return { kind: "prop", label: "Inspect challenge mark", prop: PROPS.find((prop) => prop.id === "challenge_mark")! };
+  return { kind: "character", label: "Talk to Sonic", characterId: "sonic" };
 }
 
 function configureBody(sprite: Phaser.Physics.Arcade.Sprite) {

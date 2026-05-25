@@ -111,6 +111,60 @@
   padding: 14px;
 }
 
+.agent-town-objective button {
+  justify-self: start;
+  min-height: 38px;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border-color: rgba(248, 212, 78, 0.44);
+  color: #111827;
+  background: #f8d44e;
+}
+
+.agent-town-zones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.agent-town-zones button {
+  min-height: 42px;
+  padding: 8px;
+  border-color: rgba(246, 241, 232, 0.14);
+  color: rgba(246, 241, 232, 0.78);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-town-zones button.active {
+  border-color: rgba(248, 212, 78, 0.55);
+  color: #111827;
+  background: #f8d44e;
+}
+
+.agent-town-zones button:disabled {
+  opacity: 0.34;
+}
+
+.agent-town-inventory {
+  display: grid;
+  gap: 4px;
+  padding: 11px 14px;
+  border: 1px solid rgba(246, 241, 232, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.agent-town-inventory small {
+  color: rgba(246, 241, 232, 0.54);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.agent-town-inventory p {
+  margin: 0;
+  color: rgba(246, 241, 232, 0.82);
+}
+
 .agent-town-objective strong {
   font-size: 16px;
 }
