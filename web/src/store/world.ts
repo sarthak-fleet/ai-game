@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import type { AgentLoopStatus } from "../../../src/agent-loop.ts";
-import { type CombatMove,combatMoveFor } from "../../../src/combat.ts";
+import { type CombatMove, combatMoveFor } from "../../../src/combat.ts";
 import type { PlayerAction, TickSummary, World } from "../../../src/types.ts";
 import {
   fetchSnapshot,
@@ -10,6 +10,7 @@ import {
   importStoryPackage,
   importWorldSource,
   postTick,
+  resetWorld,
   restoreSnapshot,
   type Snapshot,
 } from "../api/client.ts";
@@ -28,6 +29,8 @@ export interface BubbleEvent {
   combatHpBefore?: number;
   combatHpAfter?: number;
   combatHpMax?: number;
+  combatPostureBefore?: number;
+  combatPostureAfter?: number;
   startsAt: number;
   expiresAt: number;
 }
@@ -46,6 +49,7 @@ interface WorldStore {
   saveSnapshot: () => Promise<Snapshot>;
   exportStoryPackage: () => Promise<Awaited<ReturnType<typeof fetchStoryPackage>>>;
   restoreFromJson: (text: string) => Promise<void>;
+  resetEpisode: () => Promise<void>;
   importWorldSourceFromJson: (text: string) => Promise<void>;
   refreshFromServer: (summary?: TickSummary | null) => Promise<void>;
   applyServerTick: (world: World, summary: TickSummary) => void;
@@ -67,7 +71,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   lastSummary: null,
   agentLoopStatus: null,
   bubbles: [],
-  zoom: 1.35,
+  zoom: 2.15,
 
   async init() {
     set({ loading: true, error: null });
@@ -115,6 +119,18 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       : await restoreSnapshot(parsed as Snapshot);
     updateMusicMood(result.state.storyProgress?.phase ? { worldId: result.state.id, phase: result.state.storyProgress.phase } : { worldId: result.state.id });
     set({ world: result.state, agentLoopStatus: result.agentLoopStatus ?? null, error: null, bubbles: [], lastSummary: null });
+  },
+
+  async resetEpisode() {
+    try {
+      set({ loading: true, error: null });
+      const result = await resetWorld();
+      bumpEpisodeRun(result.state.id);
+      updateMusicMood(result.state.storyProgress?.phase ? { worldId: result.state.id, phase: result.state.storyProgress.phase } : { worldId: result.state.id });
+      set({ world: result.state, agentLoopStatus: result.agentLoopStatus ?? null, error: null, bubbles: [], lastSummary: null, drawerNpcId: null, loading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, loading: false });
+    }
   },
 
   async importWorldSourceFromJson(text) {
@@ -204,6 +220,8 @@ function commitTick(
       combatHpBefore: targetIsPlayer ? previousWorld?.player.combat?.hp : previousCombatTarget?.combat?.hp,
       combatHpAfter: targetIsPlayer ? world.player.combat?.hp : combatTarget?.combat?.hp,
       combatHpMax: targetIsPlayer ? world.player.combat?.maxHp : combatTarget?.combat?.maxHp,
+      combatPostureBefore: targetIsPlayer ? previousWorld?.player.combat?.posture : previousCombatTarget?.combat?.posture,
+      combatPostureAfter: targetIsPlayer ? world.player.combat?.posture : combatTarget?.combat?.posture,
       startsAt: now,
       expiresAt: expires,
     };
@@ -245,6 +263,8 @@ function counterBubbleForPlayerAttack(
     combatHpBefore: previousHp,
     combatHpAfter: nextHp,
     combatHpMax: world.player.combat?.maxHp,
+    combatPostureBefore: previousWorld?.player.combat?.posture ?? world.player.combat?.posture,
+    combatPostureAfter: world.player.combat?.posture,
     startsAt: now + 520,
     expiresAt: expires + 520,
   };
@@ -252,6 +272,16 @@ function counterBubbleForPlayerAttack(
 
 function isStoryPackage(value: unknown): value is Parameters<typeof importStoryPackage>[0] {
   return Boolean(value && typeof value === "object" && (value as { packageVersion?: unknown }).packageVersion === 1);
+}
+
+function bumpEpisodeRun(worldId: string): void {
+  try {
+    const key = `ai-game:episode-run:${worldId}`;
+    const current = Number.parseInt(window.localStorage.getItem(key) ?? "0", 10);
+    window.localStorage.setItem(key, String(Number.isFinite(current) ? current + 1 : 1));
+  } catch {
+    // Local storage can be unavailable in hardened browser modes; episode play still works.
+  }
 }
 
 function bubbleActorId(entry: TickSummary["actions"][number]): string | null {

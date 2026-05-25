@@ -9,7 +9,7 @@ describe("commercial readiness gates", () => {
     expect(report.score).toBe(100);
     expect(report.gates.map((gate) => gate.id)).toEqual([
       "commercial_product_surface",
-      "three_d_graphics",
+      "playable_graphics",
       "long_running_agents",
       "world_ingest",
       "proper_playability",

@@ -56,6 +56,13 @@ export async function restoreSnapshot(snapshot: Snapshot | World): Promise<World
   return data;
 }
 
+export async function resetWorld(): Promise<WorldMutationResponse> {
+  const res = await fetch("/api/reset", { method: "POST" });
+  const data = await readApiJson<WorldMutationResponse | { error: string }>(res, "resetWorld");
+  if ("error" in data) throw new Error(data.error);
+  return data;
+}
+
 export async function importStoryPackage(pkg: StoryPackage): Promise<WorldMutationResponse> {
   const res = await fetch("/api/import-story-package", {
     method: "POST",

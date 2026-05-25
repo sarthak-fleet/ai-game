@@ -23,9 +23,13 @@ export function FightCinematicOverlay() {
   const hpBefore = Math.max(hpAfter, fight.combatHpBefore ?? hpAfter);
   const damage = Math.max(0, hpBefore - hpAfter);
   const hpPct = Math.max(0, Math.min(100, (hpAfter / hpMax) * 100));
+  const postureBefore = fight.combatPostureBefore ?? fight.combatPostureAfter ?? 100;
+  const postureAfter = Math.max(0, Math.min(100, fight.combatPostureAfter ?? postureBefore));
+  const postureBreak = Math.max(0, postureBefore - postureAfter);
   const style = fight.combatStyle ?? "strike";
   const attacker = world ? combatantFor(world, fight.sourceActorId ?? "player") : null;
   const defender = world ? combatantFor(world, fight.actorId ?? "player", fight.combatTargetName) : null;
+  const defenderIntent = world ? combatantIntent(world, fight.actorId) : null;
 
   return (
     <div className={`fight-cinematic ${style}`} aria-live="polite">
@@ -41,13 +45,23 @@ export function FightCinematicOverlay() {
         <span>{fight.combatLabel ?? "Combat"}</span>
         <strong>{fight.combatTargetName ?? "Target"}</strong>
       </div>
-      <div className="fight-cinematic-meter" aria-label={`${fight.combatTargetName ?? "Target"} HP ${hpAfter} of ${hpMax}`}>
-        <i style={{ width: `${hpPct}%` }} />
+      <div className="fight-cinematic-meters" aria-label="Combat damage readout">
+        <div className="fight-cinematic-meter hp" aria-label={`${fight.combatTargetName ?? "Target"} HP ${hpAfter} of ${hpMax}`}>
+          <em>HP</em>
+          <i style={{ width: `${hpPct}%` }} />
+          <b>{hpAfter}/{hpMax}</b>
+        </div>
+        <div className="fight-cinematic-meter posture" aria-label={`${fight.combatTargetName ?? "Target"} posture ${postureAfter} of 100`}>
+          <em>Posture</em>
+          <i style={{ width: `${postureAfter}%` }} />
+          <b>{postureAfter}/100</b>
+        </div>
       </div>
       <div className="fight-cinematic-bottom">
         <b>{damage > 0 ? `${damage} damage` : "pressure break"}</b>
-        <small>{hpAfter}/{hpMax} HP</small>
+        <small>{postureBreak > 0 ? `${postureBreak} posture break` : defenderIntent ?? "reading next intent"}</small>
       </div>
+      {defenderIntent && <div className="fight-cinematic-intent">Agent read: {defenderIntent}</div>}
     </div>
   );
 }
@@ -99,6 +113,14 @@ function roleFor(npc: Npc | undefined): string {
   if (npc.factionId === "challengers") return "Hostile";
   if (npc.factionId === "heroes") return "Hero";
   return npc.role ?? "Combatant";
+}
+
+function combatantIntent(world: World, actorId: string | null): string | null {
+  if (!actorId || actorId === "player") return null;
+  const npc = world.npcs.find((candidate) => candidate.id === actorId);
+  const intent = npc?.plan?.currentIntent?.reason ?? npc?.mood?.emotion;
+  if (!intent) return null;
+  return intent.length > 96 ? `${intent.slice(0, 93)}...` : intent;
 }
 
 function initialsFor(name: string): string {

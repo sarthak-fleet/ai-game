@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Mumen Rider portrait">
+  <rect width="180" height="180" rx="24" fill="#182437"/>
+  <circle cx="90" cy="75" r="40" fill="#d89462"/>
+  <path d="M50 56c10-36 70-36 80 0v17H50V56Z" fill="#2f7d52"/>
+  <path d="M56 62h68" stroke="#6fcf83" stroke-width="9" stroke-linecap="round"/>
+  <path d="M43 170c6-42 24-65 47-65s41 23 47 65H43Z" fill="#29496f"/>
+  <path d="M59 124c18 14 44 14 62 0" fill="none" stroke="#f4f1e8" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="75" cy="80" r="5" fill="#24120b"/>
+  <circle cx="105" cy="80" r="5" fill="#24120b"/>
+  <path d="M75 101c10 8 20 8 30 0" stroke="#8b3a35" stroke-width="4" stroke-linecap="round"/>
+</svg>

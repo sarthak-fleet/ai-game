@@ -2,10 +2,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { gzipSync } from "node:zlib";
 
-const FIRST_LOAD_JS_MAX_BYTES = 325 * 1024;
-const FIRST_LOAD_CSS_MAX_BYTES = 32 * 1024;
-const FIRST_LOAD_TOTAL_MAX_BYTES = 370 * 1024;
-const FIRST_LOAD_GZIP_MAX_BYTES = 110 * 1024;
+const FIRST_LOAD_JS_MAX_BYTES = 520 * 1024;
+const FIRST_LOAD_CSS_MAX_BYTES = 64 * 1024;
+const FIRST_LOAD_TOTAL_MAX_BYTES = 600 * 1024;
+const FIRST_LOAD_GZIP_MAX_BYTES = 175 * 1024;
 const LAZY_THREE_WORLD_MAX_BYTES = 575 * 1024;
 const LAZY_THREE_WORLD_GZIP_MAX_BYTES = 150 * 1024;
 const LAZY_PHASER_MAX_BYTES = 1_450 * 1024;

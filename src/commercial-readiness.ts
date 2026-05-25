@@ -36,8 +36,12 @@ export function commercialReadinessReport(rootDir = process.cwd()): CommercialRe
         "production agent step should visibly update 3D scene",
       ]),
     ]),
-    gate(rootDir, "three_d_graphics", "3D and good graphics", [
+    gate(rootDir, "playable_graphics", "Playable graphics", [
+      packageDependency("phaser"),
       packageDependency("three"),
+      file("web/src/organisms/PhaserGame.tsx"),
+      file("web/src/organisms/PlayerStatus.tsx"),
+      file("web/src/organisms/AgentPulse.tsx"),
       source("unreal/AshmentUnreal/AshmentUnreal.uproject", ["EngineAssociation", "AshmentUnreal"]),
       source("unreal/AshmentUnreal/Source/AshmentUnreal/AshmentWorldClient.cpp", [
         "/api/unreal/state",
@@ -49,7 +53,9 @@ export function commercialReadinessReport(rootDir = process.cwd()): CommercialRe
         "objectives",
       ]),
       source("unreal/AshmentUnreal/Source/AshmentUnreal/AshmentPlayerPawn.cpp", ["MoveForward", "MoveRight", "MoveUp", "Turn", "LookUp"]),
-      source("web/src/templates/AppShell.tsx", ["useState<\"2d\" | \"3d\">(\"3d\")", "ThreeWorld"]),
+      source("web/src/templates/AppShell.tsx", ["useState<\"2d\" | \"3d\">(\"2d\")", "PhaserGame", "ThreeWorld", "PlayerStatus", "AgentPulse"]),
+      source("web/src/phaser/VillageScene.ts", ["makeActor", "playCombatFx", "playAgentActionFx", "makeActorNameplate", "ambientBarksForLocation"]),
+      source("tests/playtests/opm-world.ts", ["phaser-host canvas", "Player status", "AI agent pulse", "Hero roster", "Route complete"]),
       source("web/src/three/world-scene.ts", [
         "PCFSoftShadowMap",
         "SceneMoodNode",
@@ -107,7 +113,7 @@ export function commercialReadinessReport(rootDir = process.cwd()): CommercialRe
         "playtest:world-ingest",
         "playtest:production",
       ]),
-      source("tests/playtests/first-loop.ts", ["Slot Save", "Slot Load", "keyboard.press(\"e\")", "Bring Pruning shears to Mira"]),
+      source("tests/playtests/first-loop.ts", ["Slot Save", "Slot Load", "phaser-host canvas", "Bring Pruning shears to Mira"]),
       source("tests/playtests/alive-village.ts", ["keyboard.press(\"d\")", "Interact with Mira", "expectNoHorizontalOverlap", "expectWithinViewport"]),
       source("tests/playtests/world-ingest.ts", ["Complete: Give Route token", "quick-loaded imported Abyssal 3D canvas should render nonblank pixels"]),
       source("web/src/three/scene-targets.ts", ["sceneTargetForWorld", "objectiveSceneTargetFor", "validSceneTarget"]),
@@ -134,7 +140,7 @@ export function commercialReadinessReport(rootDir = process.cwd()): CommercialRe
         "Playable objectives over open-ended prose drift",
       ]),
       source("src/expanded-completion-benchmarks.ts", [
-        "three_d_variant",
+        "two_d_primary_with_three_d_shelf",
         "generic_world_ingest",
         "long_running_agents",
         "verification_surface",

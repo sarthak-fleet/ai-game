@@ -88,6 +88,7 @@ async function runProductionPlaytest(): Promise<void> {
     await page.waitForLoadState("domcontentloaded");
     await expect(page).toHaveTitle("Ashment Village");
     await expect(page.getByRole("heading", { name: "Ashment Village" })).toBeVisible({ timeout: 15_000 });
+    await switchTo3D(page);
     await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
     await expect(page.locator(".three-host canvas")).toBeVisible();
     await expect.poll(() => nonBlankCanvasPixels(page, ".three-host canvas"), {
@@ -119,6 +120,7 @@ async function runProductionPlaytest(): Promise<void> {
     try {
       await mobile.goto(BASE_URL);
       await mobile.waitForLoadState("domcontentloaded");
+      await switchTo3D(mobile);
       await expect(mobile.locator(".app-shell")).toHaveClass(/focus-mode/);
       await expect(mobile.getByRole("button", { name: "HUD" })).toHaveAttribute("aria-pressed", "true");
       await expect(mobile.getByLabel("3D travel")).toContainText("At Rain Market");
@@ -190,6 +192,12 @@ async function canvasPixelHash(page: Page, selector: string): Promise<string> {
 async function openAgentsPanel(page: Page): Promise<void> {
   const agents = page.locator("details").filter({ has: page.locator("summary", { hasText: "Agents" }) });
   if (await agents.getAttribute("open") === null) await agents.locator("summary").click();
+}
+
+async function switchTo3D(page: Page): Promise<void> {
+  const button = page.getByRole("button", { name: "3D" });
+  if (!((await button.getAttribute("class")) ?? "").includes("active")) await button.click();
+  await expect(page.locator(".three-host canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 async function importProductionWorldSource(page: Page, villageStartHash: string): Promise<void> {

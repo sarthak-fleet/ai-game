@@ -8,7 +8,7 @@ describe("expanded completion gates", () => {
 
     expect(report.score).toBe(100);
     expect(report.gates.map((gate) => gate.id)).toEqual([
-      "three_d_variant",
+      "two_d_primary_with_three_d_shelf",
       "generic_world_ingest",
       "long_running_agents",
       "performance_budget",

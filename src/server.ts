@@ -38,7 +38,8 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-const world = JSON.parse(readFileSync(WORLD_PATH, "utf8")) as World;
+const INITIAL_WORLD_JSON = readFileSync(WORLD_PATH, "utf8");
+const world = parseInitialWorld();
 const initialAgentLoopCheckpoints = readAgentLoopCheckpoints(AGENT_LOOP_CHECKPOINT_PATH)
   .filter((checkpoint) => checkpoint.world.id === world.id);
 const propose = isLlmEnabled() ? createLlmProposer({ tier: "normal", maxNpcs: LLM_MAX_NPCS }) : undefined;
@@ -118,6 +119,14 @@ const server = createServer(async (req, res) => {
       capturedAt: new Date().toISOString(),
       world: engine.state,
     });
+  }
+  if (url.pathname === "/api/reset" && req.method === "POST") {
+    try {
+      const agentLoopStatus = await replaceEngineState(parseInitialWorld());
+      return json(res, 200, { ok: true, state: engine.state, agentLoopStatus });
+    } catch (error) {
+      return json(res, 400, { error: (error as Error).message });
+    }
   }
   if (url.pathname === "/api/agent-loop/status" && req.method === "GET") {
     return json(res, 200, agentLoop.status());
@@ -232,4 +241,8 @@ function readCutsceneManifest(): CutsceneManifestEntry[] {
   } catch {
     return [];
   }
+}
+
+function parseInitialWorld(): World {
+  return JSON.parse(INITIAL_WORLD_JSON) as World;
 }

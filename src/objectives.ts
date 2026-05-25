@@ -47,7 +47,8 @@ export function objectiveForStoryProgress(world: World): Objective | null {
     };
   }
   if (progress.phase === "shadow_confrontation") {
-    const targetLocation = world.player.locationId === reportId ? reportId : hubId;
+    const targetNpc = npcById(world, labels.confrontTargetId);
+    const targetLocation = targetNpc?.locationId ?? (world.player.locationId === reportId ? reportId : hubId);
     return {
       questId: "story:shadow_confrontation",
       questTitle: labels.confrontTitle,

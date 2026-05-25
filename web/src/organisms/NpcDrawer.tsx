@@ -61,9 +61,11 @@ export function NpcDrawer() {
   const acceptQuest = async () => {
     if (!openQuest) return;
     await send({ type: "accept_quest", questId: openQuest.id } as never);
+    close();
   };
   const give = async (itemId: string) => {
     await send({ type: "give", itemId, targetId: npc.id } as never);
+    close();
   };
   const fight = async (moveId: string) => {
     const move = combatMoves.find((candidate) => candidate.id === moveId) ?? combatMoves[0]!;
@@ -96,14 +98,6 @@ export function NpcDrawer() {
           {npc.plan?.nextActionHint && <span>Next: {npc.plan.nextActionHint}</span>}
           {topAmbition && <span>Goal: {topAmbition.title}</span>}
         </div>
-        {appearance && (
-          <div className="appearance-readout">
-            {appearance.silhouette && <p>{appearance.silhouette}</p>}
-            {appearance.hair && <span>Hair: {appearance.hair}</span>}
-            {appearance.outfit && <span>Outfit: {appearance.outfit}</span>}
-            {appearance.visualTags?.length ? <span>Tags: {appearance.visualTags.join(", ")}</span> : null}
-          </div>
-        )}
         {playerAxes && (
           <div className="relationship-readout">
             <span>trust {playerAxes.trust ?? 0}</span>
@@ -123,14 +117,6 @@ export function NpcDrawer() {
           </div>
         )}
         <p className="dialogue-line">{questLine ?? latestMemory}</p>
-        {relevantMemories.length > 0 && (
-          <div className="memory-readout">
-            <span>Relevant memory</span>
-            {relevantMemories.map((memory) => (
-              <p key={`${memory.tick}-${memory.text}`}>{memory.text}</p>
-            ))}
-          </div>
-        )}
         {openQuest && (
           <div className="dialogue-quest">
             <strong>{openQuest.title}</strong>
@@ -157,6 +143,22 @@ export function NpcDrawer() {
           <div className="dialogue-quest done">
             <strong>{doneQuest.title}</strong>
             <span>{doneAftermath}</span>
+          </div>
+        )}
+        {relevantMemories.length > 0 && (
+          <div className="memory-readout">
+            <span>Relevant memory</span>
+            {relevantMemories.map((memory) => (
+              <p key={`${memory.tick}-${memory.text}`}>{memory.text}</p>
+            ))}
+          </div>
+        )}
+        {appearance && (
+          <div className="appearance-readout">
+            {appearance.silhouette && <p>{appearance.silhouette}</p>}
+            {appearance.hair && <span>Hair: {appearance.hair}</span>}
+            {appearance.outfit && <span>Outfit: {appearance.outfit}</span>}
+            {appearance.visualTags?.length ? <span>Tags: {appearance.visualTags.join(", ")}</span> : null}
           </div>
         )}
         <div className="dialogue-choices">

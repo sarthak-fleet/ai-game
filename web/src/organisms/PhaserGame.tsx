@@ -1,7 +1,6 @@
 import Phaser from "phaser";
 import { useEffect, useRef } from "react";
 
-import type { Location, World } from "../../../src/types.ts";
 import { VillageScene } from "../phaser/VillageScene.ts";
 import { useWorldStore } from "../store/world.ts";
 import { movePlayerToward } from "../world-travel.ts";
@@ -64,9 +63,9 @@ export function PhaserGame() {
       if (state.zoom !== prev.zoom) scene.setCameraZoom(state.zoom, 450);
       if (state.drawerNpcId !== prev.drawerNpcId) {
         if (state.drawerNpcId) {
-          useWorldStore.getState().setZoom(2.2);
+          useWorldStore.getState().setZoom(2.35);
         } else {
-          useWorldStore.getState().setZoom(1.35);
+          useWorldStore.getState().setZoom(state.world?.id === "opm_z_city" ? 2.15 : 1.35);
         }
       }
       const newBubbles = state.bubbles.slice(prev.bubbles.length);
@@ -88,17 +87,6 @@ export function PhaserGame() {
     const initialWorld = useWorldStore.getState().world;
     if (initialWorld) scene.setWorld(initialWorld);
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat || isTypingTarget(event.target)) return;
-      const direction = keyDirection(event.key);
-      if (!direction) return;
-      const world = useWorldStore.getState().world;
-      const target = world ? locationInDirection(world, direction) : null;
-      if (!target) return;
-      event.preventDefault();
-      sceneRef.current?.previewPlayerMove(target);
-      void movePlayerToward(target);
-    };
     const onTravelRequest = (event: Event) => {
       const detail = (event as CustomEvent<{ locationId?: string }>).detail;
       if (detail?.locationId) {
@@ -112,13 +100,11 @@ export function PhaserGame() {
       const next = Math.max(0.8, Math.min(4, current - event.deltaY * 0.002));
       useWorldStore.getState().setZoom(next);
     };
-    window.addEventListener("keydown", onKeyDown);
     window.addEventListener("ashment:travel-to", onTravelRequest);
     container.addEventListener("wheel", onWheel, { passive: true });
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("ashment:travel-to", onTravelRequest);
       container.removeEventListener("wheel", onWheel);
       unsub();
@@ -128,54 +114,4 @@ export function PhaserGame() {
   }, []);
 
   return <div ref={containerRef} className="phaser-host" aria-label="Village map" />;
-}
-
-function keyDirection(key: string): "up" | "down" | "left" | "right" | null {
-  if (key === "ArrowUp" || key.toLowerCase() === "w") return "up";
-  if (key === "ArrowDown" || key.toLowerCase() === "s") return "down";
-  if (key === "ArrowLeft" || key.toLowerCase() === "a") return "left";
-  if (key === "ArrowRight" || key.toLowerCase() === "d") return "right";
-  return null;
-}
-
-function isTypingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
-}
-
-function locationInDirection(world: World, direction: "up" | "down" | "left" | "right"): string | null {
-  const current = world.locations.find((loc) => loc.id === world.player.locationId);
-  if (!current) return null;
-  const from = centerOf(current);
-  const candidates = reachableLocations(world)
-    .map((id) => world.locations.find((loc) => loc.id === id))
-    .filter((loc): loc is Location => Boolean(loc))
-    .map((loc) => ({ loc, center: centerOf(loc) }))
-    .filter(({ center }) => {
-      const dx = center.x - from.x;
-      const dy = center.y - from.y;
-      if (direction === "up") return dy < -20 && Math.abs(dy) >= Math.abs(dx) * 0.6;
-      if (direction === "down") return dy > 20 && Math.abs(dy) >= Math.abs(dx) * 0.6;
-      if (direction === "left") return dx < -20 && Math.abs(dx) >= Math.abs(dy) * 0.6;
-      return dx > 20 && Math.abs(dx) >= Math.abs(dy) * 0.6;
-    })
-    .sort((a, b) => distance(from, a.center) - distance(from, b.center));
-  return candidates[0]?.loc.id ?? null;
-}
-
-function reachableLocations(world: World): string[] {
-  const here = world.player.locationId;
-  const reachable = new Set<string>();
-  for (const exit of world.exits) {
-    if (exit.from === here) reachable.add(exit.to);
-    if (exit.bidirectional && exit.to === here) reachable.add(exit.from);
-  }
-  return [...reachable];
-}
-
-function centerOf(location: Location) {
-  return { x: location.x + location.w / 2, y: location.y + location.h / 2 };
-}
-
-function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
 }

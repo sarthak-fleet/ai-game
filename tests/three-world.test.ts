@@ -187,7 +187,7 @@ describe("3D world scene model", () => {
     expect(result.applied).toBe(true);
     expect(model.actors.find((actor) => actor.id === "player")).toMatchObject({
       name: "Tomas",
-      locationId: "forge",
+      locationId: "square",
       color: "#6f4b35",
       accentColor: "#2c2a28",
       bodyShape: "broad",

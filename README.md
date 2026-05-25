@@ -2,13 +2,13 @@
 
 Website: https://aliveville.com
 
-Aliveville is an AI world simulator moving toward an Unreal-first 3D game client. The TypeScript app in this repo owns the simulation server, world ingest, autonomous agent loop, quests, saves, and browser debug surface. The Unreal project under `unreal/AshmentUnreal` is the player-facing 3D client track.
+Aliveville is an AI world simulator with a 2D browser RPG client as the active player-facing track. The TypeScript app in this repo owns the simulation server, world ingest, autonomous agent loop, quests, saves, and browser game surface. The Unreal project under `unreal/AshmentUnreal` remains a shelved bridge target for a later rebuild.
 
 ## Direction
 
-We are not trying to hand-roll the final game client from scratch. The browser 2D/3D clients stay as legacy debug prototypes. The player-facing Unreal client should start from a proven official sample or open-source game foundation, then wire Aliveville's world/agent bridge into it.
+We are finishing the browser 2D RPG first: readable top-down exploration, quest objectives, stateful fights, visible AI agents, save/load, world ingest, and route-complete replay. The 3D browser and Unreal tracks stay available as old experimental surfaces, but they should not block the playable 2D route.
 
-Preferred base candidates:
+If 3D work resumes later, do not rebuild from scratch. Start from a proven official sample or open-source game foundation, then wire Aliveville's world/agent bridge into it. Preferred base candidates:
 
 - Epic Cropout-style top-down sample: best fit for readable agents, locations, and village simulation.
 - Epic Lyra Starter Game: strong Unreal architecture if we need modern input/gameplay systems.
@@ -19,9 +19,9 @@ Avoid GPL or unlicensed code/assets unless we intentionally accept those obligat
 ## Current Shape
 
 - `src/`: simulation, agent loop, director, ingest, story package, and Unreal bridge.
-- `web/`: browser debug/admin client and legacy playable prototype.
+- `web/`: active 2D Phaser RPG client, HUD, save/load, import, and legacy 3D view.
 - `astro-landing/`: public marketing site.
-- `unreal/AshmentUnreal/`: Unreal C++ client scaffold and bridge target while we evaluate sample-game bases.
+- `unreal/AshmentUnreal/`: shelved Unreal C++ client scaffold and bridge target.
 
 ## Run The Simulation
 
@@ -39,7 +39,7 @@ Useful endpoints:
 - `POST /api/unreal/action`: player action bridge for Unreal.
 - `POST /api/import-world-source`: reviewed world-source ingest.
 
-## Run The Browser Debug Client
+## Run The Browser Game
 
 ```sh
 pnpm dev
@@ -47,7 +47,7 @@ pnpm dev
 
 Open `http://localhost:5173`.
 
-## Run The Unreal Client
+## Run The Shelved Unreal Client
 
 1. Install Unreal Engine 5.7 from Epic Games Launcher.
 2. Install full Xcode and select it:
@@ -72,4 +72,18 @@ See [unreal/README.md](unreal/README.md) for the Unreal-specific setup notes.
 pnpm verify:readiness
 ```
 
-This runs typecheck, lint, unit tests, build, bundle budget, readiness benches, and browser playtests. The commercial readiness gate now requires the Unreal bridge/client path.
+This runs typecheck, lint, unit tests, build, bundle budget, readiness benches, and browser playtests. The commercial readiness gate should protect the playable 2D RPG by default while keeping the 3D/Unreal bridge covered as optional evidence.
+
+<!-- ACTIVE-AI-TASK-LOG:START -->
+## Active AI Task Log
+
+This section is maintained by the SaaS Maker Active-AI product/design loop so future agents do not reopen duplicate UI tasks.
+
+- Business lane: Core/status context
+- Rule: do not create another broad "improve the UI" task unless the acceptance criteria differ materially from the tasks listed here.
+- Source of truth for task status: SaaS Maker task board. README entries are durable context only.
+
+| Task | Status | Priority | Last known note |
+| --- | --- | --- | --- |
+| `a31f2db5` [fleet-audit] ai-game CI failing on main | todo | high | 2026-05-25 17:06:22 |
+<!-- ACTIVE-AI-TASK-LOG:END -->

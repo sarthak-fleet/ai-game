@@ -25,7 +25,21 @@
     "playedCutsceneIds": []
   },
   "tick": 0,
-  "player": { "locationId": "square", "name": "New Hero" },
+  "player": {
+    "locationId": "square",
+    "name": "Tatsumaki",
+    "characterId": "orrin",
+    "appearance": {
+      "sourceLook": "Tatsumaki / green-haired psychic hero",
+      "bodyType": "small frame with floating posture",
+      "hair": "curled green hair",
+      "outfit": "black dress-like hero outfit with green psychic glow",
+      "palette": ["#66c26f", "#141b28", "#e7b07d"],
+      "silhouette": "Small floating psychic silhouette with curled green hair.",
+      "visualTags": ["psychic", "green hair", "floating", "S-class"],
+      "portrait": "/assets/characters/opm_test/tatsumaki.svg"
+    }
+  },
   "clock": { "hoursPerTick": 2, "hour": 8, "day": 1 },
   "rules": [
     { "id": "hero_rank", "kind": "social", "text": "Hero Association reports matter more when backed by witnesses or physical proof." },
@@ -335,6 +349,156 @@
       "memories": [
         { "tick": 0, "text": "The challenge note near the overpass is bait for Saitama.", "meta": { "importance": 9, "tags": ["challenge", "overpass", "saitama"], "visibility": "private", "emotionalWeight": 6, "sourceActorId": "world" } },
         { "tick": 0, "text": "A monster scale makes the alert look more serious than the duel bait alone.", "meta": { "importance": 8, "tags": ["monster", "scale", "alert"], "visibility": "private", "emotionalWeight": 4, "sourceActorId": "world" } }
+      ]
+    },
+    {
+      "id": "fubuki",
+      "name": "Fubuki",
+      "locationId": "square",
+      "tier": "normal",
+      "role": "psychic group leader",
+      "factionId": "heroes",
+      "description": "A composed psychic leader watching whether the patrol needs organization or restraint.",
+      "appearance": {
+        "sourceLook": "Fubuki / elegant psychic hero",
+        "bodyType": "tall poised frame",
+        "hair": "dark bob haircut",
+        "outfit": "deep green dress coat with pale scarf",
+        "palette": ["#163d35", "#f1f4e8", "#1b1f2a"],
+        "silhouette": "Tall psychic silhouette with a long coat and controlled stance.",
+        "visualTags": ["psychic", "leader", "green coat"]
+      },
+      "traits": { "personality": ["calm", "strategic", "proud"], "values": ["influence", "discipline", "loyalty"], "flaws": ["status-conscious"], "fears": ["losing control"], "speechStyle": "polished and firm" },
+      "needs": { "safety": 62, "trust": 48, "status": 80, "curiosity": 58, "duty": 60 },
+      "mood": { "emotion": "measured", "stress": 28, "confidence": 78, "suspicion": 44 },
+      "goals": ["keep the crowd organized", "judge the threat level", "avoid letting Sonic control the scene"],
+      "ambitions": [
+        { "id": "fubuki_order", "title": "Keep the plaza patrol from becoming chaotic", "kind": "protect", "priority": 70, "status": "active", "targetId": "square" }
+      ],
+      "relationshipAxes": { "orrin": { "respect": 3, "suspicion": 1 }, "pax": { "suspicion": 3 } },
+      "relationships": { "orrin": 1, "pax": -1 },
+      "memories": [
+        { "tick": 0, "text": "Tatsumaki is moving before the support heroes have a clean plan.", "meta": { "importance": 6, "tags": ["tatsumaki", "plan"], "visibility": "private", "emotionalWeight": 2, "sourceActorId": "world" } }
+      ]
+    },
+    {
+      "id": "king",
+      "name": "King",
+      "locationId": "square",
+      "tier": "normal",
+      "role": "legendary-looking bystander hero",
+      "factionId": "heroes",
+      "description": "A feared hero whose terrifying reputation does most of the work while he tries to stay calm.",
+      "appearance": {
+        "sourceLook": "King / scarred intimidating hero",
+        "bodyType": "broad still posture",
+        "hair": "short blond hair",
+        "outfit": "dark jacket and plain street clothes",
+        "palette": ["#c78b45", "#242936", "#b94b3d"],
+        "silhouette": "Broad shoulders, severe face mark, and rigid stance.",
+        "visualTags": ["scar", "legend", "still"]
+      },
+      "traits": { "personality": ["quiet", "nervous", "observant"], "values": ["peace", "privacy", "games"], "flaws": ["avoids pressure"], "fears": ["being exposed"], "speechStyle": "short and cautious" },
+      "needs": { "safety": 88, "trust": 42, "status": 66, "rest": 54, "curiosity": 35, "duty": 40 },
+      "mood": { "emotion": "tense", "stress": 62, "confidence": 38, "suspicion": 30 },
+      "goals": ["stay out of the duel", "keep civilians from panicking", "avoid attracting Sonic"],
+      "ambitions": [
+        { "id": "king_keep_calm", "title": "Keep the King Engine from escalating the crowd", "kind": "hide", "priority": 64, "status": "active", "targetId": "square" }
+      ],
+      "relationshipAxes": { "mira": { "trust": 1 }, "pax": { "fear": 1, "suspicion": 2 } },
+      "relationships": { "mira": 1, "pax": -1 },
+      "memories": [
+        { "tick": 0, "text": "The crowd calms down when King stands near the kiosk, even if he says nothing.", "meta": { "importance": 6, "tags": ["crowd", "king"], "visibility": "shared", "emotionalWeight": 2, "sourceActorId": "world" } }
+      ]
+    },
+    {
+      "id": "bang",
+      "name": "Bang",
+      "locationId": "square",
+      "tier": "normal",
+      "role": "elder martial arts master",
+      "factionId": "heroes",
+      "description": "A relaxed old master reading the plaza's movement and waiting for the first real mistake.",
+      "appearance": {
+        "sourceLook": "Bang / silver-haired martial arts master",
+        "bodyType": "compact elderly fighter",
+        "hair": "swept silver hair",
+        "outfit": "dark martial arts robe",
+        "palette": ["#d9e1e8", "#1d2930", "#8fa9b5"],
+        "silhouette": "Compact master stance with swept hair and loose sleeves.",
+        "visualTags": ["martial arts", "elder", "silver hair"]
+      },
+      "traits": { "personality": ["patient", "dry", "perceptive"], "values": ["discipline", "restraint", "teaching"], "flaws": ["understates danger"], "fears": ["reckless students"], "speechStyle": "gentle and clipped" },
+      "needs": { "safety": 70, "trust": 60, "status": 45, "curiosity": 58, "duty": 78 },
+      "mood": { "emotion": "calm", "stress": 18, "confidence": 88, "suspicion": 38 },
+      "goals": ["watch Sonic's footwork", "keep younger heroes from overcommitting", "step in only if needed"],
+      "ambitions": [
+        { "id": "bang_observe", "title": "Read the challenger before the plaza erupts", "kind": "investigate", "priority": 72, "status": "active", "targetId": "pax" }
+      ],
+      "relationshipAxes": { "pax": { "suspicion": 2 }, "lena": { "respect": 2 } },
+      "relationships": { "pax": -1, "lena": 1 },
+      "memories": [
+        { "tick": 0, "text": "Sonic's stance is loud enough to announce the duel before he speaks.", "meta": { "importance": 7, "tags": ["sonic", "duel", "stance"], "visibility": "shared", "emotionalWeight": 2, "sourceActorId": "world" } }
+      ]
+    },
+    {
+      "id": "metal_bat",
+      "name": "Metal Bat",
+      "locationId": "square",
+      "tier": "normal",
+      "role": "hot-blooded patrol backup",
+      "factionId": "heroes",
+      "description": "A blunt hero ready to handle trouble with a bat if the alert stops being paperwork.",
+      "appearance": {
+        "sourceLook": "Metal Bat / pompadour hero with a bat",
+        "bodyType": "lean tough stance",
+        "hair": "black pompadour",
+        "outfit": "black school uniform and metal bat",
+        "palette": ["#151a22", "#cfd7df", "#6b7280"],
+        "silhouette": "Pompadour, squared shoulders, and a bat held low.",
+        "visualTags": ["bat", "pompadour", "hot-blooded"]
+      },
+      "traits": { "personality": ["blunt", "protective", "impatient"], "values": ["family", "guts", "direct action"], "flaws": ["charges in"], "fears": ["civilians getting hurt"], "speechStyle": "rough and direct" },
+      "needs": { "safety": 55, "trust": 52, "status": 58, "revenge": 35, "duty": 82 },
+      "mood": { "emotion": "amped", "stress": 40, "confidence": 82, "suspicion": 48 },
+      "goals": ["keep Monster Alley contained", "back up Mumen Rider", "hit the first obvious threat"],
+      "ambitions": [
+        { "id": "metal_bat_backup", "title": "Stay close enough to back up the overpass report", "kind": "protect", "priority": 76, "status": "active", "targetId": "bridge" }
+      ],
+      "relationshipAxes": { "lena": { "respect": 2 }, "pax": { "suspicion": 3 } },
+      "relationships": { "lena": 1, "pax": -1 },
+      "memories": [
+        { "tick": 0, "text": "Monster Alley has enough dents and scratches to be worth watching.", "meta": { "importance": 6, "tags": ["monster", "alley"], "visibility": "shared", "emotionalWeight": 3, "sourceActorId": "world" } }
+      ]
+    },
+    {
+      "id": "child_emperor",
+      "name": "Child Emperor",
+      "locationId": "square",
+      "tier": "normal",
+      "role": "young tactical analyst",
+      "factionId": "heroes",
+      "description": "A young strategist scanning the plaza for proof, route timing, and threat patterns.",
+      "appearance": {
+        "sourceLook": "Child Emperor / young tactical hero",
+        "bodyType": "small child frame",
+        "hair": "neat brown hair",
+        "outfit": "school uniform with gadget backpack",
+        "palette": ["#6f93d6", "#f0d38a", "#2b3443"],
+        "silhouette": "Small analyst silhouette with backpack gadgets.",
+        "visualTags": ["gadget", "analyst", "young hero"]
+      },
+      "traits": { "personality": ["smart", "precise", "skeptical"], "values": ["evidence", "planning", "efficiency"], "flaws": ["over-analyzes"], "fears": ["bad data"], "speechStyle": "clear and technical" },
+      "needs": { "safety": 64, "trust": 58, "resources": 70, "status": 54, "curiosity": 88, "duty": 76 },
+      "mood": { "emotion": "focused", "stress": 34, "confidence": 74, "suspicion": 52 },
+      "goals": ["confirm the monster-scale evidence", "map the route from overpass to plaza", "keep the report factual"],
+      "ambitions": [
+        { "id": "child_emperor_scan", "title": "Build a clean evidence chain for the alert", "kind": "investigate", "priority": 78, "status": "active", "targetId": "bridge" }
+      ],
+      "relationshipAxes": { "tomas": { "respect": 2 }, "lena": { "trust": 2 }, "pax": { "suspicion": 3 } },
+      "relationships": { "tomas": 1, "lena": 1, "pax": -1 },
+      "memories": [
+        { "tick": 0, "text": "The challenge marks and monster scale do not fully match; one may be bait and one may be real.", "meta": { "importance": 8, "tags": ["evidence", "scale", "challenge"], "visibility": "shared", "emotionalWeight": 3, "sourceActorId": "world" } }
       ]
     }
   ],

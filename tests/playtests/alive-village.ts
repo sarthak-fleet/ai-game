@@ -59,14 +59,16 @@ async function runAliveVillagePlaytest(api: ChildProcess): Promise<void> {
     await page.goto(BASE_URL);
     await page.waitForLoadState("domcontentloaded");
     await expect(page.locator(".objective-tracker")).toContainText("Return the pruning shears");
+    await switchTo3D(page);
     await expect(page.locator(".three-host canvas")).toHaveCount(1);
     await expect(page.locator(".three-host canvas")).toBeVisible();
     await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
     await expect.poll(() => nonBlankCanvasPixels(page, ".three-host canvas")).toBeGreaterThan(40);
-    await choosePlayableCharacter(page, "Tomas", "At Old Forge");
+    await choosePlayableCharacter(page, "Tomas", "At Village Square");
     await restoreWorld();
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
+    await switchTo3D(page);
     await expect(page.locator(".objective-tracker")).toContainText("Return the pruning shears");
     await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
     await page.getByRole("button", { name: "Focus" }).click();
@@ -169,6 +171,7 @@ async function runAliveVillagePlaytest(api: ChildProcess): Promise<void> {
     try {
       await mobile.goto(BASE_URL);
       await mobile.waitForLoadState("domcontentloaded");
+      await switchTo3D(mobile);
       await expect(mobile.locator(".app-shell")).toHaveClass(/focus-mode/);
       await expect(mobile.getByRole("button", { name: "3D" })).toHaveClass(/active/);
       await expect(mobile.getByRole("button", { name: "HUD" })).toHaveAttribute("aria-pressed", "true");
@@ -311,6 +314,12 @@ async function choosePlayableCharacter(page: Page, name: string, travelText: str
   await interact.getByRole("button", { name: "Choose" }).click();
   await expect(interact.locator(".hint").filter({ hasText: name })).toBeVisible();
   await expect(page.getByLabel("3D travel")).toContainText(travelText);
+}
+
+async function switchTo3D(page: Page): Promise<void> {
+  const button = page.getByRole("button", { name: "3D" });
+  if (!((await button.getAttribute("class")) ?? "").includes("active")) await button.click();
+  await expect(page.locator(".three-host canvas")).toBeVisible({ timeout: 15_000 });
 }
 
 async function hoverThreeTarget(page: Page, label: string): Promise<{ x: number; y: number }> {

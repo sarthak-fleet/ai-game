@@ -61,40 +61,33 @@ async function runBrowserPlaytest(): Promise<void> {
     await expect(objective(page)).toContainText("Talk to Mira");
     await clickObjective(page, "Talk");
     await clickButton(page, "Accept task");
-    await clickButton(page, "Close");
+    await expect(page.locator(".dialogue-panel")).toHaveCount(0);
     await expect(objective(page)).toContainText("Find Pruning shears");
     await clickButton(page, "Slot Save");
     await expect(page.locator(".header-toast")).toContainText("Quick saved", { timeout: 5_000 });
     await page.screenshot({ path: join(ARTIFACT_DIR, "02-accepted.png") });
 
-    await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
-    await expect(page.locator(".three-host canvas")).toBeVisible();
-    await expect(page.getByLabel("3D travel")).toContainText("At Herb Garden");
-    await clickButton(page, "Go Village Square");
-    await expect(page.getByLabel("3D travel")).toContainText("At Village Square");
-    await clickButton(page, "Go Old Forge");
-    await expect(page.getByLabel("3D travel")).toContainText("At Old Forge");
+    await expect(page.getByRole("button", { name: "2D" })).toHaveClass(/active/);
+    await expect(page.locator(".phaser-host canvas")).toBeVisible();
+    await clickObjective(page, "Go");
     await expect(objective(page)).toContainText("Pick up");
-    await page.locator(".three-host").focus();
-    await page.keyboard.press("e");
-    await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
-    await hoverThreeTarget(page, "Inspect Sooty tool rack");
-    await page.locator(".three-host").focus();
-    await page.keyboard.press("e");
+    await openInteractPanel(page);
+    await clickButton(page, "Inspect");
     await expect(page.locator(".outcome-toast")).toContainText("Fresh soot outlines a missing pair of shears");
+    await clickObjective(page, "Pick up");
+    await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
     await page.reload();
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByRole("heading", { name: "Ashment Village" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "3D" })).toHaveClass(/active/);
-    await expect(page.locator(".three-host canvas")).toBeVisible();
+    await expect(page.getByRole("button", { name: "2D" })).toHaveClass(/active/);
+    await expect(page.locator(".phaser-host canvas")).toBeVisible();
     await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
     await importInvalidSave(page);
     await expect(page.locator(".header-toast")).toContainText("Restore failed: Save file is not valid JSON", { timeout: 5_000 });
     await expect(objective(page)).toContainText("Bring Pruning shears to Mira");
-    await expect(page.locator(".three-host canvas")).toBeVisible();
+    await expect(page.locator(".phaser-host canvas")).toBeVisible();
     await clickButton(page, "Slot Load");
     await expect(objective(page)).toContainText("Find Pruning shears");
-    await expect(page.getByLabel("3D travel")).toContainText("At Herb Garden");
     await clickObjective(page, "Go");
     await expect(objective(page)).toContainText("Pick up");
     await clickObjective(page, "Pick up");
@@ -126,24 +119,9 @@ async function clickButton(page: Page, label: string): Promise<void> {
   await clickUnique(page.getByRole("button", { name: label }));
 }
 
-async function hoverThreeTarget(page: Page, label: string): Promise<{ x: number; y: number }> {
-  const canvas = page.locator(".three-host canvas");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("3D canvas is not visible");
-  const seen = new Set<string>();
-
-  for (const y of [0.5, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.88]) {
-    for (const x of [0.5, 0.08, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.88]) {
-      const point = { x: box.x + box.width * x, y: box.y + box.height * y };
-      await page.mouse.move(point.x, point.y);
-      await page.waitForTimeout(15);
-      const readout = await page.getByLabel("3D target").innerText();
-      if (readout !== "No scene target") seen.add(readout);
-      if (readout.includes(label)) return point;
-    }
-  }
-
-  throw new Error(`Could not find 3D target: ${label}. Saw: ${[...seen].join(", ") || "none"}`);
+async function openInteractPanel(page: Page): Promise<void> {
+  const panel = page.locator("details").filter({ has: page.locator("summary", { hasText: "Interact" }) });
+  await panel.evaluate((element) => element.setAttribute("open", ""));
 }
 
 async function clickUnique(locator: Locator): Promise<void> {

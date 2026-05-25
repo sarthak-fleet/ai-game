@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Speed-o'-Sound Sonic portrait">
+  <rect width="180" height="180" rx="24" fill="#15111c"/>
+  <circle cx="90" cy="75" r="39" fill="#df9b69"/>
+  <path d="M48 59c10-33 72-39 87 2-27-14-60-14-87-2Z" fill="#171520"/>
+  <path d="M43 170c6-43 24-66 47-66s41 23 47 66H43Z" fill="#1a1723"/>
+  <path d="M54 126h72" stroke="#8d5cff" stroke-width="12" stroke-linecap="round"/>
+  <path d="M122 51l24 9-24 7Z" fill="#8d5cff"/>
+  <rect x="119" y="101" width="8" height="60" rx="4" fill="#cbd2df"/>
+  <circle cx="75" cy="78" r="5" fill="#24120b"/>
+  <circle cx="105" cy="78" r="5" fill="#24120b"/>
+  <path d="M77 100c9 7 19 7 28 0" stroke="#8b3a35" stroke-width="4" stroke-linecap="round"/>
+</svg>

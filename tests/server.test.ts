@@ -125,6 +125,13 @@ describe("server", () => {
       expect(restored.status.restoredCheckpoint.tick).toBe(5);
       expect(restored.state.tick).toBe(5);
 
+      const reset = await fetch(`http://localhost:${port}/api/reset`, { method: "POST" });
+      expect(reset.status).toBe(200);
+      const resetBody = (await reset.json()) as { state: { id: string; tick: number; player: { locationId: string } }; agentLoopStatus: { checkpoints: unknown[]; ticksRun: number } };
+      expect(resetBody.state).toMatchObject({ id: "ashment", tick: 0, player: { locationId: "square" } });
+      expect(resetBody.agentLoopStatus.ticksRun).toBe(0);
+      expect(resetBody.agentLoopStatus.checkpoints).toEqual([]);
+
       const html = await fetch(`http://localhost:${port}/`);
       expect(html.status).toBe(200);
       expect(await html.text()).toMatch(/Ashment Village/);

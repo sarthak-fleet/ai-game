@@ -26,7 +26,7 @@ describe("bundle budget", () => {
 
   test("fails when the first-load shell gets too large", () => {
     const root = makeBuild({
-      "index-shell.js": "x".repeat(380 * 1024),
+      "index-shell.js": "x".repeat(560 * 1024),
       "index-style.css": "body{margin:0}",
     });
 

@@ -67,6 +67,34 @@ const OPM_MOVES: CombatMove[] = [
   },
 ];
 
+const OPM_CHARACTER_MOVES: Record<string, CombatMove[]> = {
+  tomas: [
+    opmMove("normal_punch", "Cyborg Jab", "strike", "A precise mechanical hit that tests armor and timing.", "fires a precise cyborg jab", 30, 18),
+    opmMove("consecutive_normal_punches", "Machine Gun Blows", "rush", "A rapid cyborg rush that keeps a fast opponent boxed in.", "unleashes machine gun blows", 42, 24),
+    opmMove("serious_side_step", "Afterburner Feint", "counter", "A booster-assisted angle change that breaks pursuit.", "burns sideways through an afterburner feint", 18, 32),
+    opmMove("guard_break", "Arm Cannon Break", "strike", "A compact cannon burst that cracks showy defense.", "cracks the guard with an arm cannon burst", 34, 34),
+    opmMove("justice_crash", "Incineration Burst", "special", "A controlled blast for interrupting a challenge speech.", "fires a controlled incineration burst", 36, 26),
+    opmMove("clean_finisher", "Core-Heat Finisher", "finisher", "A restrained core blast that ends the patrol exchange.", "ends the exchange with a restrained core blast", 120, 100),
+  ],
+  lena: [
+    opmMove("normal_punch", "Justice Punch", "strike", "A committed hero strike that keeps pressure honest.", "lands a committed justice punch", 30, 18),
+    opmMove("consecutive_normal_punches", "Bicycle Rush", "rush", "A brave rush combo for stopping a fast opponent.", "chains a bicycle rush combo", 42, 24),
+    opmMove("serious_side_step", "Heroic Sidestep", "counter", "A stubborn reposition that breaks the opponent's angle.", "slides into a heroic sidestep", 18, 32),
+    opmMove("guard_break", "Justice Guard Break", "strike", "A compact hit backed by stubborn timing.", "breaks the guard with stubborn timing", 34, 34),
+    opmMove("justice_crash", "Justice Crash", "special", "A heroic tackle for interrupting a challenge speech.", "throws a Justice Crash tackle", 36, 26),
+    opmMove("clean_finisher", "Citizen-Safe Finish", "finisher", "A clean final hit that protects bystanders first.", "ends the exchange with a citizen-safe finish", 120, 100),
+  ],
+  mira: OPM_MOVES,
+  orrin: [
+    opmMove("normal_punch", "Psychic Jab", "strike", "A clipped telekinetic hit that tests the rival's guard.", "lands a clipped psychic jab", 30, 18),
+    opmMove("consecutive_normal_punches", "Telekinetic Barrage", "rush", "A rapid psychic barrage that boxes in a fast opponent.", "chains a telekinetic barrage", 42, 24),
+    opmMove("serious_side_step", "Vector Shift", "counter", "A sudden psychic displacement that breaks the opponent's angle.", "vanishes through a vector shift", 18, 32),
+    opmMove("guard_break", "Gravity Crush", "strike", "A compact gravity spike that punishes showy defense.", "cracks the guard with a gravity crush", 34, 34),
+    opmMove("justice_crash", "Psychic Maelstrom", "special", "A controlled psychic surge for interrupting a challenge speech.", "throws a controlled psychic maelstrom", 36, 26),
+    opmMove("clean_finisher", "Psychic Seal", "finisher", "A restrained psychic bind that clears the patrol loop.", "ends the exchange with a restrained psychic seal", 120, 100),
+  ],
+};
+
 const DEFAULT_MOVES: CombatMove[] = [
   {
     id: "quick_strike",
@@ -126,10 +154,24 @@ const DEFAULT_MOVES: CombatMove[] = [
 
 export function combatMovesFor(worldOrId: World | string): CombatMove[] {
   const worldId = typeof worldOrId === "string" ? worldOrId : worldOrId.id;
-  return worldId === "opm_z_city" ? OPM_MOVES : DEFAULT_MOVES;
+  if (worldId !== "opm_z_city") return DEFAULT_MOVES;
+  if (typeof worldOrId === "string") return OPM_MOVES;
+  return OPM_CHARACTER_MOVES[worldOrId.player.characterId ?? ""] ?? OPM_MOVES;
 }
 
 export function combatMoveFor(world: World, moveId: string | undefined): CombatMove {
   const moves = combatMovesFor(world);
   return moves.find((move) => move.id === moveId) ?? moves[0]!;
+}
+
+function opmMove(
+  id: CombatMove["id"],
+  label: string,
+  style: CombatMove["style"],
+  description: string,
+  impact: string,
+  damage: number,
+  postureDamage: number
+): CombatMove {
+  return { id, label, style, description, impact, damage, postureDamage };
 }

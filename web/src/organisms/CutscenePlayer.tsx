@@ -21,9 +21,9 @@ export function CutscenePlayer() {
     if (active) {
       useWorldStore.getState().setZoom(0.85);
     } else {
-      useWorldStore.getState().setZoom(1.35);
+      useWorldStore.getState().setZoom(world?.id === "opm_z_city" ? 2.15 : 1.35);
     }
-  }, [active]);
+  }, [active, world?.id]);
 
   const showCutscene = useCallback((cutscene: Cutscene) => {
     if (activeRef.current) {

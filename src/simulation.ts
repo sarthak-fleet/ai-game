@@ -109,13 +109,33 @@ export async function runTick(
   if (playerAction) {
     const result = applyAction(world, { ...playerAction, actorId: "player" } as Action);
     (result.applied ? actions : rejected).push(result as AppliedAction & RejectedAction);
+    if (result.applied) {
+      const support = playerFightWitnessAction(world, playerAction);
+      if (support) {
+        const supportResult = applyAction(world, support);
+        (supportResult.applied ? actions : rejected).push(supportResult as AppliedAction & RejectedAction);
+      }
+    }
   }
 
   const proposer = propose ?? proposeNpcActions;
   const proposed = (await proposer(world)) ?? [];
+  const playerCombatAction = playerAction?.type === "fight";
+  const playerFightTargetId = playerAction?.type === "fight" ? playerAction.targetId : null;
   for (const action of proposed) {
+    if (playerFightTargetId && action.actorId === playerFightTargetId) continue;
+    if (action.actorId === world.player.characterId) continue;
+    if (playerCombatAction && action.type === "fight" && action.targetId === "player") continue;
     const result = applyAction(world, action);
     (result.applied ? actions : rejected).push(result as AppliedAction & RejectedAction);
+  }
+  if (world.player.characterId) {
+    const selected = getNpc(world, world.player.characterId);
+    if (selected) selected.locationId = world.player.locationId;
+  }
+  if (playerFightTargetId && playerFightTargetId !== "player") {
+    const target = getNpc(world, playerFightTargetId);
+    if (target?.combat && !target.combat.defeated) target.locationId = world.player.locationId;
   }
 
   if (director && actions.length === 0) {
@@ -158,10 +178,17 @@ export function applyAction(world: World, action: Action): ActionResult {
     case "move": {
       if (action.actorId === "player") {
         world.player = { ...(world.player ?? { locationId: action.locationId }), locationId: action.locationId };
+        if (world.player.characterId) {
+          const selected = getNpc(world, world.player.characterId);
+          if (selected) selected.locationId = action.locationId;
+        }
         advanceNightfallTravel(world, action.locationId);
       } else {
         const npc = mustNpc(world, action.actorId);
         npc.locationId = action.locationId;
+        if (world.player.characterId === action.actorId) {
+          world.player = { ...world.player, locationId: action.locationId };
+        }
       }
       return applied(action, `${nameOf(world, action.actorId)} moved to ${locationName(world, action.locationId)}.`);
     }
@@ -208,12 +235,14 @@ export function applyAction(world: World, action: Action): ActionResult {
     }
     case "choose_character": {
       const chosen = mustNpc(world, action.targetId);
+      const playerLocation = world.player?.locationId ?? chosen.locationId;
+      chosen.locationId = playerLocation;
       world.player = {
         ...world.player,
         characterId: chosen.id,
         name: chosen.name,
         appearance: chosen.appearance ? clonePlain(chosen.appearance) : undefined,
-        locationId: chosen.locationId,
+        locationId: playerLocation,
       };
       remember(world, chosen.id, `${nameOf(world, action.actorId)} chose to play as ${chosen.name}.`);
       return applied(action, `${nameOf(world, action.actorId)} is now playing as ${chosen.name}.`);
@@ -426,7 +455,8 @@ function applyEnemyCounterPressure(world: World, targetId: string, playerMoveId:
     special: -3,
     finisher: 0,
   };
-  const damage = Math.max(0, pressure + mitigation[playerMove.style]);
+  const assistMitigation = witnessCounterMitigation(world, targetId);
+  const damage = Math.max(0, pressure + mitigation[playerMove.style] - assistMitigation);
   const postureDamage = Math.max(3, Math.round(damage * 1.7));
   playerCombat.hp = Math.max(0, playerCombat.hp - damage);
   playerCombat.posture = Math.max(0, playerCombat.posture - postureDamage);
@@ -438,6 +468,13 @@ function applyEnemyCounterPressure(world: World, targetId: string, playerMoveId:
     return `${nameOf(world, targetId)} counters for ${damage}, dropping ${nameOf(world, "player")} to 0 HP.`;
   }
   return `${nameOf(world, targetId)} counters for ${damage}; ${nameOf(world, "player")} has ${playerCombat.hp}/${playerCombat.maxHp} HP.`;
+}
+
+function witnessCounterMitigation(world: World, targetId: string): number {
+  if (world.id !== "opm_z_city" || targetId !== "pax") return 0;
+  const witness = getNpc(world, "lena");
+  const active = witness?.memories.some((memory) => /witness assist: overpass civilians clear/i.test(memory.text)) ?? false;
+  return active ? 2 : 0;
 }
 
 function recoverPlayerCombat(world: World, actions: AppliedAction[]): void {
@@ -636,6 +673,7 @@ function mustItem(world: World, id: string): Item {
 
 export function locationOf(world: World, actorId: string): string | undefined {
   if (actorId === "player") return world.player?.locationId;
+  if (actorId === world.player?.characterId) return world.player?.locationId;
   return getNpc(world, actorId)?.locationId;
 }
 
@@ -807,6 +845,10 @@ export function proposeNpcActions(world: World): Action[] {
 }
 
 function hostileCombatActions(world: World, existingActions: Action[], limit = 1): Action[] {
+  if (!hostileAutoCombatAllowed(world)) return [];
+  if (existingActions.some((action) =>
+    action.type === "fight" && (action.actorId === "player" || action.targetId === "player")
+  )) return [];
   const busyActors = new Set(existingActions.map((action) => action.actorId));
   const playerCombat = normalizeCombatState(world.player.combat, 120);
   if (playerCombat.defeated) return [];
@@ -830,6 +872,16 @@ function hostileCombatActions(world: World, existingActions: Action[], limit = 1
   return actions;
 }
 
+function hostileAutoCombatAllowed(world: World): boolean {
+  return world.npcs.some((npc) =>
+    npc.locationId === world.player.locationId &&
+    npc.id !== world.player.characterId &&
+    shouldTrackCombat(npc) &&
+    !npc.combat?.defeated &&
+    ((npc.combat?.hp ?? npc.combat?.maxHp ?? 0) < (npc.combat?.maxHp ?? 0) || (npc.combat?.posture ?? 100) < 100)
+  );
+}
+
 function hostileMoveId(world: World, npc: Npc): string {
   if (world.id === "opm_z_city" && npc.id === "pax") {
     const playerPosture = normalizeCombatState(world.player.combat, 120).posture;
@@ -837,6 +889,22 @@ function hostileMoveId(world: World, npc: Npc): string {
   }
   const moves = combatMovesFor(world);
   return moves.find((move) => move.id === "rush")?.id ?? moves.find((move) => move.style === "rush")?.id ?? moves[0]!.id;
+}
+
+function playerFightWitnessAction(world: World, playerAction: PlayerAction): Action | null {
+  if (world.id !== "opm_z_city") return null;
+  if (playerAction.type !== "fight" || playerAction.targetId !== "pax") return null;
+  if (world.storyProgress?.phase !== "shadow_confrontation") return null;
+  const witness = getNpc(world, "lena");
+  const target = getNpc(world, "pax");
+  if (!witness || !target || target.combat?.defeated) return null;
+  if (witness.memories.some((memory) => /witness assist: overpass civilians clear/i.test(memory.text))) return null;
+  return {
+    type: "confront",
+    actorId: "lena",
+    targetId: "pax",
+    text: "Witness assist: overpass civilians clear, challenger exposed, opening called for the hero.",
+  };
 }
 
 function scheduledNpcMoveActions(world: World, existingActions: Action[], limit = 2): Action[] {

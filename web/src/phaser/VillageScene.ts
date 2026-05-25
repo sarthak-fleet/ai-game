@@ -25,7 +25,10 @@ const PLAYER_RADIUS = 16;
 const ARRIVE_DISTANCE = 8;
 const INTERACT_DISTANCE = 54;
 const MINIMAP_HUD_CLEARANCE = 18;
-const USE_EXTERNAL_GROUND_TILES = true;
+const DEFAULT_CAMERA_ZOOM = 1.35;
+const OPM_CAMERA_ZOOM = 2.15;
+const USE_EXTERNAL_GROUND_TILES = false;
+const SHOW_DECORATIVE_WORLD_TEXT = false;
 
 interface ActorState {
   graphic: Phaser.GameObjects.Container;
@@ -48,6 +51,22 @@ interface MinimapState {
   x: number;
   y: number;
   scale: number;
+}
+
+interface CombatArenaState {
+  targetId: string;
+  container: Phaser.GameObjects.Container;
+  line: Phaser.GameObjects.Graphics;
+  playerHalo: Phaser.GameObjects.Arc;
+  targetHalo: Phaser.GameObjects.Arc;
+  playerHpBg: Phaser.GameObjects.Rectangle;
+  playerHp: Phaser.GameObjects.Rectangle;
+  playerPosture: Phaser.GameObjects.Rectangle;
+  targetHpBg: Phaser.GameObjects.Rectangle;
+  targetHp: Phaser.GameObjects.Rectangle;
+  targetPosture: Phaser.GameObjects.Rectangle;
+  lockLabel: Phaser.GameObjects.Text;
+  targetLabel: Phaser.GameObjects.Text;
 }
 
 interface VillageSceneHandlers {
@@ -117,6 +136,7 @@ export class VillageScene extends Phaser.Scene {
   private playerAppearanceKey = "";
   private playerNameplate?: Phaser.GameObjects.Container;
   private playerNameplateKey = "";
+  private playerBubble?: Phaser.GameObjects.Text | null;
   private destination: Phaser.Math.Vector2 | null = null;
   private destinationQueue: Phaser.Math.Vector2[] = [];
   private destinationIgnoresCollision = false;
@@ -127,6 +147,8 @@ export class VillageScene extends Phaser.Scene {
   private pendingPropId: string | null = null;
   private playerFacing = new Phaser.Math.Vector2(0, 1);
   private lastPlayerStepAt = 0;
+  private lastPlayerTrailAt = 0;
+  private nextCombatBarkAt = 0;
   private actors = new Map<string, ActorState>();
   private itemSprites = new Map<string, Phaser.GameObjects.Container>();
   private propSprites = new Map<string, Phaser.GameObjects.Container>();
@@ -137,9 +159,10 @@ export class VillageScene extends Phaser.Scene {
   private interactionCard?: Phaser.GameObjects.Container;
   private minimap?: MinimapState;
   private objectivePins: Phaser.GameObjects.Container[] = [];
+  private combatArena?: CombatArenaState;
   private tintRect?: Phaser.GameObjects.Rectangle;
   private lamps: Phaser.GameObjects.Container[] = [];
-  private nextAmbientBarkAt = 0;
+  private nextAmbientBarkAt = 5200;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys?: Record<string, Phaser.Input.Keyboard.Key>;
 
@@ -234,11 +257,14 @@ export class VillageScene extends Phaser.Scene {
       special: { main: 0xe8846b, accent: 0xf8d44e, label: "SPECIAL", shake: 0.01 },
       finisher: { main: 0xf6d85f, accent: 0xffffff, label: "FINISH", shake: 0.014 },
     };
-    const fx = colors[style];
-    this.cameras.main.shake(style === "finisher" ? 230 : 140, fx.shake);
+    const fx = this.combatFxPaletteFor(attackerId, style, colors[style]);
+    const psychic = this.isPsychicCombatant(attackerId);
+    this.cameras.main.shake(style === "finisher" ? 230 : psychic ? 165 : 140, psychic ? fx.shake * 1.18 : fx.shake);
     this.playFightSceneStaging(x, y, moveLabel ?? fx.label, style, fx);
     this.playCombatActorMotion(attacker, target, style, fx);
     this.playStyleSignatureFx(x, y, style, fx);
+    if (psychic) this.playPsychicCombatFx(attacker ?? this.player ?? target, target, style, fx);
+    this.showCombatBark(attackerId, targetId, style, psychic);
 
     const burst = this.add.circle(x, y - 28, 10, fx.main, 0.82)
       .setStrokeStyle(3, fx.accent, 0.86)
@@ -305,7 +331,130 @@ export class VillageScene extends Phaser.Scene {
     });
   }
 
-  playAgentActionFx(actorId: string, actionType: ActionType, text: string, fromDirector = false) {
+  private combatFxPaletteFor(
+    attackerId: string,
+    style: CombatMove["style"],
+    base: CombatFxPalette,
+  ): CombatFxPalette {
+    const appearance = attackerAppearance(this.world, attackerId);
+    const tags = `${appearance?.sourceLook ?? ""} ${(appearance?.visualTags ?? []).join(" ")}`.toLowerCase();
+    if (/psychic|telekinetic|green hair|floating/.test(tags)) {
+      return {
+        ...base,
+        main: style === "finisher" ? 0xb7f7c6 : 0x66c26f,
+        accent: style === "counter" ? 0xe7b07d : 0xb7f7c6,
+        label: style === "finisher" ? "SEAL" : "PSY",
+        shake: base.shake * 0.9,
+      };
+    }
+    if (/cyborg|mechanical|machine|cannon|core/.test(tags)) {
+      return {
+        ...base,
+        main: style === "finisher" ? 0xffd166 : 0xf28c38,
+        accent: style === "counter" ? 0x9fc3ff : 0xfff1c1,
+        label: style === "finisher" ? "CORE" : "BURN",
+        shake: base.shake * 1.08,
+      };
+    }
+    if (/justice|rider|cyclist|helmet|brave/.test(tags)) {
+      return {
+        ...base,
+        main: style === "finisher" ? 0xf8d44e : 0x58a6ff,
+        accent: 0xf7e8a5,
+        label: style === "finisher" ? "JUSTICE" : "HERO",
+        shake: base.shake,
+      };
+    }
+    if (/ninja|rival|scarf|speed/.test(tags)) {
+      return {
+        ...base,
+        main: style === "counter" ? 0x8d5cff : 0x9fc3ff,
+        accent: 0xeadbff,
+        label: style === "counter" ? "VANISH" : base.label,
+        shake: base.shake * 1.04,
+      };
+    }
+    return base;
+  }
+
+  private isPsychicCombatant(actorId: string | null | undefined): boolean {
+    if (!actorId) return false;
+    const appearance = attackerAppearance(this.world, actorId);
+    const tags = `${appearance?.sourceLook ?? ""} ${(appearance?.visualTags ?? []).join(" ")}`.toLowerCase();
+    return /psychic|telekinetic|green hair|floating/.test(tags);
+  }
+
+  private playPsychicCombatFx(
+    attacker: Phaser.GameObjects.Container | null | undefined,
+    target: Phaser.GameObjects.Container | null,
+    style: CombatMove["style"],
+    fx: CombatFxPalette,
+  ) {
+    const focus = target ?? attacker;
+    if (!focus) return;
+    const x = focus.x;
+    const y = focus.y - 28;
+    const depth = Math.round(focus.y) + 166;
+    const lift = style === "finisher" ? 26 : style === "special" ? 18 : 10;
+    for (let i = 0; i < (style === "finisher" ? 4 : 3); i += 1) {
+      const ring = this.add.ellipse(x, y + 18, 46 + i * 22, 15 + i * 7)
+        .setStrokeStyle(3, i % 2 === 0 ? fx.main : fx.accent, 0.76 - i * 0.12)
+        .setDepth(depth + i);
+      this.tweens.add({
+        targets: ring,
+        y: ring.y - lift - i * 5,
+        scaleX: 1.5 + i * 0.28,
+        scaleY: 1.25 + i * 0.18,
+        alpha: 0,
+        duration: 440 + i * 70,
+        ease: "Cubic.Out",
+        onComplete: () => ring.destroy(),
+      });
+    }
+    if (target) {
+      this.tweens.add({
+        targets: target,
+        y: target.y - lift,
+        duration: 120,
+        yoyo: true,
+        ease: "Sine.Out",
+      });
+    }
+    if (style === "finisher" || style === "special") {
+      const beam = this.add.rectangle(x, y - 12, 38, this.viewportHeight(), fx.main, style === "finisher" ? 0.16 : 0.1)
+        .setDepth(depth - 2);
+      this.tweens.add({
+        targets: beam,
+        scaleX: { from: 0.4, to: 1.8 },
+        alpha: 0,
+        duration: style === "finisher" ? 520 : 360,
+        ease: "Sine.Out",
+        onComplete: () => beam.destroy(),
+      });
+    }
+  }
+
+  private showCombatBark(attackerId: string, targetId: string, style: CombatMove["style"], psychic: boolean) {
+    if (this.time.now < this.nextCombatBarkAt) return;
+    const speakerId = attackerId === "player" ? "player" : attackerId;
+    const targetLower = targetId.toLowerCase();
+    const bark = psychic
+      ? style === "finisher"
+        ? "Enough. Stay down."
+        : style === "counter"
+          ? "Too slow."
+          : "Try keeping up."
+      : /sonic|speed/.test(targetLower) || /sonic|speed/.test(attackerId.toLowerCase())
+        ? "You call that speed?"
+        : style === "guard"
+          ? "Hold the line!"
+          : "";
+    if (!bark) return;
+    this.nextCombatBarkAt = this.time.now + 2600;
+    this.showActorBubble(speakerId, bark, true);
+  }
+
+  playAgentActionFx(actorId: string, actionType: ActionType, _text: string, fromDirector = false) {
     const actor = this.combatActorContainer(actorId);
     if (!actor) return;
     const fx = agentFxPalette(actionType, fromDirector);
@@ -318,21 +467,15 @@ export class VillageScene extends Phaser.Scene {
     const pulse = this.add.circle(x, actor.y + 4, 6, fx.main, fromDirector ? 0.38 : 0.24)
       .setDepth(depth - 3);
     const sigil = this.add.container(x, y).setDepth(depth);
-    const backing = this.add.rectangle(0, 0, 76, 24, 0x05070b, 0.86)
-      .setStrokeStyle(1, fx.main, 0.72);
-    const mark = this.add.text(-27, 0, fx.symbol, {
+    const backing = this.add.circle(0, 0, 13, 0x05070b, 0.72)
+      .setStrokeStyle(2, fx.main, 0.68);
+    const mark = this.add.text(0, 0, fx.symbol, {
       fontFamily: "ui-sans-serif, system-ui",
       fontSize: "13px",
       color: `#${fx.accent.toString(16).padStart(6, "0")}`,
       fontStyle: "900",
     }).setOrigin(0.5);
-    const label = this.add.text(-14, 0, actionFxCaption(text, fx.label), {
-      fontFamily: "ui-sans-serif, system-ui",
-      fontSize: "8px",
-      color: "#f4f1e8",
-      fontStyle: "900",
-    }).setOrigin(0, 0.5);
-    sigil.add([backing, mark, label]);
+    sigil.add([backing, mark]);
 
     this.tweens.add({
       targets: ring,
@@ -767,10 +910,17 @@ export class VillageScene extends Phaser.Scene {
   }
 
   showBubble(actorId: string, text: string) {
+    this.showActorBubble(actorId, text, false);
+  }
+
+  private showActorBubble(actorId: string, text: string, allowCombat: boolean) {
     const actor = this.actors.get(actorId);
-    if (!actor) return;
-    actor.bubble?.destroy();
-    actor.bubble = this.add.text(actor.graphic.x, actor.graphic.y - 26, text, {
+    const graphic = actor?.graphic ?? (actorId === "player" ? this.player : undefined);
+    if (!graphic) return;
+    if (!allowCombat && this.currentCombatTarget()) return;
+    const previousBubble = actor ? actor.bubble : this.playerBubble;
+    previousBubble?.destroy();
+    const bubble = this.add.text(graphic.x, graphic.y - 26, text, {
       fontFamily: "ui-sans-serif, system-ui",
       fontSize: "11px",
       color: "#e6e9ef",
@@ -778,15 +928,18 @@ export class VillageScene extends Phaser.Scene {
       padding: { x: 7, y: 5 },
       wordWrap: { width: 190 },
     }).setOrigin(0.5, 1).setDepth(180);
+    if (actor) actor.bubble = bubble;
+    else this.playerBubble = bubble;
     this.tweens.add({
-      targets: actor.bubble,
+      targets: bubble,
       alpha: { from: 1, to: 0 },
-      y: actor.bubble.y - 16,
+      y: bubble.y - 16,
       duration: 4200,
       ease: "Sine.Out",
       onComplete: () => {
-        actor.bubble?.destroy();
-        actor.bubble = null;
+        bubble.destroy();
+        if (actor && actor.bubble === bubble) actor.bubble = null;
+        if (!actor && this.playerBubble === bubble) this.playerBubble = null;
       },
     });
   }
@@ -795,6 +948,7 @@ export class VillageScene extends Phaser.Scene {
     if (!this.world || !this.player) return;
     this.movePlayer(delta / 1000);
     this.updateActors(delta / 1000);
+    this.updateCombatArena();
     this.updateAmbientBarks();
     this.updatePrompt();
     this.updateTint();
@@ -809,6 +963,7 @@ export class VillageScene extends Phaser.Scene {
     this.syncItems();
     this.syncProps();
     this.syncObjectivePins();
+    this.syncCombatArena();
     this.updateTint();
   }
 
@@ -934,6 +1089,10 @@ export class VillageScene extends Phaser.Scene {
 
   private drawVenueAtmosphere() {
     const g = this.add.graphics().setDepth(-19);
+    if (this.world?.id === "opm_z_city") {
+      this.drawZCityBackdrop(g);
+      return;
+    }
     // Soft green wash sits over the pixel-art ground layer so the existing
     // painterly look survives, but tiles still read through.
     g.fillStyle(0x315f3d, 0.32);
@@ -996,6 +1155,10 @@ export class VillageScene extends Phaser.Scene {
 
   private drawDecorations() {
     const g = this.add.graphics();
+    if (this.world?.id === "opm_z_city") {
+      this.drawZCityDecorations(g);
+      return;
+    }
     this.drawGroundPatches(g);
     const trees: Array<[number, number, number]> = [
       [70, 90, 1.0], [90, 210, 0.8], [520, 120, 0.9], [980, 90, 0.75],
@@ -1031,11 +1194,130 @@ export class VillageScene extends Phaser.Scene {
     this.drawMarketStall(506, 802, 0xd29b46, "food");
     this.drawGardenRows(g, 1144, 172, 5, 4);
     this.drawGardenRows(g, 1272, 172, 4, 4);
-    this.drawSignpost(540, 528, "West", "South");
-    this.drawSignpost(1018, 706, "East", "West");
+    if (SHOW_DECORATIVE_WORLD_TEXT) {
+      this.drawSignpost(540, 528, "West", "South");
+      this.drawSignpost(1018, 706, "East", "West");
+    }
     this.drawCampfire(1012, 948);
     this.drawCratesAndBarrels(g);
     this.drawWaterSparkles();
+  }
+
+  private drawZCityBackdrop(g: Phaser.GameObjects.Graphics) {
+    g.fillStyle(0x2f3744, 1);
+    g.fillRect(0, 0, WORLD_W, WORLD_H);
+
+    g.fillStyle(0x252c36, 1);
+    g.fillRoundedRect(24, 24, 306, 260, 18);
+    g.fillRoundedRect(1095, 24, 430, 282, 18);
+    g.fillRoundedRect(28, 810, 360, 240, 18);
+    g.fillRoundedRect(1135, 760, 390, 260, 18);
+    g.fillStyle(0x394455, 1);
+    g.fillRoundedRect(64, 54, 230, 78, 10);
+    g.fillRoundedRect(1168, 62, 298, 92, 10);
+    g.fillRoundedRect(88, 872, 236, 78, 10);
+    g.fillRoundedRect(1196, 824, 260, 92, 10);
+
+    const road = 0x5e6673;
+    const roadLight = 0x7a8492;
+    const roadMark = 0xe7dbbe;
+    const drawRoad = (ax: number, ay: number, bx: number, by: number) => {
+      g.lineStyle(110, 0x1d232c, 1);
+      g.lineBetween(ax, ay, bx, by);
+      g.lineStyle(92, road, 1);
+      g.lineBetween(ax, ay, bx, by);
+      g.lineStyle(2, roadLight, 0.42);
+      g.lineBetween(ax, ay - 38, bx, by - 38);
+      g.lineBetween(ax, ay + 38, bx, by + 38);
+      g.lineStyle(5, roadMark, 0.58);
+      const steps = 10;
+      for (let i = 0; i < steps; i += 2) {
+        const t0 = i / steps;
+        const t1 = (i + 1) / steps;
+        g.lineBetween(
+          Phaser.Math.Linear(ax, bx, t0),
+          Phaser.Math.Linear(ay, by, t0),
+          Phaser.Math.Linear(ax, bx, t1),
+          Phaser.Math.Linear(ay, by, t1),
+        );
+      }
+    };
+
+    drawRoad(90, 310, 805, 520);
+    drawRoad(805, 520, 1495, 320);
+    drawRoad(805, 520, 740, 1005);
+    drawRoad(238, 1050, 740, 1005);
+    drawRoad(740, 1005, 1310, 950);
+
+    g.fillStyle(0x697484, 1);
+    g.fillRoundedRect(642, 392, 326, 238, 18);
+    g.lineStyle(4, 0xaeb7c8, 0.7);
+    g.strokeRoundedRect(642, 392, 326, 238, 18);
+    g.fillStyle(0x525b69, 1);
+    g.fillRoundedRect(684, 442, 242, 126, 10);
+    g.lineStyle(2, 0xced6e3, 0.22);
+    for (let x = 690; x < 918; x += 34) g.lineBetween(x, 446, x, 564);
+    for (let y = 466; y < 558; y += 28) g.lineBetween(686, y, 926, y);
+
+    const pads: Array<[number, number, number, number, number]> = [
+      [310, 210, 350, 220, 0x414b5c],
+      [1220, 208, 390, 230, 0x3b4656],
+      [760, 865, 420, 260, 0x364253],
+      [318, 825, 330, 210, 0x3c4654],
+      [1225, 842, 370, 230, 0x313b4a],
+    ];
+    for (const [x, y, w, h, color] of pads) {
+      g.fillStyle(color, 0.78);
+      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 16);
+      g.lineStyle(2, 0xaeb7c8, 0.14);
+      g.strokeRoundedRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, h - 16, 12);
+    }
+
+    this.drawCrosswalk(g, 515, 430, -0.55);
+    this.drawCrosswalk(g, 1010, 430, 0.5);
+    this.drawCrosswalk(g, 776, 688, 1.65);
+  }
+
+  private drawZCityDecorations(g: Phaser.GameObjects.Graphics) {
+    for (const [x, y] of [[702, 404], [918, 404], [644, 630], [966, 628], [610, 820], [1114, 832]] as const) {
+      this.drawStreetLamp(g, x, y);
+    }
+    for (const [x, y, w] of [[705, 626, 92], [905, 626, 82], [322, 318, 88], [1235, 318, 102]] as const) {
+      g.fillStyle(0x1b2028, 0.26);
+      g.fillEllipse(x + 4, y + 12, w + 24, 18);
+      g.fillStyle(0x687383, 1);
+      g.fillRoundedRect(x - w / 2, y - 6, w, 16, 4);
+      g.fillStyle(0xaeb7c8, 0.36);
+      g.fillRoundedRect(x - w / 2 + 8, y - 11, w - 16, 4, 2);
+    }
+    for (const [x, y] of [[560, 486], [1038, 488], [785, 705], [420, 860], [1176, 882]] as const) {
+      g.fillStyle(0x202832, 0.86);
+      g.fillRoundedRect(x - 20, y - 14, 40, 28, 5);
+      g.fillStyle(0xe05f7a, 0.58);
+      g.fillRoundedRect(x - 14, y - 8, 28, 4, 2);
+      g.fillRoundedRect(x - 14, y + 2, 28, 4, 2);
+    }
+    this.drawTownSquareLandmark(805, 524);
+  }
+
+  private drawCrosswalk(g: Phaser.GameObjects.Graphics, x: number, y: number, rotation: number) {
+    for (let i = -3; i <= 3; i += 1) {
+      const ox = Math.cos(rotation) * i * 20;
+      const oy = Math.sin(rotation) * i * 20;
+      g.fillStyle(0xf4f1e8, 0.72);
+      g.fillRoundedRect(x + ox - 5, y + oy - 30, 10, 60, 2);
+    }
+  }
+
+  private drawStreetLamp(g: Phaser.GameObjects.Graphics, x: number, y: number) {
+    g.fillStyle(0x111820, 0.3);
+    g.fillEllipse(x + 6, y + 20, 34, 12);
+    g.fillStyle(0x303846, 1);
+    g.fillRoundedRect(x - 3, y - 48, 6, 68, 3);
+    g.fillStyle(0xf8d44e, 0.72);
+    g.fillCircle(x, y - 54, 10);
+    g.fillStyle(0xf8d44e, 0.12);
+    g.fillCircle(x, y - 54, 36);
   }
 
   private drawGroundPatches(g: Phaser.GameObjects.Graphics) {
@@ -1341,10 +1623,12 @@ export class VillageScene extends Phaser.Scene {
       const area = this.area(location.id);
       if (!area) continue;
       const current = this.world.player.locationId === location.id;
-      const palette = BUILDING_PALETTES[location.id] ?? BUILDING_PALETTES["inn"]!;
-      const pieces = location.id === "square"
-        ? this.plazaPieces(area, location.name, current)
-        : this.buildingPieces(area, location.name, palette, current);
+      const palette = paletteForLocation(location);
+      const pieces = this.world.id === "opm_z_city"
+        ? this.zCityLocationPieces(area, location.id, current)
+        : location.id === "square"
+          ? this.plazaPieces(area, location.name, current)
+          : this.buildingPieces(area, location.name, palette, current);
       const labelX = area.x + area.w / 2;
       const labelY = area.y + (location.id === "square" ? 22 : 18);
       const labelBg = this.add.rectangle(
@@ -1354,13 +1638,13 @@ export class VillageScene extends Phaser.Scene {
         24,
         0x111821,
         current ? 0.72 : 0.48
-      ).setStrokeStyle(1, current ? 0x9fc3ff : 0x8a98ac, current ? 0.75 : 0.28);
+      ).setStrokeStyle(1, current ? 0x9fc3ff : 0x8a98ac, current ? 0.75 : 0.28).setVisible(false);
       const label = this.add.text(labelX, labelY, location.name, {
         fontFamily: "ui-sans-serif, system-ui",
         fontSize: "12px",
         color: current ? "#eaf5ff" : "#e6e9ef",
         fontStyle: "bold",
-      }).setOrigin(0.5).setDepth(2);
+      }).setOrigin(0.5).setDepth(2).setVisible(false);
       const hint = this.add.text(area.door.x, area.door.y + 10, "", {
         fontFamily: "ui-sans-serif, system-ui",
         fontSize: "10px",
@@ -1368,6 +1652,14 @@ export class VillageScene extends Phaser.Scene {
         fontStyle: "bold",
       }).setOrigin(0.5, 0).setAlpha(0);
       const trigger = this.add.zone(area.x, area.y, area.w, area.h).setOrigin(0).setInteractive();
+      trigger.on("pointerover", () => {
+        labelBg.setVisible(true);
+        label.setVisible(true);
+      });
+      trigger.on("pointerout", () => {
+        labelBg.setVisible(false);
+        label.setVisible(false);
+      });
       trigger.on("pointerup", () => this.travelTo(location.id));
       this.locationContainers.set(location.id, this.add.container(0, 0, [...pieces, labelBg, label, hint, trigger]));
     }
@@ -1425,6 +1717,88 @@ export class VillageScene extends Phaser.Scene {
     return [shadow, slab, ...pavers, ...plazaKit, boardTrim, board, ...notes, ...bunting, stairs];
   }
 
+  private zCityLocationPieces(area: RectArea, locationId: string, current: boolean) {
+    const cx = area.x + area.w / 2;
+    const cy = area.y + area.h / 2;
+    const pieces: Phaser.GameObjects.GameObject[] = [];
+    const g = this.add.graphics();
+    const palette: Record<string, { base: number; top: number; accent: number; kind: "plaza" | "lot" | "tower" | "kiosk" | "overpass" | "alley" }> = {
+      square: { base: 0x697484, top: 0x535d6d, accent: 0xf8d44e, kind: "plaza" },
+      forge: { base: 0x4c5666, top: 0x2e3644, accent: 0xe05f7a, kind: "lot" },
+      garden: { base: 0x556272, top: 0x384456, accent: 0xb7f7c6, kind: "tower" },
+      inn: { base: 0x415168, top: 0x253244, accent: 0x58a6ff, kind: "kiosk" },
+      bridge: { base: 0x626977, top: 0x343b49, accent: 0x8d5cff, kind: "overpass" },
+      wood: { base: 0x353e4c, top: 0x202832, accent: 0xe05f7a, kind: "alley" },
+    };
+    const p = palette[locationId] ?? palette["square"]!;
+    const pad = locationId === "square" ? 10 : 16;
+    const x = area.x + pad;
+    const y = area.y + pad;
+    const w = area.w - pad * 2;
+    const h = area.h - pad * 2;
+
+    g.fillStyle(0x06080c, 0.24);
+    g.fillRoundedRect(x + 10, y + 14, w, h, 18);
+    g.fillStyle(p.base, 1);
+    g.fillRoundedRect(x, y, w, h, 18);
+    g.fillStyle(p.top, 1);
+    g.fillRoundedRect(x + 12, y + 12, w - 24, h - 24, 12);
+    g.lineStyle(current ? 6 : 3, current ? 0xb7f7c6 : 0xaeb7c8, current ? 0.9 : 0.22);
+    g.strokeRoundedRect(x, y, w, h, 18);
+    g.lineStyle(2, p.accent, 0.26);
+    g.strokeRoundedRect(x + 18, y + 18, w - 36, h - 36, 10);
+
+    if (p.kind === "plaza") {
+      g.fillStyle(0x8792a3, 0.9);
+      g.fillCircle(cx, cy, Math.min(w, h) * 0.24);
+      g.fillStyle(0x303846, 1);
+      g.fillRoundedRect(cx - 58, cy - 18, 116, 36, 8);
+      g.fillStyle(p.accent, 0.75);
+      g.fillRoundedRect(cx - 42, cy - 5, 84, 10, 5);
+    } else if (p.kind === "lot") {
+      g.fillStyle(0x1d2430, 0.86);
+      g.fillRoundedRect(cx - 62, cy - 34, 124, 68, 10);
+      g.fillStyle(p.accent, 0.72);
+      g.fillRoundedRect(cx - 52, cy - 14, 104, 9, 5);
+      g.fillRoundedRect(cx - 52, cy + 12, 104, 9, 5);
+    } else if (p.kind === "tower") {
+      g.fillStyle(0x253040, 0.96);
+      g.fillRoundedRect(cx - 54, cy - 58, 108, 116, 12);
+      g.fillStyle(0xbfd0df, 0.28);
+      for (let row = 0; row < 3; row += 1) {
+        for (let col = 0; col < 3; col += 1) {
+          g.fillRoundedRect(cx - 36 + col * 36, cy - 38 + row * 30, 18, 12, 3);
+        }
+      }
+    } else if (p.kind === "kiosk") {
+      g.fillStyle(0x101823, 0.96);
+      g.fillRoundedRect(cx - 72, cy - 36, 144, 72, 10);
+      g.lineStyle(4, p.accent, 0.76);
+      g.strokeRoundedRect(cx - 72, cy - 36, 144, 72, 10);
+      g.fillStyle(p.accent, 0.5);
+      g.fillRoundedRect(cx - 42, cy - 8, 84, 16, 6);
+    } else if (p.kind === "overpass") {
+      g.fillStyle(0x262d39, 0.96);
+      g.fillRoundedRect(cx - 72, cy - 20, 144, 40, 8);
+      g.fillStyle(0xaeb7c8, 0.38);
+      g.fillRoundedRect(cx - 90, cy - 36, 180, 10, 4);
+      g.fillRoundedRect(cx - 80, cy + 28, 160, 10, 4);
+      g.lineStyle(5, p.accent, 0.78);
+      g.lineBetween(cx - 44, cy - 5, cx + 44, cy - 28);
+      g.lineBetween(cx - 28, cy + 18, cx + 52, cy + 2);
+    } else {
+      g.fillStyle(0x171d26, 0.96);
+      g.fillRoundedRect(cx - 66, cy - 48, 132, 96, 10);
+      g.fillStyle(p.accent, 0.24);
+      for (let i = 0; i < 4; i += 1) g.fillRoundedRect(cx - 48 + i * 32, cy - 35, 12, 70, 4);
+    }
+
+    pieces.push(g);
+    const door = this.add.circle(area.door.x, area.door.y - 8, current ? 15 : 11, p.accent, current ? 0.55 : 0.28);
+    pieces.push(door);
+    return pieces;
+  }
+
   private buildingPieces(area: RectArea, name: string, palette: BuildingPalette, current: boolean) {
     const roomX = area.x + 14;
     const roomY = area.y + 24;
@@ -1432,6 +1806,11 @@ export class VillageScene extends Phaser.Scene {
     const roomH = area.h - 42;
     const isForge = palette.sign === "Forge";
     const isGarden = palette.sign === "Herbs";
+    const isTraining = palette.sign === "Training";
+    const isApartment = palette.sign === "Apartment";
+    const isKiosk = palette.sign === "Hero Kiosk";
+    const isOverpass = palette.sign === "Overpass";
+    const isAlley = palette.sign === "Monster Alley";
     const pieces: Phaser.GameObjects.GameObject[] = [];
     const shell = this.add.graphics();
     shell.fillStyle(0x000000, 0.22);
@@ -1449,21 +1828,24 @@ export class VillageScene extends Phaser.Scene {
     shell.fillRoundedRect(roomX - 16, roomY + roomH - 4, roomW + 32, 16, 4);
     shell.fillStyle(palette.wall, 0.98);
     shell.fillRoundedRect(roomX, roomY, roomW, roomH, 8);
-    shell.fillStyle(isForge ? 0x6b665e : isGarden ? 0xcdbb92 : 0xf2d39a, isForge ? 0.82 : 0.76);
+    shell.fillStyle(
+      isForge || isTraining || isOverpass || isAlley ? 0x6b7280 : isGarden || isApartment || isKiosk ? 0xcdbb92 : 0xf2d39a,
+      isForge || isTraining || isOverpass || isAlley ? 0.82 : 0.76
+    );
     shell.fillRoundedRect(roomX + 16, roomY + 28, roomW - 32, roomH - 36, 6);
     shell.lineStyle(current ? 4 : 2, current ? 0x9fc3ff : palette.trim, current ? 0.78 : 0.28);
     shell.strokeRoundedRect(roomX - 2, roomY - 2, roomW + 4, roomH + 4, 9);
     shell.lineStyle(2, isForge ? 0x3e3a35 : 0x8b7657, isForge ? 0.22 : 0.18);
     for (let y = roomY + 52; y < roomY + roomH - 12; y += isForge ? 22 : 26) shell.lineBetween(roomX + 22, y, roomX + roomW - 22, y);
     for (let x = roomX + 38; x < roomX + roomW - 20; x += isForge ? 32 : 38) shell.lineBetween(x, roomY + 42, x, roomY + roomH - 16);
-    if (isForge) {
+    if (isForge || isTraining || isOverpass || isAlley) {
       shell.fillStyle(0x302d2a, 0.2);
       for (let y = roomY + 58; y < roomY + roomH - 20; y += 44) {
         for (let x = roomX + 34; x < roomX + roomW - 30; x += 64) {
           shell.fillRoundedRect(x, y, 23, 13, 3);
         }
       }
-    } else if (isGarden) {
+    } else if (isGarden || isApartment || isKiosk) {
       shell.fillStyle(0xf4e3b8, 0.18);
       for (let y = roomY + 48; y < roomY + roomH - 20; y += 36) {
         for (let x = roomX + 30; x < roomX + roomW - 20; x += 46) {
@@ -1564,7 +1946,63 @@ export class VillageScene extends Phaser.Scene {
       }
     };
 
-    if (palette.sign === "Forge") {
+    if (palette.sign === "Training") {
+      pieces.push(this.add.rectangle(cx - 4, top + 34, 132, 62, 0x34404f, 0.96).setStrokeStyle(2, 0x151a21, 0.72));
+      pieces.push(this.add.rectangle(cx - 4, top + 34, 112, 7, 0xe36f5d, 0.82));
+      pieces.push(this.add.rectangle(cx - 4, top + 52, 112, 7, 0xe36f5d, 0.7));
+      pieces.push(this.add.rectangle(left + 4, lower - 8, 76, 24, 0x6d746f, 0.92).setStrokeStyle(2, 0x252b34, 0.72));
+      pieces.push(this.add.circle(left - 22, lower - 18, 14, 0xf6d85f, 0.9).setStrokeStyle(2, 0x45341e, 0.66));
+      pieces.push(this.add.rectangle(left - 22, lower - 18, 7, 20, 0x10151d, 0.55));
+      for (let i = 0; i < 4; i += 1) {
+        pieces.push(this.add.rectangle(right - 60 + i * 20, lower - 12, 12, 32, 0xb8bec8, 0.82).setRotation((i - 1.5) * 0.1));
+      }
+      makeCrateStack(right - 12, top + 72);
+    } else if (palette.sign === "Apartment") {
+      pieces.push(this.add.rectangle(cx, top + 44, 138, 104, 0x3f5063, 0.94).setStrokeStyle(3, 0x202a36, 0.72));
+      for (let row = 0; row < 3; row += 1) {
+        for (let col = 0; col < 3; col += 1) {
+          const wx = cx - 46 + col * 46;
+          const wy = top + 14 + row * 30;
+          pieces.push(this.add.rectangle(wx, wy, 28, 16, 0xb8c7d8, 0.48).setStrokeStyle(1, 0xeaf5ff, 0.28));
+          pieces.push(this.add.rectangle(wx, wy + 11, 34, 4, 0x9aa7b6, 0.82));
+        }
+      }
+      pieces.push(this.add.rectangle(cx, lower + 8, 52, 34, 0x252f3b, 0.96).setStrokeStyle(2, 0x9fc3ff, 0.36));
+      makeBench(left + 18, lower - 8, 64, 0x4c5664);
+    } else if (palette.sign === "Hero Kiosk") {
+      pieces.push(this.add.rectangle(cx, top + 34, 132, 74, 0x344257, 0.96).setStrokeStyle(3, 0x58a6ff, 0.56));
+      pieces.push(this.add.rectangle(cx, top - 8, 154, 22, 0x1b2533, 0.98).setStrokeStyle(2, 0x58a6ff, 0.62));
+      pieces.push(this.add.text(cx, top - 8, "HERO ALERT", {
+        fontFamily: "ui-sans-serif, system-ui",
+        fontSize: "11px",
+        color: "#dceeff",
+        fontStyle: "bold",
+      }).setOrigin(0.5));
+      pieces.push(this.add.rectangle(left + 26, top + 36, 42, 48, 0x10151d, 0.88).setStrokeStyle(1, 0x9fc3ff, 0.55));
+      for (let i = 0; i < 4; i += 1) pieces.push(this.add.rectangle(left + 26, top + 19 + i * 11, 28, 3, i % 2 ? 0xf8d44e : 0x58a6ff, 0.78));
+      pieces.push(this.add.circle(right - 20, top + 34, 24, 0x58a6ff, 0.18).setStrokeStyle(3, 0x9fc3ff, 0.7));
+      pieces.push(this.add.rectangle(right - 20, top + 34, 13, 40, 0x9fc3ff, 0.72));
+      makeNoticeBoard(cx, lower - 4);
+    } else if (palette.sign === "Overpass") {
+      pieces.push(this.add.rectangle(cx, top + 52, area.w - 70, 38, 0x737985, 0.9).setStrokeStyle(3, 0x303746, 0.75));
+      pieces.push(this.add.rectangle(cx - 34, top + 38, 118, 8, 0xbfc5d1, 0.58).setRotation(-0.05));
+      pieces.push(this.add.rectangle(cx + 52, top + 70, 104, 8, 0xbfc5d1, 0.52).setRotation(0.12));
+      for (let x = area.x + 56; x < area.x + area.w - 46; x += 34) {
+        pieces.push(this.add.rectangle(x, top + 70, 5, 46, 0x4b5260, 0.9));
+      }
+      pieces.push(this.add.rectangle(left + 26, lower - 12, 76, 28, 0x3a414c, 0.92).setStrokeStyle(2, 0x8d5cff, 0.46));
+      pieces.push(this.add.rectangle(left + 24, lower - 22, 56, 4, 0x8d5cff, 0.9).setRotation(-0.45));
+      pieces.push(this.add.rectangle(left + 42, lower - 8, 62, 4, 0x8d5cff, 0.78).setRotation(0.34));
+    } else if (palette.sign === "Monster Alley") {
+      pieces.push(this.add.rectangle(cx, top + 46, 126, 92, 0x2a3038, 0.95).setStrokeStyle(3, 0xe05f7a, 0.38));
+      for (let i = 0; i < 5; i += 1) {
+        pieces.push(this.add.rectangle(left + 12 + i * 30, top + 2 + (i % 2) * 20, 18, 92, 0x3f4858, 0.82).setStrokeStyle(1, 0x1b2027, 0.5));
+        pieces.push(this.add.circle(left + 12 + i * 30, top + 58 + (i % 2) * 12, 8, 0xe05f7a, 0.2));
+      }
+      makeCrateStack(right - 22, lower - 18);
+      pieces.push(this.add.triangle(left + 14, lower + 2, 0, 22, 18, -14, 36, 22, 0x9aa7b6, 0.78).setStrokeStyle(2, 0x363d48, 0.66));
+      pieces.push(this.add.circle(left + 54, lower - 12, 16, 0x29323d, 0.92).setStrokeStyle(4, 0x6d746f, 0.5));
+    } else if (palette.sign === "Forge") {
       makeBench(right - 22, lower - 12, 82, 0x6e4b32);
       makeToolRack(cx + 8, top - 8);
       makeCrateStack(left - 4, lower - 8);
@@ -1635,14 +2073,14 @@ export class VillageScene extends Phaser.Scene {
       this.player.setPosition(previous.x, previous.y);
       this.playerAppearanceKey = appearanceKey;
       this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-      this.cameras.main.setZoom(1.35);
+      this.cameras.main.setZoom(this.defaultCameraZoom());
     }
     if (!this.player) {
       this.player = makeActor(this, "player", playerFillForWorld(this.world), PLAYER_RADIUS, this.world.player.appearance);
       this.player.setPosition(pos.x, pos.y);
       this.playerAppearanceKey = appearanceKey;
       this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-      this.cameras.main.setZoom(1.35);
+      this.cameras.main.setZoom(this.defaultCameraZoom());
     } else if (first) {
       this.player.setPosition(pos.x, pos.y);
     }
@@ -1856,6 +2294,165 @@ export class VillageScene extends Phaser.Scene {
     }
   }
 
+  private syncCombatArena() {
+    const target = this.currentCombatTarget();
+    if (!target || !this.player || !this.actors.get(target.id) || !this.hasActiveCombatState(target)) {
+      this.destroyCombatArena();
+      return;
+    }
+    if (this.combatArena?.targetId === target.id) {
+      this.updateCombatArena();
+      return;
+    }
+    this.destroyCombatArena();
+    const targetActor = this.actors.get(target.id);
+    if (targetActor?.bubble) {
+      targetActor.bubble.destroy();
+      targetActor.bubble = null;
+    }
+
+    const line = this.add.graphics();
+    const playerHalo = this.add.circle(0, 0, 48, 0x58a6ff, 0.08).setStrokeStyle(2, 0x9fc3ff, 0.72);
+    const targetHalo = this.add.circle(0, 0, 54, 0xe05f7a, 0.1).setStrokeStyle(3, 0xe05f7a, 0.82);
+    const playerHpBg = this.add.rectangle(0, 0, 76, 5, 0x111821, 0.84).setOrigin(0.5);
+    const playerHp = this.add.rectangle(0, 0, 76, 5, 0x7ed26d, 0.95).setOrigin(0, 0.5);
+    const playerPosture = this.add.rectangle(0, 0, 76, 3, 0x9fc3ff, 0.95).setOrigin(0, 0.5);
+    const targetHpBg = this.add.rectangle(0, 0, 82, 5, 0x111821, 0.88).setOrigin(0.5);
+    const targetHp = this.add.rectangle(0, 0, 82, 5, 0xf47272, 0.96).setOrigin(0, 0.5);
+    const targetPosture = this.add.rectangle(0, 0, 82, 3, 0xf8d44e, 0.95).setOrigin(0, 0.5);
+    const lockLabel = this.add.text(0, 0, "ENCOUNTER", {
+      fontFamily: "'Cinzel', serif",
+      fontSize: "10px",
+      color: "#10151d",
+      fontStyle: "900",
+      backgroundColor: "#f8d44eee",
+      padding: { x: 7, y: 3 },
+    }).setOrigin(0.5).setVisible(false);
+    const targetLabel = this.add.text(0, 0, "", {
+      fontFamily: "ui-sans-serif, system-ui",
+      fontSize: "10px",
+      color: "#f8f1c4",
+      backgroundColor: "#10151dcc",
+      padding: { x: 6, y: 3 },
+    }).setOrigin(0.5, 1).setVisible(false);
+    const container = this.add.container(0, 0, [
+      line,
+      playerHalo,
+      targetHalo,
+      playerHpBg,
+      playerHp,
+      playerPosture,
+      targetHpBg,
+      targetHp,
+      targetPosture,
+      lockLabel,
+      targetLabel,
+    ]).setDepth(68);
+
+    this.combatArena = {
+      targetId: target.id,
+      container,
+      line,
+      playerHalo,
+      targetHalo,
+      playerHpBg,
+      playerHp,
+      playerPosture,
+      targetHpBg,
+      targetHp,
+      targetPosture,
+      lockLabel,
+      targetLabel,
+    };
+    this.tweens.add({
+      targets: [playerHalo, targetHalo],
+      scale: { from: 0.9, to: 1.18 },
+      alpha: { from: 0.82, to: 0.34 },
+      duration: 980,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.InOut",
+    });
+    this.updateCombatArena();
+  }
+
+  private updateCombatArena() {
+    const arena = this.combatArena;
+    if (!arena || !this.player || !this.world) return;
+    const target = this.currentCombatTarget();
+    const targetActor = target ? this.actors.get(target.id) : null;
+    if (!target || !targetActor || target.id !== arena.targetId) {
+      this.syncCombatArena();
+      return;
+    }
+
+    const playerCombat = this.world.player.combat ?? { hp: 120, maxHp: 120, posture: 100, defeated: false };
+    const targetCombat = target.combat ?? { hp: 100, maxHp: 100, posture: 100, defeated: false };
+    const px = this.player.x;
+    const py = this.player.y + PLAYER_RADIUS + 16;
+    const tx = targetActor.graphic.x;
+    const ty = targetActor.graphic.y + PLAYER_RADIUS + 12;
+    const midX = (px + tx) / 2;
+    const midY = (py + ty) / 2 - 42;
+
+    arena.line.clear();
+    arena.line.lineStyle(3, 0xf8d44e, 0.32);
+    arena.line.beginPath();
+    arena.line.moveTo(px, py - 32);
+    arena.line.lineTo(tx, ty - 32);
+    arena.line.strokePath();
+    arena.line.lineStyle(1, 0xe05f7a, 0.46);
+    arena.line.strokeCircle(tx, ty - 14, 62);
+
+    arena.playerHalo.setPosition(px, py - 8);
+    arena.targetHalo.setPosition(tx, ty - 8);
+    arena.lockLabel.setPosition(midX, midY);
+    arena.targetLabel
+      .setText(`${shortActorName(target.name)} ${targetCombat.hp}/${targetCombat.maxHp}`)
+      .setPosition(tx, ty - 96);
+
+    this.positionArenaMeter(arena.playerHpBg, arena.playerHp, arena.playerPosture, px, py - 78, playerCombat.hp, playerCombat.maxHp, playerCombat.posture);
+    this.positionArenaMeter(arena.targetHpBg, arena.targetHp, arena.targetPosture, tx, ty - 78, targetCombat.hp, targetCombat.maxHp, targetCombat.posture);
+  }
+
+  private positionArenaMeter(
+    bg: Phaser.GameObjects.Rectangle,
+    hp: Phaser.GameObjects.Rectangle,
+    posture: Phaser.GameObjects.Rectangle,
+    x: number,
+    y: number,
+    hpValue: number,
+    hpMax: number,
+    postureValue: number,
+  ) {
+    const width = bg.width;
+    bg.setPosition(x, y);
+    hp.setPosition(x - width / 2, y).setDisplaySize(Math.max(2, width * Math.max(0, Math.min(1, hpValue / Math.max(1, hpMax)))), hp.height);
+    posture.setPosition(x - width / 2, y + 6).setDisplaySize(Math.max(2, width * Math.max(0, Math.min(1, postureValue / 100))), posture.height);
+  }
+
+  private destroyCombatArena() {
+    this.combatArena?.container.destroy();
+    this.combatArena = undefined;
+  }
+
+  private currentCombatTarget(): Npc | null {
+    if (!this.world || this.world.player.combat?.defeated || this.world.storyProgress?.phase === "dawn_after_tasks") return null;
+    return this.world.npcs.find((npc) => this.isVisibleCombatTarget(npc) && this.hasActiveCombatState(npc)) ?? null;
+  }
+
+  private isVisibleCombatTarget(npc: Npc): boolean {
+    return npc.locationId === this.world?.player.locationId &&
+      npc.id !== this.world?.player.characterId &&
+      Boolean(npc.combat) &&
+      !npc.combat?.defeated;
+  }
+
+  private hasActiveCombatState(npc: Npc): boolean {
+    if (!npc.combat) return false;
+    return (npc.combat.hp ?? npc.combat.maxHp) < npc.combat.maxHp || npc.combat.posture < 100;
+  }
+
   private objectivePosition(objective: Objective): Phaser.Math.Vector2 | null {
     if (objective.targetType === "item") {
       const item = this.itemSprites.get(objective.targetId);
@@ -1885,8 +2482,11 @@ export class VillageScene extends Phaser.Scene {
       padding: { x: 6, y: 3 },
       wordWrap: { width: 154 },
       align: "center",
-    }).setOrigin(0.5, 1);
+    }).setOrigin(0.5, 1).setVisible(false);
     const pin = this.add.container(x, y, [halo, ring, diamond, label]).setDepth(Math.round(y) + 90);
+    pin.setSize(36, 36).setInteractive(new Phaser.Geom.Circle(0, 0, 28), Phaser.Geom.Circle.Contains);
+    pin.on("pointerover", () => label.setVisible(true));
+    pin.on("pointerout", () => label.setVisible(false));
     this.tweens.add({
       targets: [halo, ring],
       scale: { from: 0.86, to: 1.18 },
@@ -1977,9 +2577,10 @@ export class VillageScene extends Phaser.Scene {
     };
     const glowColor = itemId === "blue_ember" ? 0x58a6ff : 0xf8d44e;
     const glow = this.add.circle(0, -14, itemId === "blue_ember" ? 24 : 16, glowColor, itemId === "blue_ember" ? 0.22 : 0.12);
-    const base = this.textures.exists("russpuppy-rpg")
+    const customBase = this.customItemGlyph(itemId, name);
+    const base = customBase ?? (this.textures.exists("russpuppy-rpg")
       ? this.add.image(0, 0, "russpuppy-rpg", frameByItem[itemId] ?? 34).setOrigin(0.5, 1).setScale(2.05)
-      : this.add.circle(0, -10, 8, glowColor, 0.95);
+      : this.add.circle(0, -10, 8, glowColor, 0.95));
     const label = this.add.text(0, 8, name, {
       fontFamily: "ui-sans-serif, system-ui",
       fontSize: "9px",
@@ -1999,6 +2600,34 @@ export class VillageScene extends Phaser.Scene {
       ease: "Sine.InOut",
     });
     return marker;
+  }
+
+  private customItemGlyph(itemId: string, name: string): Phaser.GameObjects.GameObject | null {
+    const label = `${itemId} ${name}`.toLowerCase();
+    if (/coupon|note|report/.test(label)) {
+      const paper = this.add.rectangle(0, -12, 24, 17, /coupon/.test(label) ? 0xf6e7a8 : 0xe7dbbe, 0.96)
+        .setStrokeStyle(2, 0x5d4932, 0.64)
+        .setRotation(/note/.test(label) ? -0.16 : 0.1);
+      const lineA = this.add.rectangle(-2, -14, 14, 2, /coupon/.test(label) ? 0xe05f7a : 0x6d746f, 0.72).setRotation(paper.rotation);
+      const lineB = this.add.rectangle(1, -9, 16, 2, 0x6d746f, 0.44).setRotation(paper.rotation);
+      return this.add.container(0, 0, [paper, lineA, lineB]);
+    }
+    if (/core|radio/.test(label)) {
+      const body = this.add.rectangle(0, -13, 25, 21, /core/.test(label) ? 0x2f3542 : 0x243044, 0.96)
+        .setStrokeStyle(2, /core/.test(label) ? 0xf6d85f : 0x58a6ff, 0.68);
+      const glow = this.add.circle(0, -13, /core/.test(label) ? 8 : 5, /core/.test(label) ? 0xf6d85f : 0x58a6ff, 0.72);
+      const antenna = /radio/.test(label) ? this.add.rectangle(10, -29, 3, 18, 0xbfc5d1, 0.78).setRotation(0.35) : null;
+      const pieces = antenna ? [antenna, body, glow] : [body, glow];
+      return this.add.container(0, 0, pieces);
+    }
+    if (/scale|scrap|monster/.test(label)) {
+      const shard = this.add.triangle(0, -13, 0, 18, 11, -14, 23, 18, 0x8d5cff, 0.94)
+        .setStrokeStyle(2, 0xe05f7a, 0.72)
+        .setRotation(0.16);
+      const glint = this.add.rectangle(2, -18, 4, 18, 0xeaf5ff, 0.34).setRotation(0.52);
+      return this.add.container(0, 0, [shard, glint]);
+    }
+    return null;
   }
 
   private showItemCard(itemId: string, name: string, description: string) {
@@ -2219,6 +2848,7 @@ export class VillageScene extends Phaser.Scene {
   }
 
   private collides(x: number, y: number) {
+    if (this.world?.id === "opm_z_city") return false;
     return this.collidesWithObstacle(x, y) || this.tileBlocks(x, y);
   }
 
@@ -2314,7 +2944,7 @@ export class VillageScene extends Phaser.Scene {
   ) {
     const clampedX = Phaser.Math.Clamp(x, PLAYER_RADIUS, WORLD_W - PLAYER_RADIUS);
     const clampedY = Phaser.Math.Clamp(y, PLAYER_RADIUS, WORLD_H - PLAYER_RADIUS);
-    if (this.tileBlocks(clampedX, clampedY) || this.collidesWithObstacle(clampedX, clampedY)) {
+    if (this.world?.id !== "opm_z_city" && (this.tileBlocks(clampedX, clampedY) || this.collidesWithObstacle(clampedX, clampedY))) {
       this.showDestinationMarker(clampedX, clampedY, false);
       return;
     }
@@ -2334,6 +2964,7 @@ export class VillageScene extends Phaser.Scene {
   }
 
   private findPath(fromX: number, fromY: number, toX: number, toY: number) {
+    if (this.world?.id === "opm_z_city") return [new Phaser.Math.Vector2(toX, toY)];
     const cols = Math.floor(WORLD_W / TILE_SIZE);
     const rows = Math.floor(WORLD_H / TILE_SIZE);
     const start = this.tileCoord(fromX, fromY);
@@ -2415,11 +3046,27 @@ export class VillageScene extends Phaser.Scene {
 
   private showDestinationMarker(x: number, y: number, valid: boolean) {
     this.destinationMarker?.destroy();
-    const color = valid ? 0xf8d44e : 0xe96a5f;
+    const psychic = valid && this.isPsychicCombatant("player");
+    const color = valid ? psychic ? 0x66c26f : 0xf8d44e : 0xe96a5f;
     const ring = this.add.circle(0, 0, valid ? 13 : 10).setStrokeStyle(2, color, 0.92);
     const dot = this.add.circle(0, 0, 3, color, 0.95);
     const shadow = this.add.circle(0, 0, valid ? 17 : 13, 0x000000, 0.18);
-    this.destinationMarker = this.add.container(x, y, [shadow, ring, dot]).setDepth(Math.round(y) + 2);
+    const children: Phaser.GameObjects.GameObject[] = [shadow, ring, dot];
+    if (psychic) {
+      const halo = this.add.ellipse(0, 0, 48, 14).setStrokeStyle(2, 0xb7f7c6, 0.52);
+      const lift = this.add.triangle(0, -8, -8, 8, 8, 8, 0, -8, 0xb7f7c6, 0.54);
+      children.push(halo, lift);
+      this.tweens.add({
+        targets: [halo, lift],
+        y: "-=10",
+        alpha: 0,
+        duration: 760,
+        repeat: -1,
+        yoyo: true,
+        ease: "Sine.Out",
+      });
+    }
+    this.destinationMarker = this.add.container(x, y, children).setDepth(Math.round(y) + 2);
     this.tweens.add({
       targets: ring,
       scale: { from: 0.65, to: 1.35 },
@@ -2434,11 +3081,13 @@ export class VillageScene extends Phaser.Scene {
   }
 
   private updateActors(dt: number) {
+    const combatTargetId = this.currentCombatTarget()?.id ?? null;
     for (const [id, actor] of this.actors) {
       const npc = id === "player" ? null : this.world?.npcs.find((n) => n.id === id);
       const defeated = Boolean(npc?.combat?.defeated);
+      const stagedForCombat = Boolean(npc && npc.id === combatTargetId);
       const was = new Phaser.Math.Vector2(actor.graphic.x, actor.graphic.y);
-      const walking = defeated ? false : this.updateNpcWander(actor, dt);
+      const walking = defeated || stagedForCombat ? false : this.updateNpcWander(actor, dt);
       const facing = walking ? new Phaser.Math.Vector2(actor.graphic.x - was.x, actor.graphic.y - was.y).normalize() : new Phaser.Math.Vector2(0, 1);
       this.updateCharacterPose(actor.graphic, walking, facing, false, this.time.now < actor.flashUntil ? 0xf8d44e : undefined);
       if (defeated) this.applyDefeatedPose(actor.graphic);
@@ -2453,7 +3102,9 @@ export class VillageScene extends Phaser.Scene {
       actor.bubble?.setPosition(actor.graphic.x, actor.graphic.y - 26);
 
       const playerDist = this.player ? Phaser.Math.Distance.Between(this.player.x, this.player.y, actor.graphic.x, actor.graphic.y) : 999;
-      const mapStatus = npc ? this.npcMapStatus(npc, playerDist) : null;
+      actor.nameplate.setVisible(Boolean(npc && this.shouldShowNpcNameplate(npc, playerDist, stagedForCombat)));
+      actor.nameplate.setAlpha(npc?.combat?.defeated ? 0.48 : stagedForCombat ? 0.7 : 0.62);
+      const mapStatus = npc && !stagedForCombat ? this.npcMapStatus(npc, playerDist) : null;
       const shouldShowStatus = Boolean(mapStatus) && !actor.bubble;
 
       if (shouldShowStatus) {
@@ -2493,7 +3144,10 @@ export class VillageScene extends Phaser.Scene {
       }
     }
     this.player?.setDepth(Math.round(this.player.y) + 5);
-    if (this.playerNameplate && this.player) this.positionNameplate(this.playerNameplate, this.player, -64, true);
+    if (this.playerNameplate && this.player) {
+      this.positionNameplate(this.playerNameplate, this.player, -64, true);
+      this.playerNameplate.setVisible(false);
+    }
   }
 
   private npcMapStatus(npc: Npc, playerDist: number): { text: string; color: string; background: string } | null {
@@ -2520,6 +3174,17 @@ export class VillageScene extends Phaser.Scene {
       return { text: intent.kind.toUpperCase(), color: palette[intent.kind] ?? "#f8d44e", background: "rgba(5, 5, 7, 0.85)" };
     }
     return null;
+  }
+
+  private shouldShowNpcNameplate(npc: Npc, playerDist: number, stagedForCombat: boolean): boolean {
+    if (!this.world) return false;
+    if (stagedForCombat) return false;
+    if (npc.combat?.defeated) return false;
+    return playerDist < 96 && activeObjectives(this.world).some((objective) =>
+      objective.targetType === "npc" &&
+      objective.targetId === npc.id &&
+      objective.locationId === this.world?.player.locationId
+    );
   }
 
   private applyDefeatedPose(actor: Phaser.GameObjects.Container) {
@@ -2588,7 +3253,9 @@ export class VillageScene extends Phaser.Scene {
     const barks = ambientBarksForLocation(this.world, this.world.player.locationId)
       .filter((bark) => {
         const actor = this.actors.get(bark.actorId);
-        return Boolean(actor) && !actor!.bubble;
+        if (!actor || actor.bubble) return false;
+        if (!this.player) return true;
+        return Phaser.Math.Distance.Between(this.player.x, this.player.y, actor.graphic.x, actor.graphic.y) > 130;
       });
     if (barks.length === 0) return;
     const bark = barks[(Math.floor(this.time.now / 1000) + this.world.tick) % barks.length]!;
@@ -2636,18 +3303,28 @@ export class VillageScene extends Phaser.Scene {
     const directionIndex = this.directionIndex(facing);
     const walkFrame = walking ? 1 + (Math.floor(this.time.now / 115) % 3) : 0;
     const gait = Math.sin(this.time.now / 86);
+    const psychicHover = actor.getData("psychicHover") === true;
+    const hover = psychicHover ? Math.sin((this.time.now + actor.x) / 360) * 1.8 : 0;
+    const baseY = PLAYER_RADIUS + (psychicHover ? 5 : 9);
     sprite.setFrame(directionIndex * 4 + walkFrame);
     sprite.setRotation(0);
     sprite.setAlpha(1);
-    sprite.y = PLAYER_RADIUS + 9 + (walking ? Math.abs(gait) * 2.4 : Math.sin((this.time.now + actor.x) / 700) * 0.6);
+    sprite.y = baseY + hover + (walking ? Math.abs(gait) * 2.4 : Math.sin((this.time.now + actor.x) / 700) * 0.6);
     sprite.scaleX = walking ? 1 + Math.abs(gait) * 0.035 : 1;
     sprite.scaleY = walking ? 1 - Math.abs(gait) * 0.025 : 1;
     sprite.setTint(fillOverride ?? 0xffffff);
     const shadow = actor.getAt(0) as Phaser.GameObjects.Ellipse | undefined;
     if (shadow) {
-      shadow.scaleX = walking ? 1.02 + Math.abs(gait) * 0.08 : 1;
-      shadow.scaleY = walking ? 0.96 - Math.abs(gait) * 0.04 : 1;
-      shadow.alpha = walking ? 0.24 + Math.abs(gait) * 0.05 : 0.22;
+      shadow.scaleX = psychicHover ? 1.18 + Math.abs(hover) * 0.03 : walking ? 1.02 + Math.abs(gait) * 0.08 : 1;
+      shadow.scaleY = psychicHover ? 0.82 : walking ? 0.96 - Math.abs(gait) * 0.04 : 1;
+      shadow.alpha = psychicHover ? 0.18 : walking ? 0.24 + Math.abs(gait) * 0.05 : 0.22;
+    }
+    const aura = actor.getAt(2) as Phaser.GameObjects.Ellipse | undefined;
+    if (aura) {
+      aura.y = PLAYER_RADIUS + 3 + hover * 0.4;
+      aura.scaleX = 1 + Math.sin(this.time.now / 420) * 0.05;
+      aura.scaleY = 1 + Math.cos(this.time.now / 460) * 0.04;
+      aura.alpha = 0.42 + Math.sin(this.time.now / 520) * 0.12;
     }
     actor.rotation = isPlayer && walking ? Phaser.Math.Clamp(facing.x * 0.035, -0.04, 0.04) : 0;
   }
@@ -2655,7 +3332,36 @@ export class VillageScene extends Phaser.Scene {
   private emitPlayerFootstep() {
     if (!this.player || this.time.now - this.lastPlayerStepAt < 245) return;
     this.lastPlayerStepAt = this.time.now;
+    if (this.isPsychicCombatant("player")) {
+      this.emitPsychicTrail(this.player.x, this.player.y + 18);
+      return;
+    }
     this.emitFootstep(this.player.x, this.player.y + 22, 0.46);
+  }
+
+  private emitPsychicTrail(x: number, y: number) {
+    if (this.time.now - this.lastPlayerTrailAt < 120) return;
+    this.lastPlayerTrailAt = this.time.now;
+    for (let i = 0; i < 3; i += 1) {
+      const mote = this.add.circle(
+        x + Phaser.Math.Between(-13, 13),
+        y + Phaser.Math.Between(-10, 8),
+        Phaser.Math.Between(3, 5),
+        i === 0 ? 0xb7f7c6 : 0x66c26f,
+        0.54,
+      ).setDepth(Math.round(y) - 2);
+      this.tweens.add({
+        targets: mote,
+        x: mote.x - this.playerFacing.x * Phaser.Math.Between(10, 24),
+        y: mote.y - 18 - Math.abs(this.playerFacing.y) * 8,
+        scale: { from: 0.8, to: 2.4 },
+        alpha: 0,
+        delay: i * 28,
+        duration: 520,
+        ease: "Sine.Out",
+        onComplete: () => mote.destroy(),
+      });
+    }
   }
 
   private emitFootstep(x: number, y: number, alpha: number) {
@@ -2698,7 +3404,7 @@ export class VillageScene extends Phaser.Scene {
     const npc = this.nearestNpc();
     const area = this.nearestDoor();
     if (item) {
-      this.prompt.setText(`E Pick up ${item.name}`);
+      this.prompt.setText("E");
       this.prompt.setPosition(this.player.x, this.player.y + 42).setVisible(true);
       if (this.keys?.["E"] && Phaser.Input.Keyboard.JustDown(this.keys["E"])) {
         this.showItemCard(item.id, item.name, item.description ?? "Useful somehow.");
@@ -2707,7 +3413,7 @@ export class VillageScene extends Phaser.Scene {
       return;
     }
     if (prop) {
-      this.prompt.setText(`E Inspect ${prop.name}`);
+      this.prompt.setText("E");
       this.prompt.setPosition(this.player.x, this.player.y + 42).setVisible(true);
       if (this.keys?.["E"] && Phaser.Input.Keyboard.JustDown(this.keys["E"])) {
         this.showPropCard(prop);
@@ -2716,7 +3422,7 @@ export class VillageScene extends Phaser.Scene {
       return;
     }
     if (npc) {
-      this.prompt.setText(`E Talk`);
+      this.prompt.setText("E");
       this.prompt.setPosition(this.player.x, this.player.y + 42).setVisible(true);
       if (this.keys?.["E"] && Phaser.Input.Keyboard.JustDown(this.keys["E"])) {
         this.showNpcCard(npc);
@@ -2725,7 +3431,7 @@ export class VillageScene extends Phaser.Scene {
       return;
     }
     if (area) {
-      this.prompt.setText("E Enter");
+      this.prompt.setText("E");
       this.prompt.setPosition(this.player.x, this.player.y + 42).setVisible(true);
       if (this.keys?.["E"] && Phaser.Input.Keyboard.JustDown(this.keys["E"])) this.travelTo(area.id);
       return;
@@ -2865,6 +3571,10 @@ export class VillageScene extends Phaser.Scene {
     return Math.max(1, this.scale.gameSize.height || this.cameras.main.height || FALLBACK_VIEW_H);
   }
 
+  private defaultCameraZoom() {
+    return this.world?.id === "opm_z_city" ? OPM_CAMERA_ZOOM : DEFAULT_CAMERA_ZOOM;
+  }
+
   private minimapPosition(width: number, height: number) {
     return {
       x: Math.max(12, this.viewportWidth() - width - MINIMAP_HUD_CLEARANCE),
@@ -2933,6 +3643,18 @@ export class VillageScene extends Phaser.Scene {
   }
 
   private npcTarget(npc: Npc) {
+    if (this.world?.id === "opm_z_city") {
+      const cast = this.world.npcs
+        .filter((other) => other.id !== this.world?.player.characterId)
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const idx = Math.max(0, cast.findIndex((other) => other.id === npc.id));
+      const positions = [
+        [700, 500], [900, 500], [620, 650], [980, 650], [800, 760],
+        [560, 430], [1040, 430], [520, 760], [1080, 760],
+      ] as const;
+      const [x, y] = positions[idx % positions.length]!;
+      return { x, y };
+    }
     const area = this.area(npc.locationId) ?? this.area("square")!;
     const here = this.world?.npcs.filter((other) => other.locationId === npc.locationId) ?? [];
     const idx = Math.max(0, here.findIndex((other) => other.id === npc.id));
@@ -2962,6 +3684,39 @@ export class VillageScene extends Phaser.Scene {
 
 export function centerOf(location: Location) {
   return { x: location.x + location.w / 2, y: location.y + location.h / 2 };
+}
+
+function paletteForLocation(location: Location): BuildingPalette {
+  const fallback = BUILDING_PALETTES[location.id] ?? BUILDING_PALETTES["inn"]!;
+  const tags = [
+    location.name,
+    location.visual?.role,
+    location.visual?.description,
+    ...(location.visual?.visualTags ?? []),
+    ...(location.visual?.landmarks ?? []),
+  ].join(" ").toLowerCase();
+  const sign = /training|coupon|exercise/.test(tags)
+    ? "Training"
+    : /apartment|balcony|home/.test(tags)
+      ? "Apartment"
+      : /kiosk|radio|association/.test(tags)
+        ? "Hero Kiosk"
+        : /overpass|challenge|ruin/.test(tags)
+          ? "Overpass"
+          : /alley|monster|pipe/.test(tags)
+            ? "Monster Alley"
+            : fallback.sign;
+  const structure = parseCssHexColor(location.visual?.palette?.structure ?? "") ?? fallback.wall;
+  const accent = parseCssHexColor(location.visual?.palette?.accent ?? "") ?? fallback.trim;
+  const ground = parseCssHexColor(location.visual?.palette?.ground ?? "") ?? fallback.wallDark;
+  return {
+    wall: structure,
+    wallDark: shadeNumber(structure, -0.26),
+    roof: shadeNumber(structure, 0.18),
+    roofDark: shadeNumber(ground, -0.08),
+    trim: accent,
+    sign,
+  };
 }
 
 function actorFillForNpc(npc: Npc): number {
@@ -2994,16 +3749,6 @@ function agentFxPalette(actionType: ActionType, fromDirector: boolean): AgentFxP
     choose_character: { main: 0x58a6ff, accent: 0xffffff, label: "HERO", symbol: "*" },
   };
   return palettes[actionType] ?? { main: 0xcbd2df, accent: 0xffffff, label: actionType.toUpperCase(), symbol: "*" };
-}
-
-function actionFxCaption(text: string, fallback: string): string {
-  const compact = text
-    .replace(/\s+/g, " ")
-    .replace(/^(Director clue:|Director beat:)\s*/i, "")
-    .trim();
-  if (!compact) return fallback;
-  const firstWords = compact.split(/\s+/).slice(0, 2).join(" ");
-  return firstWords.length > 12 ? fallback : firstWords.toUpperCase();
 }
 
 function npcNameplateText(npc: Npc): string {
@@ -3054,6 +3799,15 @@ function playerFillForWorld(world: World): number {
   return parsed ?? 0x526f3f;
 }
 
+function attackerAppearance(world: World | null, attackerId: string) {
+  if (!world) return undefined;
+  if (attackerId === "player") {
+    const selected = world.player.characterId ? world.npcs.find((npc) => npc.id === world.player.characterId) : undefined;
+    return world.player.appearance ?? selected?.appearance;
+  }
+  return world.npcs.find((npc) => npc.id === attackerId)?.appearance;
+}
+
 function playerAppearanceKey(world: World): string {
   return [
     world.player.characterId ?? "custom",
@@ -3079,4 +3833,18 @@ function parseCssHexColor(value: string): number | null {
   const trimmed = value.trim();
   const match = /^#?([0-9a-f]{6})$/i.exec(trimmed);
   return match ? Number.parseInt(match[1]!, 16) : null;
+}
+
+function shadeNumber(value: number, ratio: number): number {
+  const r = (value >> 16) & 0xff;
+  const g = (value >> 8) & 0xff;
+  const b = value & 0xff;
+  const adjust = (channel: number) => {
+    if (ratio >= 0) return Math.round(channel + (255 - channel) * ratio);
+    return Math.round(channel * (1 + ratio));
+  };
+  const nr = Math.max(0, Math.min(255, adjust(r)));
+  const ng = Math.max(0, Math.min(255, adjust(g)));
+  const nb = Math.max(0, Math.min(255, adjust(b)));
+  return (nr << 16) | (ng << 8) | nb;
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Tatsumaki portrait">
+  <rect width="180" height="180" rx="24" fill="#131722"/>
+  <path d="M45 91c-11-41 20-78 48-65 33-10 57 29 43 65-25-27-66-27-91 0Z" fill="#4fcf75"/>
+  <circle cx="90" cy="76" r="38" fill="#e7a86f"/>
+  <path d="M49 170c4-44 19-67 41-67s37 23 41 67H49Z" fill="#151722"/>
+  <path d="M58 129c20 17 44 17 64 0" fill="none" stroke="#61dd82" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="75" cy="78" r="5" fill="#24120b"/>
+  <circle cx="105" cy="78" r="5" fill="#24120b"/>
+  <path d="M76 100c8 5 20 5 28 0" stroke="#8b3a35" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="90" cy="100" r="55" fill="none" stroke="#61dd82" stroke-width="5" stroke-dasharray="9 11" opacity=".45"/>
+</svg>

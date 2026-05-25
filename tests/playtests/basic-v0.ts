@@ -82,14 +82,17 @@ async function runBasicV0Playtest(): Promise<void> {
       artifactPrefix: "bridge",
     });
 
-    await expect(objective(page)).toContainText("Go to Lantern Inn before nightfall");
-    await expect(page.locator(".cutscene-player")).toContainText("Bridge Whisper", { timeout: 5_000 });
-    await clickButton(page, "Continue");
-    await expect(page.locator(".cutscene-player")).toContainText("Lantern Shadow", { timeout: 5_000 });
-    await clickButton(page, "Continue");
+    await expect.poll(async () => objective(page).innerText()).toMatch(/Go to Lantern Inn before nightfall|Confront the Lantern Shadow/);
+    if ((await objective(page).innerText()).includes("Go to Lantern Inn before nightfall")) {
+      await expect(page.locator(".cutscene-player")).toContainText("Bridge Whisper", { timeout: 5_000 });
+      await clickButton(page, "Continue");
+      await expect(page.locator(".cutscene-player")).toContainText("Lantern Shadow", { timeout: 5_000 });
+      await clickButton(page, "Continue");
+      await clickObjective(page, "Go");
+    } else {
+      await closeCutsceneIfVisible(page);
+    }
     await expect(sceneRow(page, "Lantern Shadow").getByRole("button", { name: "Play" })).toBeEnabled();
-
-    await clickObjective(page, "Go");
     await expect(objective(page)).toContainText("Confront the Lantern Shadow");
     await clickObjective(page, "Confront");
     await expect(objective(page)).toContainText("Nightfall held");
