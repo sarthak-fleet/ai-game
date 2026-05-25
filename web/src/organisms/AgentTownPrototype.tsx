@@ -19,10 +19,13 @@ const FRAME_WIDTH = 48;
 const FRAME_HEIGHT = 96;
 const SHEET_COLUMNS = 56;
 const FRAMES_PER_DIR = 6;
-const SPEED = 175;
+const SPEED = 225;
 const INTERACT_DISTANCE = 64;
-const MAP_KEY = "agent-town-office";
+const MAP_KEY = "zcity-expanded";
 const PLAYER_KEY = "character_09";
+const SOURCE_MAP_WIDTH = 27 * 48;
+const WORLD_WIDTH = 105 * 48;
+const WORLD_HEIGHT = 1120;
 
 const TILESETS = [
   ["room_builder", "Room_Builder_Office_48x48.png"],
@@ -200,7 +203,7 @@ class OfficePrototypeScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.tilemapTiledJSON(MAP_KEY, "/agent-town/maps/office2.json");
+    this.load.tilemapTiledJSON(MAP_KEY, "/agent-town/maps/zcity-expanded.json");
     for (const [name, file] of TILESETS) this.load.image(name, `/agent-town/tilesets/${file}`);
     for (const key of new Set([PLAYER_KEY, ...CAST.map((character) => character.sprite)])) {
       const suffix = key.replace("character_", "");
@@ -221,17 +224,9 @@ class OfficePrototypeScene extends Phaser.Scene {
 
     const map = this.make.tilemap({ key: MAP_KEY });
     const tilesets = TILESETS.map(([name]) => map.addTilesetImage(name, name)).filter((tileset): tileset is Phaser.Tilemaps.Tileset => Boolean(tileset));
-    for (const layer of ["floor", "walls", "ground", "furniture", "objects"]) map.createLayer(layer, tilesets);
-    const overhead = map.createLayer("overhead", tilesets);
-    if (overhead) overhead.setDepth(20);
-
     this.collisionGroup = this.physics.add.staticGroup();
-    const collisions = map.getObjectLayer("collisions")?.objects ?? [];
-    for (const object of collisions) {
-      const body = this.add.rectangle((object.x ?? 0) + (object.width ?? 0) / 2, (object.y ?? 0) + (object.height ?? 0) / 2, object.width ?? 0, object.height ?? 0, 0x000000, 0);
-      this.physics.add.existing(body, true);
-      this.collisionGroup.add(body);
-    }
+    this.drawDistrictConnectors();
+    this.createWorldLayers(map, tilesets);
 
     this.player = this.physics.add.sprite(610, 405, PLAYER_KEY, frameFor("down"));
     this.player.setDepth(10);
@@ -246,14 +241,14 @@ class OfficePrototypeScene extends Phaser.Scene {
       padding: { x: 6, y: 3 },
     }).setOrigin(0.5, 0).setDepth(24);
 
-    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-    this.cameras.main.setZoom(0.95);
+    this.cameras.main.setZoom(0.78);
 
     for (const character of CAST) this.addCharacter(character);
     for (const prop of PROPS) this.addProp(prop);
-    this.alertTint = this.add.rectangle(0, 0, 2400, 1600, 0xff3b30, 0).setOrigin(0).setDepth(2).setScrollFactor(1);
+    this.alertTint = this.add.rectangle(0, 0, WORLD_WIDTH, WORLD_HEIGHT, 0xff3b30, 0).setOrigin(0).setDepth(2).setScrollFactor(1);
 
     this.cursors = this.input.keyboard?.createCursorKeys();
     this.keys = this.input.keyboard?.addKeys("W,A,S,D") as Record<string, Phaser.Input.Keyboard.Key>;
@@ -312,12 +307,14 @@ class OfficePrototypeScene extends Phaser.Scene {
     if (!character) return;
     this.selectedId = id;
     this.target = { x: character.sprite.x, y: character.sprite.y + 34 };
+    this.cameras.main.pan(character.sprite.x, character.sprite.y, 280, "Quad.easeOut", true);
   }
 
   focusProp(id: string) {
     const prop = this.props.get(id);
     if (!prop) return;
     this.target = { x: prop.data.x, y: prop.data.y + 34 };
+    this.cameras.main.pan(prop.data.x, prop.data.y, 280, "Quad.easeOut", true);
   }
 
   goToZone(zoneId: string) {
@@ -373,6 +370,49 @@ class OfficePrototypeScene extends Phaser.Scene {
       padding: { x: 7, y: 1 },
     }).setOrigin(0.5).setDepth(24).setVisible(false);
     this.characters.set(character.id, { data: character, sprite, prompt, tag });
+  }
+
+  private createWorldLayers(map: Phaser.Tilemaps.Tilemap, tilesets: Phaser.Tilemaps.Tileset[]) {
+    for (const layerName of ["floor", "walls", "ground", "furniture", "objects"]) {
+      const layer = map.createLayer(layerName, tilesets, 0, 0);
+      layer?.setDepth(layerName === "objects" ? 4 : 1);
+    }
+    const overhead = map.createLayer("overhead", tilesets, 0, 0);
+    overhead?.setDepth(20);
+    const collisions = map.getObjectLayer("collisions")?.objects ?? [];
+    for (const object of collisions) {
+      const body = this.add.rectangle(
+        (object.x ?? 0) + (object.width ?? 0) / 2,
+        (object.y ?? 0) + (object.height ?? 0) / 2,
+        object.width ?? 0,
+        object.height ?? 0,
+        0x000000,
+        0,
+      );
+      this.physics.add.existing(body, true);
+      this.collisionGroup?.add(body);
+    }
+  }
+
+  private drawDistrictConnectors() {
+    this.add.rectangle(0, 0, WORLD_WIDTH, WORLD_HEIGHT, 0x0f1724, 1).setOrigin(0).setDepth(-5);
+    for (let x = 0; x < WORLD_WIDTH; x += 96) {
+      this.add.rectangle(x, 1032, 46, 10, 0x2f3b4f, 0.75).setDepth(-2);
+    }
+    const roadY = 520;
+    this.add.rectangle(SOURCE_MAP_WIDTH - 24, roadY, 624, 118, 0x293241, 1).setOrigin(0, 0.5).setDepth(-1);
+    this.add.rectangle(SOURCE_MAP_WIDTH - 24, roadY, 624, 16, 0xf8d44e, 0.22).setOrigin(0, 0.5).setDepth(0);
+    this.add.rectangle(1872 + SOURCE_MAP_WIDTH - 24, roadY, 624, 118, 0x293241, 1).setOrigin(0, 0.5).setDepth(-1);
+    this.add.rectangle(1872 + SOURCE_MAP_WIDTH - 24, roadY, 624, 16, 0xf8d44e, 0.22).setOrigin(0, 0.5).setDepth(0);
+    for (const zone of ZONES) {
+      this.add.text(zone.origin.x + 34, zone.origin.y + 34, zone.name, {
+        fontFamily: "Montserrat, sans-serif",
+        fontSize: "18px",
+        color: "#f6f1e8",
+        backgroundColor: "rgba(11, 18, 32, 0.72)",
+        padding: { x: 10, y: 6 },
+      }).setDepth(25);
+    }
   }
 
   private addProp(prop: WorldProp) {

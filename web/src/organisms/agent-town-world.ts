@@ -25,6 +25,7 @@ export interface WorldZone {
   id: ZoneId;
   name: string;
   description: string;
+  origin: { x: number; y: number };
   focus: { x: number; y: number };
   spawn: { x: number; y: number };
   unlockFlag?: StoryFlag;
@@ -57,23 +58,26 @@ export const ZONES: WorldZone[] = [
     id: "hq",
     name: "Hero HQ",
     description: "The compact command floor where the cast starts, shares leads, and receives alerts.",
+    origin: { x: 0, y: 0 },
     focus: { x: 610, y: 405 },
     spawn: { x: 610, y: 405 },
   },
   {
     id: "market",
     name: "Market Street",
-    description: "A small shopping block unlocked once Saitama has his coupon back.",
-    focus: { x: 280, y: 650 },
-    spawn: { x: 270, y: 625 },
+    description: "A second district for errands, side conversations, and non-combat city life.",
+    origin: { x: 1872, y: 0 },
+    focus: { x: 2482, y: 405 },
+    spawn: { x: 2142, y: 625 },
     unlockFlag: "couponReturned",
   },
   {
     id: "alley",
     name: "Monster Alley",
-    description: "The danger route where the alert becomes a confrontation.",
-    focus: { x: 930, y: 620 },
-    spawn: { x: 900, y: 625 },
+    description: "A far danger district where the alert becomes a confrontation.",
+    origin: { x: 3744, y: 0 },
+    focus: { x: 4674, y: 620 },
+    spawn: { x: 4644, y: 625 },
     unlockFlag: "monsterAlleyUnlocked",
   },
 ];
@@ -82,12 +86,12 @@ export const CAST: CastMember[] = [
   { id: "saitama", name: "Saitama", role: "Errand hero", sprite: "character_01", x: 420, y: 310, zoneId: "hq", line: "I lost a coupon somewhere. That is the important part.", memory: "Saitama is treating the patrol like a grocery detour." },
   { id: "genos", name: "Genos", role: "Cyborg disciple", sprite: "character_02", x: 565, y: 285, zoneId: "hq", line: "I am collecting incident data and improving the patrol model.", memory: "Genos is logging every clue and over-indexing on Saitama's priorities." },
   { id: "mumen", name: "Mumen Rider", role: "Witness hero", sprite: "character_03", x: 755, y: 310, zoneId: "hq", line: "If we get proof, I can file the alert properly.", memory: "Mumen needs evidence before escalating the public warning." },
-  { id: "sonic", name: "Sonic", role: "Ninja rival", sprite: "character_04", x: 880, y: 455, zoneId: "alley", line: "This office is small, but the duel can still be legendary.", memory: "Sonic wants any quiet task to become a public challenge." },
+  { id: "sonic", name: "Sonic", role: "Ninja rival", sprite: "character_04", x: 4624, y: 455, zoneId: "alley", line: "This district is finally large enough for a chase.", memory: "Sonic wants any quiet task to become a public challenge." },
   { id: "fubuki", name: "Fubuki", role: "Psychic leader", sprite: "character_05", x: 335, y: 480, zoneId: "hq", line: "A team works when everyone stops fighting the plan.", memory: "Fubuki is watching hierarchy and group control." },
   { id: "king", name: "King", role: "Legend", sprite: "character_06", x: 660, y: 520, zoneId: "hq", line: "I am just standing here. Somehow that helps.", memory: "King calms the room by doing almost nothing." },
-  { id: "bang", name: "Bang", role: "Master", sprite: "character_01", x: 1015, y: 325, zoneId: "hq", line: "Footwork gives away intent before words do.", memory: "Bang is reading the challenger instead of the rumor." },
-  { id: "metal_bat", name: "Metal Bat", role: "Backup", sprite: "character_02", x: 240, y: 650, zoneId: "market", line: "Tell me when this stops being paperwork.", memory: "Metal Bat is waiting for a real threat." },
-  { id: "child_emperor", name: "Child Emperor", role: "Analyst", sprite: "character_03", x: 950, y: 650, zoneId: "alley", line: "The marks and the monster scale do not match. That matters.", memory: "Child Emperor thinks one clue is bait and one clue is real." },
+  { id: "bang", name: "Bang", role: "Master", sprite: "character_01", x: 2887, y: 325, zoneId: "market", line: "A wider patrol route makes footwork worth watching.", memory: "Bang is reading the challenger instead of the rumor." },
+  { id: "metal_bat", name: "Metal Bat", role: "Backup", sprite: "character_02", x: 2112, y: 650, zoneId: "market", line: "Tell me when this stops being paperwork.", memory: "Metal Bat is waiting for a real threat." },
+  { id: "child_emperor", name: "Child Emperor", role: "Analyst", sprite: "character_03", x: 4694, y: 650, zoneId: "alley", line: "The marks and the monster scale do not match. That matters.", memory: "Child Emperor thinks one clue is bait and one clue is real." },
 ];
 
 export const PROPS: WorldProp[] = [
@@ -120,7 +124,7 @@ export const PROPS: WorldProp[] = [
     id: "challenge_mark",
     label: "Challenge mark",
     zoneId: "alley",
-    x: 835,
+    x: 4579,
     y: 575,
     color: 0x8d5cff,
     symbol: "X",
