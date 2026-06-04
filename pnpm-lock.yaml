@@ -66,6 +66,9 @@ importers:
       eslint:
         specifier: 9.39.4
         version: 9.39.4
+      lightningcss:
+        specifier: ^1.32.0
+        version: 1.32.0
       prettier:
         specifier: 3.8.3
         version: 3.8.3

@@ -7,6 +7,9 @@ export default defineConfig({
   root: "web",
   publicDir: false,
   plugins: [react()],
+  css: {
+    transformer: "lightningcss",
+  },
   server: {
     port: 5173,
     proxy: {
@@ -16,5 +19,6 @@ export default defineConfig({
   build: {
     outDir: "../dist/web",
     emptyOutDir: true,
+    cssMinify: "lightningcss",
   },
 });
