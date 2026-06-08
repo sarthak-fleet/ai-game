@@ -9,6 +9,10 @@ build/
 .env.*
 !.env.example
 *.log
+err.txt
+out.txt
+lint.json
+lint_output.txt
 logs/
 test-results/
 tmp/
