@@ -14,6 +14,12 @@ import { toonGradientMap, toonMaterial } from "./toon.ts";
 
 const OUTLINE = "#101421";
 const OUTLINE_THICKNESS = 0.035;
+const CORNERS: Array<[number, number]> = [
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [1, 1],
+];
 
 export const District = memo(function District({ district, night }: { district: DistrictModel; night: boolean }) {
   const cx = district.origin.x + district.width / 2;
@@ -134,6 +140,26 @@ function Building({ building, night, courtyard }: { building: BuildingModel; nig
         <mesh position={[0, building.height + 0.25, 0]} castShadow material={roofMat}>
           <boxGeometry args={[building.width + 0.5, 0.5, building.depth + 0.5]} />
         </mesh>
+        {/* corner pilasters + storefront cornice: cheap geometry that breaks the flat-box read */}
+        {CORNERS.map(([sx, sz], index) => (
+          <mesh
+            key={index}
+            position={[(sx * building.width) / 2, building.height / 2, (sz * building.depth) / 2]}
+            castShadow
+            material={toonMaterial(shiftColor(building.bodyColor, -0.22))}
+          >
+            <boxGeometry args={[0.24, building.height, 0.24]} />
+          </mesh>
+        ))}
+        {building.floors > 1 ? (
+          <mesh
+            position={[0, building.height / building.floors + 0.04, 0]}
+            castShadow
+            material={toonMaterial(shiftColor(building.bodyColor, -0.22))}
+          >
+            <boxGeometry args={[building.width + 0.34, 0.2, building.depth + 0.34]} />
+          </mesh>
+        ) : null}
         {extras.roofBoxes.map((box, index) => (
           <mesh key={index} position={[box.x, building.height + 0.5 + box.size / 2, box.z]} castShadow material={toonMaterial(shiftColor(building.roofColor, 0.15))}>
             <boxGeometry args={[box.size, box.size, box.size]} />

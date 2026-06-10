@@ -42,8 +42,8 @@ export function facadeMaps(bodyColor: string, accentColor: string, floors: numbe
   if (cached) return cached;
 
   const rng = mulberry32(seedFromString(key));
-  const floorPx = 64;
-  const width = 256;
+  const floorPx = 128;
+  const width = 512;
   const height = Math.max(1, floors) * floorPx;
   const [canvas, ctx] = makeCanvas(width, height);
   const [glowCanvas, glow] = makeCanvas(width, height);
@@ -57,10 +57,58 @@ export function facadeMaps(bodyColor: string, accentColor: string, floors: numbe
   glow.fillStyle = "#000000";
   glow.fillRect(0, 0, width, height);
 
-  // gentle wall noise
-  for (let i = 0; i < 130; i += 1) {
+  // wall coursing: brick rows or panel seams, picked per building
+  const brick = rng() > 0.45;
+  ctx.strokeStyle = `rgba(0,0,0,${brick ? 0.07 : 0.09})`;
+  ctx.lineWidth = 1.5;
+  if (brick) {
+    const course = 9;
+    for (let y = 0; y < height; y += course) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+      const off = (y / course) % 2 === 0 ? 0 : 18;
+      for (let x = off; x < width; x += 36) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y + course);
+        ctx.stroke();
+      }
+    }
+  } else {
+    for (let x = 64; x < width; x += 128) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+  }
+
+  // gentle wall noise + grime streaks from ledges
+  for (let i = 0; i < 240; i += 1) {
     ctx.fillStyle = `rgba(${rng() > 0.5 ? "255,255,255" : "0,0,0"}, ${0.015 + rng() * 0.03})`;
-    ctx.fillRect(rng() * width, rng() * height, 2 + rng() * 9, 2 + rng() * 5);
+    ctx.fillRect(rng() * width, rng() * height, 3 + rng() * 14, 3 + rng() * 8);
+  }
+  for (let i = 0; i < 8; i += 1) {
+    const gx = rng() * width;
+    const gy = rng() * height;
+    const streak = ctx.createLinearGradient(0, gy, 0, gy + 40 + rng() * 60);
+    streak.addColorStop(0, "rgba(0,0,0,0.1)");
+    streak.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = streak;
+    ctx.fillRect(gx, gy, 5 + rng() * 10, 40 + rng() * 60);
+  }
+  // corner AO so edges read as solid masonry
+  for (const [x0, x1] of [
+    [0, 18],
+    [width - 18, width],
+  ] as const) {
+    const edge = ctx.createLinearGradient(x0, 0, x1, 0);
+    edge.addColorStop(x0 === 0 ? 0 : 1, "rgba(0,0,0,0.22)");
+    edge.addColorStop(x0 === 0 ? 1 : 0, "rgba(0,0,0,0)");
+    ctx.fillStyle = edge;
+    ctx.fillRect(x0, 0, 18, height);
   }
 
   const columns = 5;
@@ -69,29 +117,49 @@ export function facadeMaps(bodyColor: string, accentColor: string, floors: numbe
     // canvas y grows downward; floor 0 is the ground floor at the bottom
     const top = height - (floor + 1) * floorPx;
 
-    // floor trim line
-    ctx.fillStyle = shade(bodyColor, -0.28);
+    // floor trim line with a light catch above it
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
     ctx.fillRect(0, top, width, 3);
+    ctx.fillStyle = shade(bodyColor, -0.28);
+    ctx.fillRect(0, top + 3, width, 5);
 
     if (floor === 0) {
-      // ground floor: accent fascia band + centered door
-      ctx.fillStyle = shade(accentColor, -0.12);
-      ctx.fillRect(0, top + 6, width, 10);
-      const doorWidth = 30;
+      // storefront: sign band with abstract lettering + big glass + centered door
+      ctx.fillStyle = shade(accentColor, -0.18);
+      ctx.fillRect(0, top + 10, width, 26);
+      ctx.fillStyle = shade(accentColor, 0.35);
+      let lx = 24 + rng() * 30;
+      while (lx < width * 0.62) {
+        const lw = 8 + rng() * 18;
+        ctx.fillRect(lx, top + 17, lw, 12);
+        lx += lw + 7;
+      }
+      const doorWidth = 60;
       ctx.fillStyle = shade(bodyColor, -0.45);
-      ctx.fillRect(width / 2 - doorWidth / 2 - 3, top + 22, doorWidth + 6, floorPx - 22);
+      ctx.fillRect(width / 2 - doorWidth / 2 - 6, top + 44, doorWidth + 12, floorPx - 44);
       ctx.fillStyle = shade(accentColor, 0.05);
-      ctx.fillRect(width / 2 - doorWidth / 2, top + 26, doorWidth, floorPx - 26);
-      // flanking shop windows
+      ctx.fillRect(width / 2 - doorWidth / 2, top + 52, doorWidth, floorPx - 52);
+      ctx.fillStyle = shade(accentColor, 0.45);
+      ctx.fillRect(width / 2 + doorWidth / 2 - 10, top + floorPx * 0.62, 4, 9); // handle
+      // flanking shop windows with sills
       for (const cx of [width * 0.18, width * 0.82]) {
+        ctx.fillStyle = shade(bodyColor, -0.4);
+        ctx.fillRect(cx - 58, top + 44, 116, 68);
         ctx.fillStyle = "#202b3c";
-        ctx.fillRect(cx - 26, top + 24, 52, 30);
-        ctx.strokeStyle = shade(bodyColor, -0.4);
-        ctx.lineWidth = 3;
-        ctx.strokeRect(cx - 26, top + 24, 52, 30);
+        ctx.fillRect(cx - 52, top + 50, 104, 56);
+        // glass sheen
+        ctx.fillStyle = "rgba(180,210,255,0.12)";
+        ctx.beginPath();
+        ctx.moveTo(cx - 52, top + 106);
+        ctx.lineTo(cx - 10, top + 50);
+        ctx.lineTo(cx + 14, top + 50);
+        ctx.lineTo(cx - 28, top + 106);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.14)";
+        ctx.fillRect(cx - 58, top + 112, 116, 4); // sill
         if (rng() > 0.45) {
           glow.fillStyle = "rgba(255, 214, 150, 0.95)";
-          glow.fillRect(cx - 24, top + 26, 48, 26);
+          glow.fillRect(cx - 50, top + 52, 100, 52);
         }
       }
       continue;
@@ -99,26 +167,52 @@ export function facadeMaps(bodyColor: string, accentColor: string, floors: numbe
 
     for (let column = 0; column < columns; column += 1) {
       const cx = column * cell + cell / 2;
-      const wWidth = 26;
-      const wHeight = 34;
+      const wWidth = 52;
+      const wHeight = 68;
       const wx = cx - wWidth / 2;
-      const wy = top + (floorPx - wHeight) / 2 + 4;
-      // frame
+      const wy = top + (floorPx - wHeight) / 2 + 8;
+      // header shadow + frame
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.fillRect(wx - 6, wy - 8, wWidth + 12, 6);
       ctx.fillStyle = shade(bodyColor, -0.38);
-      ctx.fillRect(wx - 3, wy - 3, wWidth + 6, wHeight + 6);
+      ctx.fillRect(wx - 6, wy - 6, wWidth + 12, wHeight + 12);
       // glass
       const glass = ctx.createLinearGradient(0, wy, 0, wy + wHeight);
       glass.addColorStop(0, "#2b3a52");
       glass.addColorStop(1, "#16202f");
       ctx.fillStyle = glass;
       ctx.fillRect(wx, wy, wWidth, wHeight);
-      // mullion
+      // sheen + mullions
+      ctx.fillStyle = "rgba(180,210,255,0.1)";
+      ctx.beginPath();
+      ctx.moveTo(wx, wy + wHeight);
+      ctx.lineTo(wx + wWidth * 0.55, wy);
+      ctx.lineTo(wx + wWidth * 0.8, wy);
+      ctx.lineTo(wx + wWidth * 0.25, wy + wHeight);
+      ctx.fill();
       ctx.fillStyle = shade(bodyColor, -0.38);
-      ctx.fillRect(wx, wy + wHeight / 2 - 1, wWidth, 2);
-      // lit at night?
+      ctx.fillRect(wx, wy + wHeight / 2 - 1.5, wWidth, 3);
+      ctx.fillRect(wx + wWidth / 2 - 1.5, wy, 3, wHeight);
+      // sill with light catch
+      ctx.fillStyle = "rgba(255,255,255,0.16)";
+      ctx.fillRect(wx - 6, wy + wHeight + 6, wWidth + 12, 4);
+      // occasional AC unit under a window
+      if (rng() > 0.78) {
+        ctx.fillStyle = shade(bodyColor, -0.5);
+        ctx.fillRect(wx + 6, wy + wHeight + 12, 26, 14);
+        ctx.fillStyle = "rgba(255,255,255,0.1)";
+        ctx.fillRect(wx + 6, wy + wHeight + 12, 26, 3);
+      }
+      // lit at night? (some windows warm, a few cool)
       if (rng() > 0.55) {
-        glow.fillStyle = `rgba(255, ${200 + Math.floor(rng() * 40)}, 140, 0.95)`;
+        const cool = rng() > 0.82;
+        glow.fillStyle = cool ? "rgba(170, 215, 255, 0.8)" : `rgba(255, ${200 + Math.floor(rng() * 40)}, 140, 0.95)`;
         glow.fillRect(wx, wy, wWidth, wHeight);
+        // half-lit rooms: sometimes only one pane glows
+        if (rng() > 0.6) {
+          glow.fillStyle = "#000000";
+          glow.fillRect(wx + (rng() > 0.5 ? wWidth / 2 : 0), wy, wWidth / 2, wHeight);
+        }
       }
     }
   }
