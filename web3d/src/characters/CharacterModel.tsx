@@ -35,6 +35,8 @@ export interface CharacterAnimationHandle {
   setSpeed: (speed: number) => void;
   /** play a short combat animation overlay */
   trigger: (kind: CombatAnimKind) => void;
+  /** enter/leave the defeated pose (rig plays Death01; procedural lies down) */
+  setDefeated: (defeated: boolean) => void;
 }
 
 const COMBAT_ANIM_MS: Record<CombatAnimKind, number> = {
@@ -106,6 +108,8 @@ export const CharacterModel = forwardRef<CharacterAnimationHandle, CharacterMode
   const cape = useRef<THREE.Mesh>(null);
   const ponytail = useRef<THREE.Group>(null);
 
+  const defeatedRef = useRef(false);
+
   useImperativeHandle(ref, () => ({
     setSpeed: (speed: number) => {
       speedRef.current = speed;
@@ -113,9 +117,19 @@ export const CharacterModel = forwardRef<CharacterAnimationHandle, CharacterMode
     trigger: (kind: CombatAnimKind) => {
       combatAnim.current = { kind, startedAt: performance.now() };
     },
+    setDefeated: (defeated: boolean) => {
+      defeatedRef.current = defeated;
+    },
   }));
 
   useFrame((_, delta) => {
+    if (root.current) {
+      // defeated: lie down (procedural rigs have no death clip)
+      const targetX = defeatedRef.current ? -Math.PI / 2 : 0;
+      root.current.rotation.x += (targetX - root.current.rotation.x) * Math.min(1, delta * 8);
+      root.current.position.y = defeatedRef.current ? 0.3 : 0;
+      if (defeatedRef.current) return;
+    }
     const speed = speedRef.current;
     const walking = speed > 0.05;
     const running = speed > 4.2;

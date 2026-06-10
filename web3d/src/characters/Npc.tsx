@@ -13,7 +13,8 @@ import { useUiStore } from "../store/ui.ts";
 import { findDistrictPath, type NavGraph } from "../worldgen/index.ts";
 import type { PlacedNpcSpawn } from "../worldgen/placements.ts";
 import { rngFor } from "../worldgen/rng.ts";
-import { type CharacterAnimationHandle, CharacterModel } from "./CharacterModel.tsx";
+import type { CharacterAnimationHandle } from "./CharacterModel.tsx";
+import { RiggedCharacter } from "./RiggedCharacter.tsx";
 
 const WALK_SPEED = 1.15;
 const TRAVEL_SPEED = 3.4;
@@ -86,6 +87,7 @@ export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
     const time = frame.clock.elapsedTime;
 
     const clientDefeated = Boolean(enemy?.defeated) || Boolean(npc.combat?.defeated);
+    animation.current?.setDefeated(clientDefeated);
     if (clientDefeated) {
       animation.current?.setSpeed(0);
       syncRegistry(npc.id, node.position);
@@ -159,9 +161,7 @@ export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
 
   return (
     <group ref={group} position={[initialSpawn.x, 0, initialSpawn.z]} rotation={[0, initialSpawn.heading, 0]}>
-      <group rotation={defeated ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} position={defeated ? [0, 0.3, 0] : [0, 0, 0]}>
-        <CharacterModel ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} />
-      </group>
+      <RiggedCharacter ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} />
       <Billboard position={[0, 2.35, 0]}>
         <Text
           fontSize={0.24}

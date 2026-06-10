@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type { World } from "../../../src/types.ts";
-import { type CharacterAnimationHandle, CharacterModel } from "../characters/CharacterModel.tsx";
+import type { CharacterAnimationHandle } from "../characters/CharacterModel.tsx";
+import { RiggedCharacter } from "../characters/RiggedCharacter.tsx";
 import { combatInput, playerCombatState, updatePlayerCombat } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { useDirectorStore } from "../director/store.ts";
@@ -381,7 +382,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
       <group ref={modelGroup} position={[0, -CAPSULE_CENTER_Y, 0]}>
-        <CharacterModel ref={animation} visual={visual} appearance={world.player.appearance} seedId="player" />
+        <RiggedCharacter ref={animation} visual={visual} appearance={world.player.appearance} seedId="player" />
       </group>
     </RigidBody>
   );

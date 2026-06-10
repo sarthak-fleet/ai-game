@@ -40,11 +40,13 @@ export async function proposeAction({ tier = "normal", system, user, signal }: P
   const noThink = process.env["LLM_NO_THINK"] === "1";
   const body: {
     model: string;
+    project_id?: string;
     response_format?: { type: "json_object" };
     temperature: number;
     messages: Array<{ role: "system" | "user"; content: string }>;
   } = {
     model,
+    project_id: process.env["LLM_PROJECT_ID"] ?? "ai-game",
     temperature: Number(process.env["LLM_TEMPERATURE"] ?? 0.7),
     messages: [
       {
@@ -124,6 +126,7 @@ export async function completeText({ tier = "quest", system, user, signal }: Com
       },
       body: JSON.stringify({
         model,
+        project_id: process.env["LLM_PROJECT_ID"] ?? "ai-game",
         temperature: Number(process.env["LLM_TEMPERATURE"] ?? 0.2),
         messages: [
           { role: "system", content: system },

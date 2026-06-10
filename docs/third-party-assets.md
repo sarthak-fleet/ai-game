@@ -17,3 +17,9 @@
 - Source: https://github.com/a16z-infra/ai-town
 - License: MIT
 - Use in this repo: retained as architecture/product reference for agent conversations, persistent world state, and simulation loops. Not directly copied into the current prototype.
+
+## Quaternius Universal Animation Library
+
+- Source: https://quaternius.com/packs/universalanimationlibrary.html
+- License: CC0 1.0 Universal (public domain)
+- Use in this repo: `web3d/public/assets/characters/ual.glb` — the rigged mannequin + 45 animation clips drive every character in the 3D client (locomotion blending, combat moves, death). Bodies are palette-tinted per character; procedural hair/eyes/capes attach to the Head/spine bones at runtime.
