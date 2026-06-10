@@ -4,7 +4,7 @@ import { extname, normalize } from "node:path";
 
 import { readAgentLoopCheckpoints, upsertAgentLoopCheckpoint, writeAgentLoopCheckpoints } from "./agent-checkpoint-store.ts";
 import { createAgentLoop } from "./agent-loop.ts";
-import { clearDialogueHistories, dialogueAvailable, generateDialogueReply } from "./dialogue.ts";
+import { clearDialogueHistories, dialogueAvailable, dialogueContext, generateDialogueReply } from "./dialogue.ts";
 import { createDirector } from "./director.ts";
 import { createLlmProposer } from "./llm/proposer.ts";
 import { isLlmEnabled, proposeAction } from "./llm/router.ts";
@@ -194,6 +194,13 @@ const server = createServer(async (req, res) => {
       return json(res, 400, { error: (error as Error).message });
     }
   }
+  if (url.pathname === "/api/dialogue/history" && req.method === "GET") {
+    if (!dialogueAvailable()) return json(res, 200, { llm: false });
+    const npcId = url.searchParams.get("npcId") ?? "";
+    const context = dialogueContext(engine.state, npcId);
+    if (!context) return json(res, 404, { error: "unknown_npc" });
+    return json(res, 200, { llm: true, ...context });
+  }
   if (url.pathname === "/api/dialogue" && req.method === "POST") {
     if (!dialogueAvailable()) return json(res, 200, { llm: false });
     const body = await readJson(req).catch(() => null);
@@ -202,9 +209,25 @@ const server = createServer(async (req, res) => {
     if (typeof npcId !== "string" || typeof text !== "string" || !text.trim()) {
       return json(res, 400, { error: "npcId and text are required" });
     }
-    const result = await generateDialogueReply(engine.state, npcId, text.trim().slice(0, 500));
+    let result = await generateDialogueReply(engine.state, npcId, text.trim().slice(0, 500));
+    if (!result.ok && !["unknown_npc", "npc_defeated", "npc_not_here"].includes(result.reason)) {
+      // transient model failure (cooldown/timeout): one retry before giving up
+      result = await generateDialogueReply(engine.state, npcId, text.trim().slice(0, 500));
+    }
     if (!result.ok) return json(res, 200, { llm: true, error: result.reason });
-    return json(res, 200, { llm: true, reply: result.reply });
+    if (result.action) {
+      // a dialogue-decided action changed the world: let every client sync
+      broadcastSse("tick", {
+        summary: {
+          tick: engine.state.tick,
+          actions: [{ action: { type: result.action.type, actorId: npcId, targetId: "player" }, text: result.action.text }],
+          rejected: [],
+          checksum: "dialogue-action",
+          clock: engine.state.clock,
+        },
+      });
+    }
+    return json(res, 200, { llm: true, reply: result.reply, action: result.action ?? null, relationship: result.relationship });
   }
   if (url.pathname === "/api/tick" && req.method === "POST") {
     const body = await readJson(req).catch(() => null);

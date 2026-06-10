@@ -1,6 +1,6 @@
 import { Outlines, Text } from "@react-three/drei";
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { stableHash } from "../mapping/visuals.ts";
@@ -8,6 +8,7 @@ import { shiftColor } from "../worldgen/district.ts";
 import type { BuildingModel, DistrictModel, ItemPlacement, PropModel } from "../worldgen/index.ts";
 import type { InteractablePlacement } from "../worldgen/model.ts";
 import { mulberry32, seedFromString } from "../worldgen/rng.ts";
+import { registerOccluder, unregisterOccluder } from "./occlusion.ts";
 import { facadeMaterial, pavingTexture, speckleTexture } from "./textures.ts";
 import { toonGradientMap, toonMaterial } from "./toon.ts";
 
@@ -83,6 +84,14 @@ function Ground({ district, cx, cz }: { district: DistrictModel; cx: number; cz:
 function Building({ building, night, courtyard }: { building: BuildingModel; night: boolean; courtyard: { x: number; z: number } }) {
   const roofMat = toonMaterial(building.roofColor);
   const facade = facadeMaterial(building.bodyColor, building.accentColor, building.floors, building.id, night, toonGradientMap());
+  const facadeRef = useRef<THREE.Mesh>(null);
+
+  useEffect(() => {
+    const mesh = facadeRef.current;
+    if (!mesh) return;
+    registerOccluder(mesh);
+    return () => unregisterOccluder(mesh);
+  }, []);
 
   const extras = useMemo(() => {
     const rng = mulberry32(seedFromString(`${building.id}:extras`));
@@ -118,7 +127,7 @@ function Building({ building, night, courtyard }: { building: BuildingModel; nig
   return (
     <RigidBody type="fixed" colliders={false}>
       <group position={[building.x, 0, building.z]}>
-        <mesh position={[0, building.height / 2, 0]} castShadow receiveShadow material={facade}>
+        <mesh ref={facadeRef} position={[0, building.height / 2, 0]} castShadow receiveShadow material={facade}>
           <boxGeometry args={[building.width, building.height, building.depth]} />
           <Outlines thickness={OUTLINE_THICKNESS} color={OUTLINE} />
         </mesh>

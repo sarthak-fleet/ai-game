@@ -10,16 +10,19 @@ import { combatInput, playerCombatState, updatePlayerCombat } from "../combat/pl
 import { useCombatStore } from "../combat/store.ts";
 import { useDirectorStore } from "../director/store.ts";
 import { actorVisualFor } from "../mapping/visuals.ts";
+import { updateOcclusion } from "../scene/occlusion.ts";
 import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
 import type { DistrictModel, WorldModel } from "../worldgen/index.ts";
+import { interiorForBuilding } from "../worldgen/interiors.ts";
 import type { WorldPlacements } from "../worldgen/placements.ts";
 import { attachInput, input } from "./input.ts";
 import { cameraShake, cameraState, npcRegistry, playerHeading, playerPosition, teleportRequest } from "./runtime.ts";
 
-const WALK_SPEED = 3.2;
-const RUN_SPEED = 6.2;
+const WALK_SPEED = 4.2;
+const RUN_SPEED = 7.8;
 const INTERACT_RANGE = 2.6;
+const DOOR_RANGE = 3.4;
 const CAPSULE_HALF_HEIGHT = 0.55;
 const CAPSULE_RADIUS = 0.35;
 /** capsule center sits at half-height + radius above the feet */
@@ -299,7 +302,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     animation.current?.setSpeed(combatFrame.moveLock ? 0 : horizontalSpeed);
 
     // run dust puffs
-    if (!combatFrame.moveLock && horizontalSpeed > 4.4 && grounded && frame.clock.elapsedTime - s.lastDust > 0.22) {
+    if (!combatFrame.moveLock && horizontalSpeed > 5.4 && grounded && frame.clock.elapsedTime - s.lastDust > 0.22) {
       s.lastDust = frame.clock.elapsedTime;
       useCombatStore.getState().addVfx({
         kind: "dust",
@@ -313,7 +316,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     }
 
     // follow camera with speed-reactive FOV and impact shake
-    const targetFov = 50 + (playerCombatState.kind === "dodge" ? 8 : input.run && horizontalSpeed > 4 ? 6 : 0);
+    const targetFov = 50 + (playerCombatState.kind === "dodge" ? 8 : input.run && horizontalSpeed > 5 ? 6 : 0);
     s.fov += (targetFov - s.fov) * (1 - Math.exp(-6 * delta));
     const perspective = frame.camera as THREE.PerspectiveCamera;
     if (Math.abs(perspective.fov - s.fov) > 0.05) {
@@ -340,6 +343,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     s.lookTarget.lerp(new THREE.Vector3(playerPosition.x, playerPosition.y + 1.4, playerPosition.z), 1 - Math.exp(-14 * delta));
     frame.camera.lookAt(s.lookTarget);
     cameraState.yaw = s.yaw;
+    updateOcclusion(frame.camera, playerPosition, frame.clock.elapsedTime, delta);
 
     // interaction scan + district-crossing detection at ~10Hz
     if (frame.clock.elapsedTime - s.lastScan > 0.1) {
@@ -382,7 +386,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
       <group ref={modelGroup} position={[0, -CAPSULE_CENTER_Y, 0]}>
-        <RiggedCharacter ref={animation} visual={visual} appearance={world.player.appearance} seedId="player" />
+        <RiggedCharacter ref={animation} visual={visual} appearance={world.player.appearance} seedId="player" personaText={world.player.name ?? ""} />
       </group>
     </RigidBody>
   );
@@ -391,14 +395,14 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
 function scanInteractions(world: World, placements: WorldPlacements, model: WorldModel) {
   let best: { kind: "npc" | "item" | "prop" | "door"; id: string; label: string; verb: string; distance: number } | null = null;
 
-  const interiorDistrictId = useUiStore.getState().interiorDistrictId;
-  if (interiorDistrictId) {
+  const interiorBuildingId = useUiStore.getState().interiorBuildingId;
+  if (interiorBuildingId) {
     // inside: the only interaction is the exit door
-    const interior = model.interiors.find((entry) => entry.districtId === interiorDistrictId);
+    const interior = interiorForBuilding(world, model, interiorBuildingId);
     if (interior) {
       const distance = Math.hypot(interior.exit.x - playerPosition.x, interior.exit.z - playerPosition.z);
-      if (distance < INTERACT_RANGE) {
-        return { kind: "door" as const, id: interior.districtId, label: interior.label, verb: "Leave" };
+      if (distance < DOOR_RANGE) {
+        return { kind: "door" as const, id: interior.buildingId, label: interior.label, verb: "Leave" };
       }
     }
     return null;
@@ -406,8 +410,8 @@ function scanInteractions(world: World, placements: WorldPlacements, model: Worl
 
   for (const door of model.doors) {
     const distance = Math.hypot(door.x - playerPosition.x, door.z - playerPosition.z);
-    if (distance < INTERACT_RANGE && (!best || distance < best.distance)) {
-      best = { kind: "door", id: door.districtId, label: door.label, verb: "Enter", distance };
+    if (distance < DOOR_RANGE && (!best || distance < best.distance)) {
+      best = { kind: "door", id: door.buildingId, label: door.label, verb: "Enter", distance };
     }
   }
 

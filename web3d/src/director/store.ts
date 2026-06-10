@@ -55,7 +55,7 @@ export const useDirectorStore = create<DirectorStore>((set, get) => ({
     if (state.cutscene) return;
     if (performance.now() - state.lastEndedAt < COOLDOWN_MS) return;
     // the beat's actor isn't visible from inside a building — skip cinematics there
-    if (useUiStore.getState().interiorDistrictId) return;
+    if (useUiStore.getState().interiorBuildingId) return;
 
     // villain plan advanced a stage → highest-drama beat
     for (const plan of world.villainPlans ?? []) {

@@ -67,16 +67,16 @@ export const CityGround = memo(function CityGround({ model, baseColor }: { model
           <boxGeometry args={[segment.width, 0.024, segment.length]} />
         </mesh>
       ))}
-      {/* enterable anchor-building doors */}
+      {/* every building has a real door */}
       {model.doors.map((door) => {
         const rotY = Math.atan2(door.outsideX - door.x, door.outsideZ - door.z);
         return (
-          <group key={door.districtId} position={[door.x, 0, door.z]} rotation={[0, rotY, 0]}>
-            <mesh position={[0, 1.25, 0.12]} castShadow material={toonMaterial("#4a3527")}>
-              <boxGeometry args={[1.5, 2.5, 0.18]} />
+          <group key={door.buildingId} position={[door.x, 0, door.z]} rotation={[0, rotY, 0]}>
+            <mesh position={[0, 1.25, 0.1]} castShadow material={toonMaterial("#4a3527")}>
+              <boxGeometry args={[1.4, 2.5, 0.16]} />
             </mesh>
-            <mesh position={[0, 2.62, 0.12]} material={toonMaterial("#ffe9b0", "#ffe9b0")}>
-              <sphereGeometry args={[0.12, 8, 6]} />
+            <mesh position={[0, 2.58, 0.12]} material={toonMaterial("#ffe9b0", "#ffe9b0")}>
+              <sphereGeometry args={[0.1, 8, 6]} />
             </mesh>
           </group>
         );

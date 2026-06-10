@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { World } from "../src/types.ts";
 import { generateDistrict } from "../web3d/src/worldgen/district.ts";
 import { findDistrictPath, generateWorldModel } from "../web3d/src/worldgen/index.ts";
+import { interiorForBuilding } from "../web3d/src/worldgen/interiors.ts";
 import { SIDEWALK_INSET, WORLD_SCALE } from "../web3d/src/worldgen/model.ts";
 
 const world = JSON.parse(readFileSync(new URL("../worlds/one-punch-man.json", import.meta.url), "utf8")) as World;
@@ -80,30 +81,12 @@ describe("web3d worldgen", () => {
     }
   });
 
-  it("generates one enterable interior per district, furniture inside walls", () => {
+  it("makes every building enterable with deterministic on-demand interiors", () => {
     const model = generateWorldModel(world);
-    expect(model.interiors).toHaveLength(world.locations.length);
-    expect(model.doors).toHaveLength(world.locations.length);
-    // role-driven floor plans: not every room is the same size
-    const footprints = new Set(model.interiors.map((interior) => `${interior.width}x${interior.depth}`));
-    expect(footprints.size).toBeGreaterThan(1);
-    for (const interior of model.interiors) {
-      expect(interior.furniture.length).toBeGreaterThanOrEqual(4);
-      for (const piece of interior.furniture) {
-        expect(piece.x).toBeGreaterThan(interior.origin.x + 0.5);
-        expect(piece.x).toBeLessThan(interior.origin.x + interior.width - 0.5);
-        expect(piece.z).toBeGreaterThan(interior.origin.z + 0.5);
-        expect(piece.z).toBeLessThan(interior.origin.z + interior.depth - 0.5);
-      }
-      // rooms live outside the city footprint
-      expect(interior.origin.z).toBeGreaterThan(model.bounds.maxZ + 50);
-      // spawn is clear of the spawn-lane furniture slots
-      const nearSpawn = interior.furniture.filter(
-        (piece) => Math.hypot(piece.x - interior.spawn.x, piece.z - interior.spawn.z) < 1
-      );
-      expect(nearSpawn).toHaveLength(0);
-    }
-    // doors sit on their anchor building's face toward the courtyard
+    const buildingCount = model.districts.reduce((sum, district) => sum + district.buildings.length, 0);
+    expect(model.doors).toHaveLength(buildingCount);
+
+    // doors sit on their building's plot, facing the courtyard
     for (const door of model.doors) {
       const district = model.districts.find((entry) => entry.locationId === door.districtId)!;
       const inPlot =
@@ -113,6 +96,30 @@ describe("web3d worldgen", () => {
         door.z <= district.origin.z + district.depth + 1;
       expect(inPlot).toBe(true);
     }
+
+    // sample interiors: deterministic, sized to the building, furniture inside walls
+    const sampleDoors = [model.doors[0]!, model.doors[Math.floor(model.doors.length / 2)]!, model.doors.at(-1)!];
+    const footprints = new Set<string>();
+    for (const door of sampleDoors) {
+      const interior = interiorForBuilding(world, model, door.buildingId)!;
+      expect(interior).not.toBeNull();
+      const again = interiorForBuilding(world, model, door.buildingId)!;
+      expect(JSON.stringify(again)).toBe(JSON.stringify(interior));
+      footprints.add(`${interior.width.toFixed(1)}x${interior.depth.toFixed(1)}`);
+      expect(interior.furniture.length).toBeGreaterThanOrEqual(3);
+      for (const piece of interior.furniture) {
+        expect(piece.x).toBeGreaterThan(interior.origin.x + 0.5);
+        expect(piece.x).toBeLessThan(interior.origin.x + interior.width - 0.5);
+        expect(piece.z).toBeGreaterThan(interior.origin.z + 0.5);
+        expect(piece.z).toBeLessThan(interior.origin.z + interior.depth - 0.5);
+      }
+      expect(interior.origin.z).toBeGreaterThan(model.bounds.maxZ + 50);
+      const nearSpawn = interior.furniture.filter(
+        (piece) => Math.hypot(piece.x - interior.spawn.x, piece.z - interior.spawn.z) < 1
+      );
+      expect(nearSpawn).toHaveLength(0);
+    }
+    expect(footprints.size).toBeGreaterThan(1);
   });
 
   it("places every co-located NPC and loose item", () => {

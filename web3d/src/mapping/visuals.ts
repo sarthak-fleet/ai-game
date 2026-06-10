@@ -83,6 +83,18 @@ function itemVisualFallback(text: string): ItemVisual {
   return { color: "#f8d44e", emissiveColor: "#4a3300", material: "metal", shape: "trinket" };
 }
 
+const CLOTHING_COLORS = ["#3c5a78", "#4a7a6a", "#7a4a52", "#56648a", "#6a5a3c", "#5d4a73", "#3f6e5a", "#8a5a3c"];
+const CLOTHING_ACCENTS = ["#e8c95a", "#7fd0ff", "#ff9a6a", "#b5e48c", "#e88aa8", "#9fe8dd", "#f2e2b0", "#c9b8ff"];
+
+/** deterministic clothing colors for characters without an explicit palette — never skin tones */
+export function clothingColorsFor(seedId: string): { color: string; accent: string } {
+  const hash = stableHash(seedId);
+  return {
+    color: CLOTHING_COLORS[hash % CLOTHING_COLORS.length]!,
+    accent: CLOTHING_ACCENTS[(hash >> 4) % CLOTHING_ACCENTS.length]!,
+  };
+}
+
 export function stableHash(id: string): number {
   let hash = 0;
   for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;

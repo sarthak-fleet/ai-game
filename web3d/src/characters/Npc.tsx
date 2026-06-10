@@ -8,12 +8,13 @@ import { applyIncomingHit, playerCombatState } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { npcRegistry, playerPosition, registerNpc, unregisterNpc } from "../controls/runtime.ts";
 import { useDirectorStore } from "../director/store.ts";
-import { actorVisualFor } from "../mapping/visuals.ts";
+import { actorVisualFor, clothingColorsFor } from "../mapping/visuals.ts";
 import { useUiStore } from "../store/ui.ts";
-import { findDistrictPath, type NavGraph } from "../worldgen/index.ts";
+import { findDistrictPath, type WorldModel } from "../worldgen/index.ts";
 import type { PlacedNpcSpawn } from "../worldgen/placements.ts";
 import { rngFor } from "../worldgen/rng.ts";
 import type { CharacterAnimationHandle } from "./CharacterModel.tsx";
+import { followersStore } from "./followers.ts";
 import { RiggedCharacter } from "./RiggedCharacter.tsx";
 
 const WALK_SPEED = 1.15;
@@ -34,17 +35,39 @@ interface NpcProps {
   npc: NpcData;
   worldId: string;
   spawn: PlacedNpcSpawn;
-  nav: NavGraph;
+  model: WorldModel;
   quests: Quest[];
 }
 
-export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
+type AmbientRole = "shopkeeper" | "patroller" | "idler" | "wanderer";
+
+function ambientRoleFor(npc: NpcData): AmbientRole {
+  const text = `${npc.role ?? ""} ${npc.description ?? ""}`.toLowerCase();
+  if (/merchant|shop|keeper|vendor|clerk|innkeep|trader|bartend/.test(text)) return "shopkeeper";
+  if (/guard|patrol|hero|watch|officer|rider|soldier|knight/.test(text)) return "patroller";
+  if (/elder|old |child|kid|sage|sitting/.test(text)) return "idler";
+  return "wanderer";
+}
+
+/** higher tier = more agency = acts more often and roams further */
+function agencyFor(npc: NpcData): number {
+  if (npc.tier === "quest") return 1;
+  if (npc.tier === "background") return 0.45;
+  return 0.7;
+}
+
+export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
   const group = useRef<THREE.Group>(null);
   const animation = useRef<CharacterAnimationHandle>(null);
   // position prop must stay constant: movement is imperative, and a reactive
   // position would teleport the node whenever the sim relocates the NPC
   const [initialSpawn] = useState(() => ({ x: spawn.x, z: spawn.z, heading: spawn.heading }));
-  const visual = useMemo(() => actorVisualFor(npc.appearance, npc.tier === "quest" ? "#b5e48c" : "#ff8a65"), [npc.appearance, npc.tier]);
+  const visual = useMemo(() => {
+    const fallback = clothingColorsFor(npc.id);
+    const base = actorVisualFor(npc.appearance, fallback.color);
+    return base.accentColor === base.color ? { ...base, accentColor: fallback.accent } : base;
+  }, [npc.appearance, npc.id]);
+  const personaText = `${npc.name} ${npc.role ?? ""} ${npc.description ?? ""}`;
   const inDialogue = useUiStore((state) => state.dialogueNpcId === npc.id);
   const enemy = useCombatStore((state) => state.enemies[npc.id]);
   const lockedOn = useCombatStore((state) => state.lockTargetId === npc.id);
@@ -60,7 +83,26 @@ export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
     aiState: "approach" as EnemyAiState,
     aiUntil: 0,
     struck: false,
+    patrolAngle: 0,
   });
+
+  const ambientRole = useMemo(() => ambientRoleFor(npc), [npc]);
+  const agency = agencyFor(npc);
+
+  // routine anchor: shopkeepers hold position at their district's stall/counter, idlers at a bench
+  const routineAnchor = useMemo(() => {
+    const district = model.districts.find((entry) => entry.locationId === spawn.districtId);
+    if (!district) return null;
+    if (ambientRole === "shopkeeper") {
+      const stall = district.props.find((prop) => prop.kind === "stall") ?? district.props.find((prop) => prop.kind === "crate");
+      if (stall) return { x: stall.x + 0.9, z: stall.z + 0.4 };
+    }
+    if (ambientRole === "idler") {
+      const bench = district.props.find((prop) => prop.kind === "bench");
+      if (bench) return { x: bench.x + 0.4, z: bench.z + 0.7 };
+    }
+    return null;
+  }, [model, spawn.districtId, ambientRole]);
 
   useEffect(() => {
     const actor = registerNpc(npc.id);
@@ -74,11 +116,11 @@ export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
     const s = state.current;
     s.wanderCenter = { x: spawn.x, z: spawn.z };
     if (spawn.districtId === s.districtId) return;
-    const path = findDistrictPath(nav, s.districtId, spawn.districtId) ?? [];
+    const path = findDistrictPath(model.nav, s.districtId, spawn.districtId) ?? [];
     s.travelWaypoints = [...path.slice(1), { x: spawn.x, z: spawn.z }];
     s.districtId = spawn.districtId;
     s.wanderTarget.set(spawn.x, 0, spawn.z);
-  }, [spawn.districtId, spawn.x, spawn.z, nav]);
+  }, [spawn.districtId, spawn.x, spawn.z, model]);
 
   useFrame((frame, delta) => {
     const node = group.current;
@@ -134,16 +176,61 @@ export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
       return;
     }
 
-    const distance = node.position.distanceTo(s.wanderTarget);
-    if (distance < 0.15) {
-      if (time > s.waitUntil) {
-        if (s.waitUntil !== 0) {
+    // companion mode: trail the player everywhere
+    if (followersStore.has(npc.id)) {
+      const toPlayer = playerPosition.clone().sub(node.position);
+      toPlayer.y = 0;
+      const distance = toPlayer.length();
+      if (distance > 30) {
+        // catch up after teleports (doors, respawns)
+        node.position.set(playerPosition.x - 1.6, 0, playerPosition.z - 1.6);
+      } else if (distance > 2.2) {
+        const speed = distance > 7 ? 6.4 : 3.6;
+        const step = toPlayer.normalize().multiplyScalar(Math.min(speed * delta, distance - 2));
+        node.position.add(step);
+        s.heading = dampAngle(s.heading, Math.atan2(toPlayer.x, toPlayer.z), 10, delta);
+        node.rotation.y = s.heading;
+        animation.current?.setSpeed(speed);
+      } else {
+        animation.current?.setSpeed(0);
+        s.heading = dampAngle(s.heading, Math.atan2(playerPosition.x - node.position.x, playerPosition.z - node.position.z), 6, delta);
+        node.rotation.y = s.heading;
+      }
+      syncRegistry(npc.id, node.position);
+      return;
+    }
+
+    // ambient routine targets
+    if (time > s.waitUntil) {
+      if (s.waitUntil !== 0) {
+        if (ambientRole === "shopkeeper" && routineAnchor) {
+          const jitter = 0.35;
+          s.wanderTarget.set(routineAnchor.x + (s.rng() - 0.5) * jitter, 0, routineAnchor.z + (s.rng() - 0.5) * jitter);
+        } else if (ambientRole === "patroller") {
+          const district = model.districts.find((entry) => entry.locationId === s.districtId);
+          if (district) {
+            s.patrolAngle += 0.9 + s.rng() * 0.5;
+            const radius = district.courtyard.radius * 1.05;
+            s.wanderTarget.set(
+              district.courtyard.x + Math.cos(s.patrolAngle) * radius,
+              0,
+              district.courtyard.z + Math.sin(s.patrolAngle) * radius
+            );
+          }
+        } else if (ambientRole === "idler" && routineAnchor) {
+          s.wanderTarget.set(routineAnchor.x + (s.rng() - 0.5) * 0.8, 0, routineAnchor.z + (s.rng() - 0.5) * 0.8);
+        } else {
           const angle = s.rng() * Math.PI * 2;
           const radius = s.rng() * WANDER_RADIUS;
           s.wanderTarget.set(s.wanderCenter.x + Math.cos(angle) * radius, 0, s.wanderCenter.z + Math.sin(angle) * radius);
         }
-        s.waitUntil = time + 2 + s.rng() * 4;
       }
+      const idle = ambientRole === "idler" ? 7 : ambientRole === "shopkeeper" ? 5 : 2;
+      s.waitUntil = time + (idle + s.rng() * 4) / agency;
+    }
+
+    const distance = node.position.distanceTo(s.wanderTarget);
+    if (distance < 0.15) {
       animation.current?.setSpeed(0);
     } else {
       const direction = s.wanderTarget.clone().sub(node.position).normalize();
@@ -161,7 +248,7 @@ export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
 
   return (
     <group ref={group} position={[initialSpawn.x, 0, initialSpawn.z]} rotation={[0, initialSpawn.heading, 0]}>
-      <RiggedCharacter ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} />
+      <RiggedCharacter ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} personaText={personaText} />
       <Billboard position={[0, 2.35, 0]}>
         <Text
           fontSize={0.24}

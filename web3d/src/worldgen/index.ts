@@ -1,6 +1,6 @@
 import type { World } from "../../../src/types.ts";
 import { generateDistrict } from "./district.ts";
-import { generateInteriors } from "./interiors.ts";
+import { generateDoors } from "./interiors.ts";
 import { WORLD_SCALE, type WorldModel } from "./model.ts";
 import { buildNavGraph } from "./navgraph.ts";
 import { generateStreets } from "./streets.ts";
@@ -15,10 +15,9 @@ export function generateWorldModel(world: World): WorldModel {
   const districts = world.locations.map((location) => generateDistrict(world, location));
   const { streets, gates } = generateStreets(world.locations, world.exits, bounds);
   const nav = buildNavGraph(districts, streets);
-  const partial = { worldId: world.id, districts, streets, gates, nav, bounds };
-  const { interiors, doors } = generateInteriors(world, { ...partial, interiors: [], doors: [] });
+  const doors = generateDoors({ districts });
 
-  return { ...partial, interiors, doors };
+  return { worldId: world.id, districts, streets, gates, nav, doors, bounds };
 }
 
 export type { BuildingModel, DistrictModel, GateModel, ItemPlacement, NavGraph, NpcSpawn, PropModel, StreetModel, WorldModel } from "./model.ts";

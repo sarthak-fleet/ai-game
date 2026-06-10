@@ -68,22 +68,16 @@ City level (`worldgen/streets.ts`, `worldgen/navgraph.ts`):
 
 ## Interiors (`worldgen/interiors.ts`, `scene/Interior.tsx`)
 
-Each district's largest building is enterable: a doorframe with a lantern marks
-it, and `E — Enter` teleports the player into a dollhouse room (low walls, no
-ceiling — the existing follow camera looks over them, no occlusion handling
-needed). Rooms generate deterministically: palette-derived floor/walls, a
-furniture plan by role keyword (inn → counter/tables/hearth; forge →
-anvil/crates; home → bed/rug/plants…), warm point light, and an exit door that
-returns the player just outside.
+EVERY building is enterable: each gets a doorframe + lantern on its
+courtyard-facing face and a generated name (role-flavored: Tavern Rooms,
+Workshop, Cottage…). Interiors generate **on demand** per building
+(deterministic, LRU-cached, only the active room is ever mounted), sized to the
+building footprint, furnished by district role, dollhouse-style (low walls, no
+ceiling). Entering is a one-shot teleport to a staging area south of the city —
+no scene swap, no physics churn. Cutscenes are suppressed inside; interior
+state (`interiorBuildingId`) resets on world replace.
 
-Rooms are placed far south of the city bounds and stay mounted — entering is a
-one-shot teleport (`controls/runtime.ts requestTeleport`), so there's no scene
-swap, no physics churn, and district-crossing detection stays naturally
-silent (the player is outside every plot). Cutscenes are suppressed while
-inside. Interior state lives in the UI store (`interiorDistrictId`) and resets
-on world import/replace.
-
-## LLM dialogue (`src/dialogue.ts`, `POST /api/dialogue`)
+## LLM dialogue with real agency (`src/dialogue.ts`, `POST /api/dialogue`)
 
 With `LLM_API_KEY` + `LLM_BASE_URL` set (see `.env.example` — OpenAI-compatible
 gateway), conversations become free-flowing and in-character:
@@ -95,8 +89,19 @@ gateway), conversations become free-flowing and in-character:
 - Replies do **not** consume a sim tick (the clock doesn't jump 2h per line);
   both turns are written into `npc.memories`, so the agent loop and later
   conversations stay consistent with what was said.
-- Per-NPC conversation history is held server-side (capped, cleared on world
-  replace). Quest-tier NPCs use the quest-tier model.
+- **Conversations have consequences**: the model returns {reply, action,
+  disposition}. Actions are engine-validated then applied for real — move,
+  give, offer_quest/complete_quest, fight, follow/unfollow (companion mode),
+  and create_quest (the NPC invents a new task; capped, deduped, instantly
+  active). Applied actions broadcast a synthetic tick over SSE.
+- **Relationships develop**: disposition (-2..2) shifts the relationship graph
+  and trust/affection axes; the dialogue header shows a live label. Per-NPC
+  conversation history persists server-side and reloads on reopen. Quest-tier
+  NPCs use the quest-tier model.
+- **Anti-loop**: the engine rejects duplicate remember actions; the prompt
+  pushes circling conversations toward a decision. Transient model failures
+  retry once server-side; the client shows a soft "lost in thought" line
+  instead of a canned fallback.
 - Without credentials the endpoint answers `{llm:false}` and the client falls
   back to the scripted tick-talk path; the client remembers the answer to skip
   the extra round-trip. The agent loop's LLM proposer/director activate from

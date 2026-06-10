@@ -23,10 +23,23 @@ export async function postTick(action: PlayerAction | null): Promise<TickRespons
   return data;
 }
 
+export interface DialogueRelationship {
+  score: number;
+  label: string;
+}
+
 export interface DialogueResponse {
   llm: boolean;
   reply?: string;
   error?: string;
+  action?: { type: string; text: string } | null;
+  relationship?: DialogueRelationship;
+}
+
+export interface DialogueHistoryResponse {
+  llm: boolean;
+  turns?: Array<{ speaker: "player" | "npc" | "event"; text: string }>;
+  relationship?: DialogueRelationship;
 }
 
 export async function postDialogue(npcId: string, text: string): Promise<DialogueResponse> {
@@ -36,6 +49,11 @@ export async function postDialogue(npcId: string, text: string): Promise<Dialogu
     body: JSON.stringify({ npcId, text }),
   });
   return readApiJson<DialogueResponse>(res, "postDialogue");
+}
+
+export async function fetchDialogueHistory(npcId: string): Promise<DialogueHistoryResponse> {
+  const res = await fetch(`/api/dialogue/history?npcId=${encodeURIComponent(npcId)}`);
+  return readApiJson<DialogueHistoryResponse>(res, "fetchDialogueHistory");
 }
 
 export async function fetchAgentLoopStatus(): Promise<AgentLoopStatus> {

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 
+import { followersStore } from "../characters/followers.ts";
 import { useCombatStore } from "../combat/store.ts";
-import { npcRegistry, playerHeading, playerPosition } from "../controls/runtime.ts";
+import { cameraState, npcRegistry, playerHeading, playerPosition } from "../controls/runtime.ts";
 import { useWorldStore } from "../store/world.ts";
 import { cityModelFor } from "../worldgen/cache.ts";
 
@@ -66,6 +67,13 @@ export function Minimap() {
         ctx.stroke();
       }
 
+      // doors of the active district
+      ctx.fillStyle = "rgba(255, 233, 176, 0.95)";
+      for (const door of model.doors) {
+        if (door.districtId !== activeId) continue;
+        ctx.fillRect(toX(door.x) - 1.5, toY(door.z) - 1.5, 3, 3);
+      }
+
       // item markers
       ctx.fillStyle = "#ffd84d";
       for (const district of model.districts) {
@@ -81,21 +89,44 @@ export function Minimap() {
         const npc = world.npcs.find((entry) => entry.id === actor.npcId);
         const enemy = enemies[actor.npcId];
         const defeated = enemy?.defeated || npc?.combat?.defeated;
+        const following = followersStore.has(actor.npcId);
         ctx.fillStyle = defeated
           ? "rgba(130, 138, 152, 0.7)"
           : enemy?.hostile
             ? "#ff5a4a"
-            : npc?.tier === "quest"
-              ? "#ffd84d"
-              : "#e8edf5";
+            : following
+              ? "#7fd0ff"
+              : npc?.tier === "quest"
+                ? "#ffd84d"
+                : "#e8edf5";
         ctx.beginPath();
-        ctx.arc(toX(actor.position.x), toY(actor.position.z), 2.6, 0, Math.PI * 2);
+        ctx.arc(toX(actor.position.x), toY(actor.position.z), following ? 3.2 : 2.6, 0, Math.PI * 2);
         ctx.fill();
+        if (following) {
+          ctx.strokeStyle = "rgba(127, 208, 255, 0.8)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
       }
 
-      // player arrow
+      // player view cone (camera facing)
       const px = toX(playerPosition.x);
       const py = toY(playerPosition.z);
+      const camAngle = Math.PI - cameraState.yaw;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(camAngle + Math.PI);
+      const cone = ctx.createLinearGradient(0, 0, 0, -26);
+      cone.addColorStop(0, "rgba(127, 208, 255, 0.30)");
+      cone.addColorStop(1, "rgba(127, 208, 255, 0)");
+      ctx.fillStyle = cone;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-11, -26);
+      ctx.lineTo(11, -26);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
       ctx.save();
       ctx.translate(px, py);
       // model yaw θ faces (sinθ, cosθ) in world x/z; canvas up is -y → rotate by π − θ
@@ -112,6 +143,12 @@ export function Minimap() {
       ctx.fill();
       ctx.stroke();
       ctx.restore();
+
+      // compass north
+      ctx.fillStyle = "rgba(232, 237, 245, 0.8)";
+      ctx.font = "bold 9px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("N", 5, 11);
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);

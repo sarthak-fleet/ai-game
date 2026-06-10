@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 export interface DialogueLine {
-  speaker: "player" | "npc";
+  speaker: "player" | "npc" | "event";
   speakerName: string;
   text: string;
 }
@@ -18,10 +18,11 @@ interface UiStore {
   dialogueLines: DialogueLine[];
   dialogueBusy: boolean;
   interactionTarget: InteractionTarget | null;
-  /** district id whose interior the player is currently inside, if any */
-  interiorDistrictId: string | null;
-  setInteriorDistrictId: (districtId: string | null) => void;
+  /** building id whose interior the player is currently inside, if any */
+  interiorBuildingId: string | null;
+  setInteriorBuildingId: (buildingId: string | null) => void;
   openDialogue: (npcId: string) => void;
+  setDialogueLines: (lines: DialogueLine[]) => void;
   pushDialogueLine: (line: DialogueLine) => void;
   setDialogueBusy: (busy: boolean) => void;
   closeDialogue: () => void;
@@ -33,15 +34,18 @@ export const useUiStore = create<UiStore>((set, get) => ({
   dialogueLines: [],
   dialogueBusy: false,
   interactionTarget: null,
-  interiorDistrictId: null,
+  interiorBuildingId: null,
 
-  setInteriorDistrictId(districtId) {
-    set({ interiorDistrictId: districtId });
+  setInteriorBuildingId(buildingId) {
+    set({ interiorBuildingId: buildingId });
   },
 
   openDialogue(npcId) {
     if (get().dialogueNpcId === npcId) return;
     set({ dialogueNpcId: npcId, dialogueLines: [], dialogueBusy: false });
+  },
+  setDialogueLines(lines) {
+    set({ dialogueLines: lines });
   },
   pushDialogueLine(line) {
     set({ dialogueLines: [...get().dialogueLines, line] });

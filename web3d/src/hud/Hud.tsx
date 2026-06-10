@@ -7,6 +7,7 @@ import { requestTeleport } from "../controls/runtime.ts";
 import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
 import { cityModelFor } from "../worldgen/cache.ts";
+import { interiorForBuilding } from "../worldgen/interiors.ts";
 import { Dialogue } from "./Dialogue.tsx";
 import { ImportScreen } from "./ImportScreen.tsx";
 import { Letterbox } from "./Letterbox.tsx";
@@ -25,7 +26,7 @@ export function Hud() {
   const target = useUiStore((state) => state.interactionTarget);
   const dialogueNpcId = useUiStore((state) => state.dialogueNpcId);
   const openDialogue = useUiStore((state) => state.openDialogue);
-  const interiorDistrictId = useUiStore((state) => state.interiorDistrictId);
+  const interiorBuildingId = useUiStore((state) => state.interiorBuildingId);
   const [importOpen, setImportOpen] = useState(false);
   const playerHp = useCombatStore((state) => state.playerHp);
   const playerMaxHp = useCombatStore((state) => state.playerMaxHp);
@@ -50,17 +51,17 @@ export function Hud() {
         const currentWorld = useWorldStore.getState().world;
         if (!currentWorld) return;
         const cityModel = cityModelFor(currentWorld);
-        if (ui.interiorDistrictId === current.id) {
-          const door = cityModel.doors.find((entry) => entry.districtId === current.id);
+        if (ui.interiorBuildingId === current.id) {
+          const door = cityModel.doors.find((entry) => entry.buildingId === current.id);
           if (door) {
             requestTeleport(door.outsideX, door.outsideZ);
-            ui.setInteriorDistrictId(null);
+            ui.setInteriorBuildingId(null);
           }
         } else {
-          const interior = cityModel.interiors.find((entry) => entry.districtId === current.id);
+          const interior = interiorForBuilding(currentWorld, cityModel, current.id);
           if (interior) {
             requestTeleport(interior.spawn.x, interior.spawn.z);
-            ui.setInteriorDistrictId(current.id);
+            ui.setInteriorBuildingId(current.id);
           }
         }
         ui.setInteractionTarget(null);
@@ -72,8 +73,8 @@ export function Hud() {
 
   if (!world) return null;
 
-  const interiorLabel = interiorDistrictId
-    ? cityModelFor(world).interiors.find((entry) => entry.districtId === interiorDistrictId)?.label
+  const interiorLabel = interiorBuildingId
+    ? interiorForBuilding(world, cityModelFor(world), interiorBuildingId)?.label
     : null;
   const location = world.locations.find((entry) => entry.id === world.player.locationId);
 
@@ -127,6 +128,18 @@ export function Hud() {
       {!dialogueNpcId ? (
         <div className="controls-hint">
           WASD move · Shift run · E interact · F/click attack · Space dodge · Q lock-on · drag orbit · wheel zoom
+        </div>
+      ) : null}
+
+      {world.items.some((item) => item.holderId === "player") ? (
+        <div className="inventory">
+          {world.items
+            .filter((item) => item.holderId === "player")
+            .map((item) => (
+              <div key={item.id} className="inventory-chip" title={item.description ?? item.name}>
+                {item.name}
+              </div>
+            ))}
         </div>
       ) : null}
 

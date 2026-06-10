@@ -38,22 +38,31 @@ interface RiggedCharacterProps {
   visual: ActorVisual;
   appearance?: CharacterAppearance;
   seedId: string;
+  /** name + role + description — drives gender presentation cues */
+  personaText?: string;
 }
 
 type HairStyle = "bald" | "flat" | "spiky" | "ponytail" | "bob" | "buns";
 
-function hairStyleFor(appearance: CharacterAppearance | undefined, seedId: string): HairStyle {
+export function isFemalePresenting(appearance: CharacterAppearance | undefined, personaText: string): boolean {
+  const text = `${personaText} ${appearance?.sourceLook ?? ""} ${appearance?.outfit ?? ""} ${(appearance?.visualTags ?? []).join(" ")}`.toLowerCase();
+  return /\bshe\b|\bher\b|\bhers\b|\bwoman\b|\bgirl\b|\blady\b|female|feminine|dress|skirt/.test(text);
+}
+
+function hairStyleFor(appearance: CharacterAppearance | undefined, seedId: string, female: boolean): HairStyle {
   const text = `${appearance?.hair ?? ""} ${appearance?.sourceLook ?? ""} ${(appearance?.visualTags ?? []).join(" ")}`.toLowerCase();
   if (/bald|shaved|hairless/.test(text)) return "bald";
   if (/spik|wild|messy|flame|shonen/.test(text)) return "spiky";
   if (/ponytail|tied|braid|long/.test(text)) return "ponytail";
   if (/bun|space/.test(text)) return "buns";
   if (/bob|short|neat|trim/.test(text)) return "bob";
-  const styles: HairStyle[] = ["flat", "spiky", "bob", "ponytail"];
+  const styles: HairStyle[] = female ? ["ponytail", "bob", "buns", "ponytail"] : ["flat", "spiky", "bob", "flat"];
   return styles[stableHash(`${seedId}:hair`) % styles.length]!;
 }
 
-function hairColorFor(appearance: CharacterAppearance | undefined, accent: string): string {
+const NATURAL_HAIR = ["#23252e", "#3a2e24", "#6e4a32", "#8a6a3c", "#e8c95a", "#b8bcc8", "#742f20"];
+
+function hairColorFor(appearance: CharacterAppearance | undefined, seedId: string): string {
   const text = `${appearance?.hair ?? ""} ${appearance?.sourceLook ?? ""} ${(appearance?.visualTags ?? []).join(" ")}`.toLowerCase();
   if (/black/.test(text)) return "#23252e";
   if (/white|silver/.test(text)) return "#e8e9ef";
@@ -63,7 +72,8 @@ function hairColorFor(appearance: CharacterAppearance | undefined, accent: strin
   if (/blue/.test(text)) return "#5a7fd6";
   if (/red|crimson|orange/.test(text)) return "#c8503c";
   if (/brown|auburn/.test(text)) return "#6e4a32";
-  return accent;
+  // hash a natural color — accent-colored hair vanished against accent bodies
+  return NATURAL_HAIR[stableHash(`${seedId}:haircolor`) % NATURAL_HAIR.length]!;
 }
 
 /**
@@ -73,14 +83,14 @@ function hairColorFor(appearance: CharacterAppearance | undefined, accent: strin
  * to the Head/spine bones so schema identity survives the rig swap.
  */
 export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharacterProps>(function RiggedCharacter(
-  { visual, appearance, seedId },
+  { visual, appearance, seedId, personaText = "" },
   ref
 ) {
   const gltf = useGLTF(MODEL_URL);
   const speedRef = useRef(0);
   const defeatedRef = useRef(false);
 
-  const { scene, mixer, actions, normalizeScale, headBone, chestBone } = useMemo(() => {
+  const { scene, mixer, actions, normalizeScale, headBone, chestBone, hipsBone } = useMemo(() => {
     const cloned = cloneSkeleton(gltf.scene);
     const box = new THREE.Box3().setFromObject(cloned);
     const height = Math.max(0.01, box.max.y - box.min.y);
@@ -108,6 +118,7 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
       normalizeScale: normalize,
       headBone: cloned.getObjectByName("Head") ?? null,
       chestBone: cloned.getObjectByName("spine_03") ?? cloned.getObjectByName("neck_01") ?? null,
+      hipsBone: cloned.getObjectByName("pelvis") ?? cloned.getObjectByName("Hips") ?? cloned.getObjectByName("spine_01") ?? null,
     };
   }, [gltf, visual.color]);
 
@@ -116,12 +127,15 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
   // (Unreal-style skeletons) make direct bone parenting unreliable.
   const headDecor = useRef<THREE.Group>(null);
   const chestDecor = useRef<THREE.Group>(null);
-  const bindCorrection = useRef<{ head: THREE.Quaternion; chest: THREE.Quaternion } | null>(null);
+  const hipsDecor = useRef<THREE.Group>(null);
+  const bindCorrection = useRef<{ head: THREE.Quaternion; chest: THREE.Quaternion; hips: THREE.Quaternion } | null>(null);
+
+  const female = useMemo(() => isFemalePresenting(appearance, personaText), [appearance, personaText]);
 
   const decor = useMemo(() => {
-    const hairStyle = visual.bodyShape === "mechanical" ? "bald" : hairStyleFor(appearance, seedId);
+    const hairStyle = visual.bodyShape === "mechanical" ? "bald" : hairStyleFor(appearance, seedId, female);
     const head = new THREE.Group();
-    buildHeadDecor(head, hairStyle, hairColorFor(appearance, visual.accentColor), visual);
+    buildHeadDecor(head, hairStyle, hairColorFor(appearance, seedId), visual);
     let chest: THREE.Group | null = null;
     if (visual.bodyShape === "caped") {
       chest = new THREE.Group();
@@ -131,8 +145,16 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
       cape.castShadow = true;
       chest.add(cape);
     }
-    return { head, chest };
-  }, [appearance, seedId, visual]);
+    let hips: THREE.Group | null = null;
+    if (female) {
+      hips = new THREE.Group();
+      const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.34, 0.42, 12, 1, true), toonMaterial(visual.accentColor));
+      skirt.position.set(0, -0.28, 0);
+      skirt.castShadow = true;
+      hips.add(skirt);
+    }
+    return { head, chest, hips };
+  }, [appearance, seedId, visual, female]);
 
   useEffect(() => {
     // bind-pose correction: rotate bone orientation into model axes
@@ -145,8 +167,8 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
       bone.getWorldQuaternion(q);
       return q.invert().multiply(modelQuat);
     };
-    bindCorrection.current = { head: correctionFor(headBone), chest: correctionFor(chestBone) };
-  }, [scene, headBone, chestBone]);
+    bindCorrection.current = { head: correctionFor(headBone), chest: correctionFor(chestBone), hips: correctionFor(hipsBone) };
+  }, [scene, headBone, chestBone, hipsBone]);
 
   const currentLocomotion = useRef<string>("");
   const overlayUntil = useRef(0);
@@ -207,6 +229,7 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
       };
       sync(headDecor.current, headBone, correction.head);
       sync(chestDecor.current, chestBone, correction.chest);
+      sync(hipsDecor.current, hipsBone, correction.hips);
     }
 
     if (defeatedRef.current) return;
@@ -228,13 +251,15 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
     }
   });
 
-  const bodyScale = visual.bodyShape === "broad" ? 1.08 : visual.bodyShape === "small" ? 0.8 : visual.bodyShape === "slim" ? 0.98 : 1;
+  const baseScale = visual.bodyShape === "broad" ? 1.08 : visual.bodyShape === "small" ? 0.8 : visual.bodyShape === "slim" ? 0.98 : 1;
+  const bodyScale = baseScale * (female ? 0.95 : 1);
 
   return (
     <group ref={rootRef} scale={bodyScale}>
       <primitive object={scene} scale={normalizeScale} />
       <primitive ref={headDecor} object={decor.head} />
       {decor.chest ? <primitive ref={chestDecor} object={decor.chest} /> : null}
+      {decor.hips ? <primitive ref={hipsDecor} object={decor.hips} /> : null}
     </group>
   );
 });
@@ -249,12 +274,12 @@ function buildHeadDecor(outer: THREE.Group, style: HairStyle, hairColor: string,
 
   // anime eyes
   for (const side of [-1, 1]) {
-    const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), toonMaterial("#f6f7fb"));
-    eyeWhite.scale.set(1, 1.5, 0.55);
-    eyeWhite.position.set(side * radius * 0.42, 0.035, radius * 0.78);
-    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), toonMaterial("#1d2330"));
+    const eyeWhite = new THREE.Mesh(new THREE.SphereGeometry(0.034, 10, 8), toonMaterial("#f6f7fb"));
+    eyeWhite.scale.set(1, 1.5, 0.5);
+    eyeWhite.position.set(side * radius * 0.42, 0.035, radius * 0.92);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), toonMaterial("#1d2330"));
     iris.scale.set(1, 1.45, 0.5);
-    iris.position.set(side * radius * 0.42, 0.032, radius * 0.8);
+    iris.position.set(side * radius * 0.42, 0.032, radius * 0.97);
     group.add(eyeWhite, iris);
   }
   if (visual.bodyShape === "mechanical") {

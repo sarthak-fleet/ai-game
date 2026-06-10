@@ -9,7 +9,9 @@ import { isNight, type World } from "../../../src/types.ts";
 import { Npc } from "../characters/Npc.tsx";
 import { CombatVfx } from "../combat/Vfx.tsx";
 import { PlayerController } from "../controls/PlayerController.tsx";
+import { useUiStore } from "../store/ui.ts";
 import { cityModelFor } from "../worldgen/cache.ts";
+import { interiorForBuilding } from "../worldgen/interiors.ts";
 import { computePlacements } from "../worldgen/placements.ts";
 import { CityGround } from "./CityGround.tsx";
 import { District, InteractableMarker, ItemMarker } from "./District.tsx";
@@ -23,12 +25,17 @@ export function GameWorld({ world }: { world: World }) {
   const model = cityModelFor(world);
   const placements = useMemo(() => computePlacements(world, model.districts), [world, model]);
   const night = isNight(world.clock);
+  const interiorBuildingId = useUiStore((state) => state.interiorBuildingId);
+  const activeInterior = interiorBuildingId ? interiorForBuilding(world, model, interiorBuildingId) : null;
 
   useEffect(() => {
     if (!import.meta.env.DEV || typeof window === "undefined") return;
     const debug = (window as unknown as Record<string, unknown>)["__game"] as Record<string, unknown> | undefined;
-    if (debug) debug["doors"] = model.doors;
-  }, [model]);
+    if (debug) {
+      debug["doors"] = model.doors;
+      debug["items"] = placements.items;
+    }
+  }, [model, placements]);
 
   const activeDistrict = model.districts.find((district) => district.locationId === world.player.locationId) ?? model.districts[0];
   if (!activeDistrict) return null;
@@ -53,9 +60,7 @@ export function GameWorld({ world }: { world: World }) {
           {model.districts.map((district) => (
             <District key={district.locationId} district={district} night={night} />
           ))}
-          {model.interiors.map((interior) => (
-            <Interior key={interior.districtId} interior={interior} />
-          ))}
+          {activeInterior ? <Interior key={activeInterior.buildingId} interior={activeInterior} /> : null}
           {placements.items.map((item) => (
             <ItemMarker key={item.itemId} item={item} />
           ))}
@@ -65,7 +70,7 @@ export function GameWorld({ world }: { world: World }) {
           {world.npcs.map((npc) => {
             const spawn = placements.npcSpawns[npc.id];
             if (!spawn) return null;
-            return <Npc key={npc.id} npc={npc} worldId={world.id} spawn={spawn} nav={model.nav} quests={world.quests ?? []} />;
+            return <Npc key={npc.id} npc={npc} worldId={world.id} spawn={spawn} model={model} quests={world.quests ?? []} />;
           })}
           <PlayerController world={world} model={model} placements={placements} activeDistrict={activeDistrict} />
           <CombatVfx />

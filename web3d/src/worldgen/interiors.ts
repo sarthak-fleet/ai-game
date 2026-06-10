@@ -26,21 +26,22 @@ export interface FurnitureModel {
 }
 
 export interface InteriorDoor {
+  /** building this door belongs to */
+  buildingId: string;
   districtId: string;
   /** world-space position of the exterior door (interaction point) */
   x: number;
   z: number;
-  /** label, e.g. "the Lantern Inn" */
   label: string;
-  /** facing the courtyard: player exits toward this point */
+  /** player exits toward this point (just outside the door) */
   outsideX: number;
   outsideZ: number;
 }
 
 export interface InteriorModel {
+  buildingId: string;
   districtId: string;
   label: string;
-  /** world-space rect of the room (placed far from the city) */
   origin: { x: number; z: number };
   width: number;
   depth: number;
@@ -48,139 +49,172 @@ export interface InteriorModel {
   floorColor: string;
   wallColor: string;
   accentColor: string;
-  /** player spawn just inside the exit door */
   spawn: { x: number; z: number };
-  /** interior exit-door interaction point */
   exit: { x: number; z: number };
   furniture: FurnitureModel[];
 }
 
 const WALL_HEIGHT = 3.2;
-const ROOM_SPACING = 40;
 const ROOM_MARGIN_FROM_CITY = 120;
 
 interface FurniturePlan {
   kinds: FurnitureKind[];
   extra: FurnitureKind[];
-  /** room footprint in meters — every role gets a distinct floor plan */
-  width: number;
-  depth: number;
-  /** lerp the wall color toward this tint for role identity */
   wallTint: string;
+  names: string[];
 }
 
 const ROLE_FURNITURE: Array<{ pattern: RegExp; plan: FurniturePlan }> = [
-  // tavern hall: big and busy
   {
     pattern: /inn|kiosk|counter|report|station|market/i,
-    plan: { kinds: ["counter", "table", "chair", "chair", "hearth", "shelf", "rug", "table", "barrel"], extra: ["barrel", "plant", "chair"], width: 18, depth: 13, wallTint: "#8a6a4a" },
+    plan: {
+      kinds: ["counter", "table", "chair", "chair", "hearth", "shelf", "rug", "table", "barrel"],
+      extra: ["barrel", "plant", "chair"],
+      wallTint: "#8a6a4a",
+      names: ["Common Hall", "Tavern Rooms", "Guest House", "Trading Post", "Counter Room"],
+    },
   },
-  // workshop: wide and soot-dark
   {
     pattern: /forge|training|engine|industrial|concrete/i,
-    plan: { kinds: ["anvil", "hearth", "table", "crate", "crate", "barrel", "shelf"], extra: ["crate", "barrel"], width: 16, depth: 11, wallTint: "#4a4440" },
+    plan: {
+      kinds: ["anvil", "hearth", "table", "crate", "crate", "barrel", "shelf"],
+      extra: ["crate", "barrel"],
+      wallTint: "#4a4440",
+      names: ["Workshop", "Tool Shed", "Smelting Room", "Storage Bay", "Machine Shop"],
+    },
   },
-  // home: small and cozy
   {
     pattern: /garden|home|apartment|wood|balcony/i,
-    plan: { kinds: ["bed", "table", "chair", "rug", "shelf", "plant"], extra: ["plant", "chair"], width: 11, depth: 9, wallTint: "#9a8468" },
+    plan: {
+      kinds: ["bed", "table", "chair", "rug", "shelf", "plant"],
+      extra: ["plant", "chair"],
+      wallTint: "#9a8468",
+      names: ["Cottage", "Apartment", "Family Home", "Garden House", "Loft"],
+    },
   },
-  // ruin: cramped and bare
   {
     pattern: /bridge|overpass|ruin|threat|alley|monster/i,
-    plan: { kinds: ["crate", "crate", "barrel", "table"], extra: ["crate"], width: 12, depth: 9, wallTint: "#52565e" },
+    plan: {
+      kinds: ["crate", "crate", "barrel", "table"],
+      extra: ["crate"],
+      wallTint: "#52565e",
+      names: ["Abandoned Room", "Squatter Den", "Storage Ruin", "Boarded House"],
+    },
   },
 ];
 
-const DEFAULT_PLAN: FurniturePlan = { kinds: ["table", "chair", "shelf", "rug", "plant"], extra: ["chair", "crate"], width: 14, depth: 11, wallTint: "#7a7468" };
+const DEFAULT_PLAN: FurniturePlan = {
+  kinds: ["table", "chair", "shelf", "rug", "plant"],
+  extra: ["chair", "crate"],
+  wallTint: "#7a7468",
+  names: ["House", "Office", "Workroom", "Quarters", "Den"],
+};
 
 function planFor(district: DistrictModel): FurniturePlan {
   return ROLE_FURNITURE.find((entry) => entry.pattern.test(district.roleText))?.plan ?? DEFAULT_PLAN;
 }
 
-export function anchorBuilding(district: DistrictModel): BuildingModel | null {
-  let best: BuildingModel | null = null;
-  for (const building of district.buildings) {
-    if (!best || building.width * building.depth > best.width * best.depth) best = building;
-  }
-  return best;
-}
-
-export function interiorDoorFor(district: DistrictModel): InteriorDoor | null {
-  const building = anchorBuilding(district);
-  if (!building) return null;
+function doorFaceFor(district: DistrictModel, building: BuildingModel): { x: number; z: number; outsideX: number; outsideZ: number } {
   const dx = district.courtyard.x - building.x;
   const dz = district.courtyard.z - building.z;
-  let x = building.x;
-  let z = building.z;
-  let outsideX = x;
-  let outsideZ = z;
   if (Math.abs(dx) > Math.abs(dz)) {
-    x += (Math.sign(dx) * building.width) / 2;
-    outsideX = x + Math.sign(dx) * 1.4;
-    outsideZ = z;
-  } else {
-    z += (Math.sign(dz) * building.depth) / 2;
-    outsideZ = z + Math.sign(dz) * 1.4;
-    outsideX = x;
+    const x = building.x + (Math.sign(dx) * building.width) / 2;
+    return { x, z: building.z, outsideX: x + Math.sign(dx) * 1.4, outsideZ: building.z };
   }
-  return { districtId: district.locationId, x, z, label: `the ${district.name}`, outsideX, outsideZ };
+  const z = building.z + (Math.sign(dz) * building.depth) / 2;
+  return { x: building.x, z, outsideX: building.x, outsideZ: z + Math.sign(dz) * 1.4 };
 }
 
-export function generateInteriors(world: World, model: WorldModel): { interiors: InteriorModel[]; doors: InteriorDoor[] } {
-  const interiors: InteriorModel[] = [];
+/** Every building in every district is enterable. */
+export function generateDoors(model: Pick<WorldModel, "districts">): InteriorDoor[] {
   const doors: InteriorDoor[] = [];
-  model.districts.forEach((district, index) => {
-    const door = interiorDoorFor(district);
-    if (!door) return;
-    doors.push(door);
-
-    const rng = rngFor(world.id, district.locationId, "interior");
+  for (const district of model.districts) {
     const plan = planFor(district);
-    const origin = {
-      x: model.bounds.minX + index * ROOM_SPACING,
-      z: model.bounds.maxZ + ROOM_MARGIN_FROM_CITY,
-    };
-    const exit = { x: origin.x + plan.width / 2, z: origin.z + plan.depth - 0.6 };
-    const spawn = { x: exit.x, z: exit.z - 1.6 };
-
-    const furniture: FurnitureModel[] = [];
-    const slots = shuffledSlots(rng, origin, plan.width, plan.depth);
-    const kinds = [...plan.kinds];
-    if (rng() > 0.5) kinds.push(pick(rng, plan.extra));
-    kinds.forEach((kind, kindIndex) => {
-      const slot = slots[kindIndex];
-      if (!slot) return;
-      furniture.push({
-        id: `${district.locationId}:furniture:${kindIndex}`,
-        kind,
-        x: slot.x,
-        z: slot.z,
-        rotationY: slot.rotationY + range(rng, -0.15, 0.15),
-        color: district.palette.structure,
-        accentColor: district.palette.accent,
+    district.buildings.forEach((building, index) => {
+      const face = doorFaceFor(district, building);
+      const name = plan.names[index % plan.names.length]!;
+      const suffix = index >= plan.names.length ? ` ${Math.floor(index / plan.names.length) + 1}` : "";
+      doors.push({
+        buildingId: building.id,
+        districtId: district.locationId,
+        label: `the ${name}${suffix}`,
+        ...face,
       });
     });
-
-    interiors.push({
-      districtId: district.locationId,
-      label: `the ${district.name}`,
-      origin,
-      width: plan.width,
-      depth: plan.depth,
-      wallHeight: WALL_HEIGHT,
-      floorColor: shiftHex(district.palette.ground, 0.32),
-      wallColor: blendHex(shiftHex(district.palette.structure, 0.18), plan.wallTint, 0.45),
-      accentColor: district.palette.accent,
-      spawn,
-      exit,
-      furniture,
-    });
-  });
-  return { interiors, doors };
+  }
+  return doors;
 }
 
-/** Perimeter/feature slots scaled to the room; spawn lane (door column) stays clear. */
+const interiorCache = new Map<string, InteriorModel>();
+
+/**
+ * On-demand interior generation: only the active room is ever mounted, so the
+ * whole city can be enterable without paying for hundreds of live rooms. The
+ * room is deterministic per building and always materializes at the same
+ * staging spot south of the city.
+ */
+export function interiorForBuilding(world: World, model: WorldModel, buildingId: string): InteriorModel | null {
+  const cacheKey = `${world.id}:${buildingId}`;
+  const cached = interiorCache.get(cacheKey);
+  if (cached) return cached;
+
+  const district = model.districts.find((entry) => entry.buildings.some((building) => building.id === buildingId));
+  const building = district?.buildings.find((entry) => entry.id === buildingId);
+  const door = model.doors.find((entry) => entry.buildingId === buildingId);
+  if (!district || !building || !door) return null;
+
+  const plan = planFor(district);
+  const rng = rngFor(world.id, buildingId, "interior");
+
+  // room scales with the building footprint
+  const width = clamp(building.width * 1.6, 9, 18);
+  const depth = clamp(building.depth * 1.7, 8, 13);
+  const origin = { x: model.bounds.minX, z: model.bounds.maxZ + ROOM_MARGIN_FROM_CITY };
+  const exit = { x: origin.x + width / 2, z: origin.z + depth - 0.6 };
+  const spawn = { x: exit.x, z: exit.z - 1.6 };
+
+  const furniture: FurnitureModel[] = [];
+  const slots = shuffledSlots(rng, origin, width, depth);
+  const kindCount = Math.max(3, Math.round((width * depth) / 22));
+  const kinds = [...plan.kinds].slice(0, kindCount);
+  if (rng() > 0.5) kinds.push(pick(rng, plan.extra));
+  kinds.forEach((kind, kindIndex) => {
+    const slot = slots[kindIndex];
+    if (!slot) return;
+    furniture.push({
+      id: `${buildingId}:furniture:${kindIndex}`,
+      kind,
+      x: slot.x,
+      z: slot.z,
+      rotationY: slot.rotationY + range(rng, -0.15, 0.15),
+      color: district.palette.structure,
+      accentColor: district.palette.accent,
+    });
+  });
+
+  const interior: InteriorModel = {
+    buildingId,
+    districtId: district.locationId,
+    label: door.label,
+    origin,
+    width,
+    depth,
+    wallHeight: WALL_HEIGHT,
+    floorColor: shiftHex(district.palette.ground, 0.32),
+    wallColor: blendHex(shiftHex(district.palette.structure, 0.18), plan.wallTint, 0.45),
+    accentColor: district.palette.accent,
+    spawn,
+    exit,
+    furniture,
+  };
+  interiorCache.set(cacheKey, interior);
+  if (interiorCache.size > 24) {
+    const oldest = interiorCache.keys().next().value;
+    if (oldest) interiorCache.delete(oldest);
+  }
+  return interior;
+}
+
 function shuffledSlots(
   rng: () => number,
   origin: { x: number; z: number },
@@ -197,7 +231,6 @@ function shuffledSlots(
     { x: origin.x + width / 2 + width * 0.22, z: origin.z + depth / 2 + 1, rotationY: -0.3 },
     { x: origin.x + 2.4, z: origin.z + depth - 2.6, rotationY: Math.PI * 0.75 },
     { x: origin.x + width - 2.4, z: origin.z + depth - 2.6, rotationY: -Math.PI * 0.75 },
-    // large rooms expose two more mid-floor slots
     ...(width >= 16
       ? [
           { x: origin.x + width * 0.3, z: origin.z + depth * 0.62, rotationY: 0.6 },
@@ -212,15 +245,8 @@ function shuffledSlots(
   return slots;
 }
 
-function blendHex(from: string, to: string, t: number): string {
-  const a = Number.parseInt(from.replace("#", ""), 16);
-  const b = Number.parseInt(to.replace("#", ""), 16);
-  const channels = [16, 8, 0].map((shift) => {
-    const ca = (a >> shift) & 0xff;
-    const cb = (b >> shift) & 0xff;
-    return Math.round(ca + (cb - ca) * t);
-  });
-  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 function shiftHex(hex: string, amount: number): string {
@@ -229,6 +255,17 @@ function shiftHex(hex: string, amount: number): string {
     const channel = (value >> shift) & 0xff;
     const next = amount >= 0 ? channel + (255 - channel) * amount : channel * (1 + amount);
     return Math.max(0, Math.min(255, Math.round(next)));
+  });
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function blendHex(from: string, to: string, t: number): string {
+  const a = Number.parseInt(from.replace("#", ""), 16);
+  const b = Number.parseInt(to.replace("#", ""), 16);
+  const channels = [16, 8, 0].map((shift) => {
+    const ca = (a >> shift) & 0xff;
+    const cb = (b >> shift) & 0xff;
+    return Math.round(ca + (cb - ca) * t);
   });
   return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }

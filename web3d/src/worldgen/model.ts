@@ -1,6 +1,6 @@
 import type { ItemVisual, Palette } from "../mapping/visuals.ts";
 // type-only circular reference; erased at compile time
-import type { InteriorDoor, InteriorModel } from "./interiors.ts";
+import type { InteriorDoor } from "./interiors.ts";
 
 export interface BuildingModel {
   id: string;
@@ -111,7 +111,6 @@ export interface WorldModel {
   streets: StreetModel[];
   gates: GateModel[];
   nav: NavGraph;
-  interiors: InteriorModel[];
   doors: InteriorDoor[];
   bounds: { minX: number; minZ: number; maxX: number; maxZ: number };
 }

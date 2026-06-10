@@ -733,6 +733,15 @@ export function validateAction(world: World, action: Action | unknown): Validati
   if (a.type === "talk" || a.type === "gossip" || a.type === "confront" || a.type === "remember") {
     if (typeof (a as { text?: unknown }).text !== "string") return invalid("Text is required.");
   }
+  if (a.type === "remember") {
+    // anti-loop: an actor re-noting the same thought is filler, not action
+    const actor = getNpc(world, a.actorId ?? "");
+    const text = (a as { text: string }).text.trim().toLowerCase();
+    const recent = actor?.memories.slice(-8) ?? [];
+    if (recent.some((memory) => memory.text.trim().toLowerCase() === text)) {
+      return invalid("Already noted that recently.");
+    }
+  }
   if (a.type === "fight") {
     const here = locationOf(world, a.actorId ?? "");
     const targetId = (a as { targetId?: string }).targetId;

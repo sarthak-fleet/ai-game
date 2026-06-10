@@ -49,7 +49,9 @@ async function markHostilesFrom(summary: TickSummary): Promise<void> {
 
 async function resetCombatForWorld(): Promise<void> {
   const { useCombatStore } = await import("../combat/store.ts");
+  const { clearFollowers } = await import("../characters/followers.ts");
   useCombatStore.getState().resetForWorld();
+  clearFollowers();
 }
 
 function toastsFrom(summary: TickSummary): WorldEvent[] {
@@ -84,7 +86,13 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       const world = await fetchState();
       set({ world, loading: false });
       const status = await fetchAgentLoopStatus();
-      set({ agentLoopRunning: status.state === "running" });
+      if (status.state === "running") {
+        set({ agentLoopRunning: true });
+      } else {
+        // the world is alive by default — the HUD chip is a pause override
+        const started = await setAgentLoopRunning(true);
+        set({ agentLoopRunning: started.state === "running" });
+      }
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
     }
@@ -114,7 +122,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
           try {
             const world = await fetchState();
             set({ world, events: [], lastSummary: null, agentLoopRunning: false });
-            useUiStore.getState().setInteriorDistrictId(null);
+            useUiStore.getState().setInteriorBuildingId(null);
             await resetCombatForWorld();
           } catch {
             // transient fetch failure; the next tick reconciles
@@ -169,7 +177,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       if (!source || typeof source !== "object") throw new Error("World source is missing");
       const result = await importWorldSource(source as never);
       set({ world: result.state, events: [], lastSummary: null, importing: false, error: null, agentLoopRunning: false });
-      useUiStore.getState().setInteriorDistrictId(null);
+      useUiStore.getState().setInteriorBuildingId(null);
       await resetCombatForWorld();
     } catch (error) {
       set({ importing: false });
