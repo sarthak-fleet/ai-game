@@ -1,0 +1,30 @@
+// Aliveville on Cloudflare: Workers Assets serve the built 3D client,
+// one Durable Object per visitor session runs the sim.
+// Deploy: pnpm build:3d && npx wrangler deploy
+// Secrets: npx wrangler secret put LLM_API_KEY ; npx wrangler secret put ADMIN_TOKEN
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aliveville",
+  "main": "worker/src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist/web3d",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "SESSIONS", "class_name": "GameSessionDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameSessionDO"] }],
+  "vars": {
+    "LLM_BASE_URL": "https://free-ai-gateway.sarthakagrawal927.workers.dev/v1",
+    "LLM_MODEL_NORMAL": "groq-llama-70b",
+    "LLM_MODEL_QUEST": "groq-gpt-oss-120b",
+    "LLM_PROJECT_ID": "ai-game"
+  },
+  "routes": [
+    { "pattern": "aliveville.com", "custom_domain": true },
+    { "pattern": "www.aliveville.com", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+}

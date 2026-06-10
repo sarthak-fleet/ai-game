@@ -18,7 +18,12 @@ export interface LlmLogEntry {
 }
 
 export function logLlmCall(entry: LlmLogEntry, path: string = DEFAULT_PATH): void {
-  const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + "\n";
-  mkdirSync(dirname(path), { recursive: true });
-  appendFileSync(path, line, "utf8");
+  // telemetry must never break gameplay — and there is no filesystem on Workers
+  try {
+    const line = JSON.stringify({ ts: new Date().toISOString(), ...entry }) + "\n";
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(path, line, "utf8");
+  } catch {
+    // best-effort log
+  }
 }

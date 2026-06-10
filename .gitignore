@@ -27,3 +27,4 @@ unreal/**/Intermediate/
 unreal/**/Saved/
 unreal/**/DerivedDataCache/
 unreal/**/.vs/
+.wrangler/
