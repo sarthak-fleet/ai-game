@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { xpForNextLevel } from "../../../src/arcs.ts";
 import { timeOfDay } from "../../../src/types.ts";
 import { updateMusicMood } from "../audio/music.ts";
-import { isSfxEnabled, pickupChime, setSfxEnabled } from "../audio/sfx.ts";
+import { isSfxEnabled, pickupChime, questChime, setSfxEnabled } from "../audio/sfx.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { isTypingTarget } from "../controls/input.ts";
 import { requestTeleport } from "../controls/runtime.ts";
@@ -11,6 +12,7 @@ import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
 import { cityModelFor } from "../worldgen/cache.ts";
 import { interiorForBuilding } from "../worldgen/interiors.ts";
+import { ArcPanel } from "./ArcPanel.tsx";
 import { Dialogue } from "./Dialogue.tsx";
 import { ImportScreen } from "./ImportScreen.tsx";
 import { Letterbox } from "./Letterbox.tsx";
@@ -47,6 +49,15 @@ export function Hud() {
     if (!world) return;
     updateMusicMood({ phase: timeOfDay(world.clock), pressure: worldPressure(world), combat: inCombat });
   }, [world, inCombat]);
+
+  // sync player level into combat scaling; celebrate level-ups
+  const prevLevel = useRef(1);
+  useEffect(() => {
+    const level = world?.player.growth?.level ?? 1;
+    useCombatStore.getState().setPlayerGrowth(level);
+    if (level > prevLevel.current) questChime();
+    prevLevel.current = level;
+  }, [world?.player.growth?.level]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -119,6 +130,8 @@ export function Hud() {
 
       <QuestTracker />
 
+      <ArcPanel />
+
       <Minimap />
 
       {world.story?.currentObjective ? (
@@ -167,6 +180,23 @@ export function Hud() {
           <div
             className={`player-hp-fill ${playerHp / playerMaxHp < 0.3 ? "low" : ""}`}
             style={{ width: `${(playerHp / playerMaxHp) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="player-xp">
+        <span className="player-level">Lv {world.player.growth?.level ?? 1}</span>
+        <div className="player-xp-track">
+          <div
+            className="player-xp-fill"
+            style={{
+              width: `${(() => {
+                const growth = world.player.growth ?? { xp: 0, level: 1 };
+                const prev = (growth.level - 1) * (growth.level - 1) * 60;
+                const next = xpForNextLevel(growth.level);
+                return Math.min(100, Math.max(0, ((growth.xp - prev) / Math.max(1, next - prev)) * 100));
+              })()}%`,
+            }}
           />
         </div>
       </div>

@@ -37,6 +37,8 @@ export interface CharacterAnimationHandle {
   trigger: (kind: CombatAnimKind) => void;
   /** enter/leave the defeated pose (rig plays Death01; procedural lies down) */
   setDefeated: (defeated: boolean) => void;
+  /** brief red damage flash (optional) */
+  flash?: () => void;
 }
 
 const COMBAT_ANIM_MS: Record<CombatAnimKind, number> = {

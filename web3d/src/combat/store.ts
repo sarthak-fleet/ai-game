@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { combatMovesFor } from "../../../src/combat.ts";
 import type { World } from "../../../src/types.ts";
 import { deathThud, hitImpact, hurt } from "../audio/sfx.ts";
-import { addCameraShake } from "../controls/runtime.ts";
+import { addCameraShake, hitstop } from "../controls/runtime.ts";
 import { useWorldStore } from "../store/world.ts";
 
 export interface EnemyCombat {
@@ -11,6 +11,8 @@ export interface EnemyCombat {
   maxHp: number;
   hostile: boolean;
   defeated: boolean;
+  /** friendly duel: HP floors instead of death, XP on win */
+  spar: boolean;
   /** sim outcome has been reported (or matched) */
   reported: boolean;
 }
@@ -33,11 +35,14 @@ const ENEMY_DEFAULT_HP = 100;
 interface CombatStore {
   playerHp: number;
   playerMaxHp: number;
+  playerLevel: number;
   playerDown: boolean;
   lockTargetId: string | null;
   enemies: Record<string, EnemyCombat>;
   vfx: VfxEvent[];
   engage: (npcId: string) => EnemyCombat;
+  engageSpar: (npcId: string) => void;
+  setPlayerGrowth: (level: number) => void;
   damageEnemy: (npcId: string, amount: number, at: { x: number; y: number; z: number }) => void;
   damagePlayer: (amount: number, at: { x: number; y: number; z: number }) => void;
   setHostileFromSummaryActions: (actions: Array<{ type: string; actorId?: string; targetId?: string }>) => void;
@@ -53,6 +58,7 @@ let vfxSeq = 0;
 export const useCombatStore = create<CombatStore>((set, get) => ({
   playerHp: PLAYER_MAX_HP,
   playerMaxHp: PLAYER_MAX_HP,
+  playerLevel: 1,
   playerDown: false,
   lockTargetId: null,
   enemies: {},
@@ -75,15 +81,47 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       maxHp: npc?.combat?.maxHp ?? ENEMY_DEFAULT_HP,
       hostile: true,
       defeated: Boolean(npc?.combat?.defeated),
+      spar: false,
       reported: Boolean(npc?.combat?.defeated),
     };
     set({ enemies: { ...get().enemies, [npcId]: seeded } });
     return seeded;
   },
 
+  engageSpar(npcId) {
+    const enemy = get().engage(npcId);
+    if (enemy.defeated) return;
+    set({ enemies: { ...get().enemies, [npcId]: { ...enemy, hostile: true, spar: true } } });
+  },
+
+  setPlayerGrowth(level) {
+    const previous = get();
+    if (level === previous.playerLevel) return;
+    const maxHp = PLAYER_MAX_HP + (level - 1) * 15;
+    const healed = Math.min(maxHp, previous.playerHp + Math.max(0, maxHp - previous.playerMaxHp));
+    set({ playerLevel: level, playerMaxHp: maxHp, playerHp: healed });
+  },
+
   damageEnemy(npcId, amount, at) {
     const enemy = get().engage(npcId);
     if (enemy.defeated) return;
+    if (enemy.spar) {
+      const floor = Math.round(enemy.maxHp * 0.25);
+      const hp = Math.max(floor, enemy.hp - amount);
+      const won = hp <= floor;
+      set({
+        enemies: { ...get().enemies, [npcId]: { ...enemy, hp: won ? enemy.maxHp : hp, hostile: !won, spar: !won } },
+        ...(won && get().lockTargetId === npcId ? { lockTargetId: null } : {}),
+        ...(won ? { playerHp: Math.min(get().playerMaxHp, get().playerHp + 30) } : {}),
+      });
+      addCameraShake(0.1);
+      hitstop(won ? 160 : 60);
+      hitImpact(false);
+      get().addVfx({ kind: "spark", ...at, color: "#7fd0ff", startedAt: performance.now(), expiresAt: performance.now() + 380 });
+      get().addVfx({ kind: "damage", ...at, text: String(amount), color: "#9fd7ff", startedAt: performance.now(), expiresAt: performance.now() + 850 });
+      if (won) void reportSparWon();
+      return;
+    }
     const hp = Math.max(0, enemy.hp - amount);
     const defeated = hp <= 0;
     set({
@@ -91,6 +129,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       ...(defeated && get().lockTargetId === npcId ? { lockTargetId: null } : {}),
     });
     addCameraShake(defeated ? 0.3 : 0.12);
+    hitstop(defeated ? 200 : 70, defeated ? 0.3 : 0.05);
     if (defeated) deathThud();
     else hitImpact(amount >= 35);
     get().addVfx({ kind: "spark", ...at, color: "#ffd84d", startedAt: performance.now(), expiresAt: performance.now() + 380 });
@@ -107,6 +146,26 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
   damagePlayer(amount, at) {
     if (get().playerDown) return;
+    const sparring = Object.values(get().enemies).some((enemy) => enemy.spar && enemy.hostile);
+    if (sparring) {
+      const floor = Math.round(get().playerMaxHp * 0.2);
+      const hp = Math.max(floor, get().playerHp - amount);
+      const lost = hp <= floor;
+      if (lost) {
+        // spar lost: end all spars gracefully, restore enemies
+        const enemies = Object.fromEntries(
+          Object.entries(get().enemies).map(([id, enemy]) =>
+            enemy.spar ? [id, { ...enemy, hostile: false, spar: false, hp: enemy.maxHp }] : [id, enemy]
+          )
+        );
+        set({ playerHp: Math.round(get().playerMaxHp * 0.5), enemies });
+      } else {
+        set({ playerHp: hp });
+      }
+      addCameraShake(0.15);
+      hurt();
+      return;
+    }
     const playerHp = Math.max(0, get().playerHp - amount);
     set({ playerHp, playerDown: playerHp <= 0 });
     addCameraShake(playerHp <= 0 ? 0.45 : 0.22);
@@ -143,7 +202,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   },
 
   resetForWorld() {
-    set({ playerHp: PLAYER_MAX_HP, playerMaxHp: PLAYER_MAX_HP, playerDown: false, lockTargetId: null, enemies: {}, vfx: [] });
+    set({ playerHp: PLAYER_MAX_HP, playerMaxHp: PLAYER_MAX_HP, playerLevel: 1, playerDown: false, lockTargetId: null, enemies: {}, vfx: [] });
   },
 }));
 
@@ -152,6 +211,18 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
  * actions until the sim marks the target defeated (bounded to avoid burning
  * world time if validation rejects).
  */
+async function reportSparWon(): Promise<void> {
+  try {
+    await fetch("/api/arc/event", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "spar_won" }),
+    });
+  } catch {
+    // arc event is best-effort; the toast comes via SSE when it lands
+  }
+}
+
 async function reportDefeatToSim(npcId: string): Promise<void> {
   const worldStore = useWorldStore.getState();
   const world = worldStore.world;
@@ -177,6 +248,6 @@ export function enemyStateFor(world: World | null, npcId: string): EnemyCombat |
   const client = useCombatStore.getState().enemies[npcId];
   if (client) return client;
   const npc = world?.npcs.find((entry) => entry.id === npcId);
-  if (npc?.combat?.defeated) return { hp: 0, maxHp: npc.combat.maxHp, hostile: false, defeated: true, reported: true };
+  if (npc?.combat?.defeated) return { hp: 0, maxHp: npc.combat.maxHp, hostile: false, defeated: true, spar: false, reported: true };
   return null;
 }

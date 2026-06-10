@@ -109,6 +109,28 @@ gateway), conversations become free-flowing and in-character:
 - Tested: unit tests with an injected completer (`tests/dialogue.test.ts`) and
   a browser E2E against a local fake OpenAI-compatible server.
 
+## Arcs & progression (`src/arcs.ts`)
+
+Every world gets a three-stage journey: **Training** (win a spar against an
+auto-picked mentor) → **Trial** (complete 2 quests) → **Confrontation** (defeat
+the villain-plan actor) → Complete. Stage progress derives from world state
+(`evaluateArc` is re-checked after every tick/dialogue/spar), so saves stay
+consistent; advances award XP and broadcast director-style beats (toast +
+letterbox cutscene). XP also flows from quest completions and won fights;
+levels follow a square-root curve and scale player HP (+15/level) and damage
+(+15 %/level). Sparring is dialogue-driven (`{"type":"spar"}`): non-lethal,
+HP floors at 25 %/20 %, winner XP, loser walks away. Picking a character that
+IS the mentor/villain reassigns the arc roles.
+
+The start flow (`hud/StartFlow.tsx`) fronts everything: world cards from
+`GET /api/worlds` (bundled worlds + ingest sources) → `POST /api/worlds/select`
+→ character cards (the Wanderer, or embody any NPC via `choose_character`).
+
+Fight feel: hitstop scales frame deltas globally (`runtime.ts scaledDelta` —
+70 ms freeze on hits, 200 ms @0.3× slow-mo on kills), struck NPCs flash red and
+flinch, knockback nudges on every landed punch, layered with shake and synth
+impacts.
+
 ## Sim ↔ client sync
 
 - Server stays authoritative and tick-based; client runs 60 fps locally.

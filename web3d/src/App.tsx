@@ -3,7 +3,9 @@ import "./hud/hud.css";
 import { useEffect } from "react";
 
 import { Hud } from "./hud/Hud.tsx";
+import { StartFlow } from "./hud/StartFlow.tsx";
 import { GameWorld } from "./scene/GameWorld.tsx";
+import { useUiStore } from "./store/ui.ts";
 import { useWorldStore } from "./store/world.ts";
 
 export function App() {
@@ -11,6 +13,7 @@ export function App() {
   const loading = useWorldStore((state) => state.loading);
   const error = useWorldStore((state) => state.error);
   const init = useWorldStore((state) => state.init);
+  const gamePhase = useUiStore((state) => state.gamePhase);
 
   useEffect(() => {
     void init();
@@ -40,7 +43,8 @@ export function App() {
   return (
     <div style={{ position: "absolute", inset: 0 }}>
       <GameWorld world={world} />
-      <Hud />
+      {gamePhase === "playing" ? <Hud /> : null}
+      <StartFlow />
     </div>
   );
 }

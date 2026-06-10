@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { clone as cloneSkeleton } from "three/addons/utils/SkeletonUtils.js";
 
 import type { CharacterAppearance } from "../../../src/types.ts";
+import { scaledDelta } from "../controls/runtime.ts";
 import { type ActorVisual, stableHash } from "../mapping/visuals.ts";
 import { toonGradientMap, toonMaterial } from "../scene/toon.ts";
 import type { CharacterAnimationHandle, CombatAnimKind } from "./CharacterModel.tsx";
@@ -173,9 +174,14 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
   const currentLocomotion = useRef<string>("");
   const overlayUntil = useRef(0);
 
+  const flashUntil = useRef(0);
+
   useImperativeHandle(ref, () => ({
     setSpeed: (speed: number) => {
       speedRef.current = speed;
+    },
+    flash: () => {
+      flashUntil.current = performance.now() + 140;
     },
     trigger: (kind: CombatAnimKind) => {
       const spec = COMBAT_CLIPS[kind];
@@ -210,8 +216,22 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
   const tmpQuat = useMemo(() => new THREE.Quaternion(), []);
   const tmpQuat2 = useMemo(() => new THREE.Quaternion(), []);
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
+    const delta = scaledDelta(rawDelta);
     mixer.update(delta);
+
+    // damage flash: pulse the body material red
+    const material = (scene.getObjectByProperty("isSkinnedMesh", true) as THREE.SkinnedMesh | undefined)?.material as
+      | THREE.MeshToonMaterial
+      | undefined;
+    if (material) {
+      const flashing = performance.now() < flashUntil.current;
+      const target = flashing ? 0.85 : 0;
+      if (material.emissiveIntensity !== target) {
+        material.emissive.set("#ff4030");
+        material.emissiveIntensity = target;
+      }
+    }
 
     // decor follows its bone (world -> root-local each frame)
     const root = rootRef.current;

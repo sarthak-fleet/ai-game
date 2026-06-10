@@ -137,7 +137,12 @@ export async function generateDialogueReply(
 
   // decided action: engine-validated, then applied for real
   let appliedAction: DialogueResult["action"];
-  if (parsed.action?.type === "follow" || parsed.action?.type === "unfollow") {
+  if (parsed.action?.type === "spar") {
+    const text = `${npc.name} squares up for a friendly spar!`;
+    appliedAction = { type: "spar", text };
+    history.push({ speaker: "event", text });
+    npc.memories.push({ tick: world.tick, text: `I sparred with the player to test their resolve.`, meta: { importance: 2, visibility: "private" } });
+  } else if (parsed.action?.type === "follow" || parsed.action?.type === "unfollow") {
     const text =
       parsed.action.type === "follow"
         ? `${npc.name} starts following you.`
@@ -209,6 +214,7 @@ function buildDialogueSystem(world: World, npc: Npc): string {
     `{"type":"complete_quest","questId":"<id>"} — declare a quest fulfilled when the player has done it`,
     `{"type":"follow"} — start traveling WITH the player (when you agree to come along)`,
     `{"type":"unfollow"} — stop following the player`,
+    `{"type":"spar"} — accept a friendly, non-lethal practice duel (training, testing each other)`,
     ``,
     `Never repeat a line you already said. If the conversation is circling or has`,
     `run its course, make a decision: act, or say goodbye and move. You may`,

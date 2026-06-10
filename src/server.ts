@@ -1,9 +1,10 @@
-import { readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, normalize } from "node:path";
 
 import { readAgentLoopCheckpoints, upsertAgentLoopCheckpoint, writeAgentLoopCheckpoints } from "./agent-checkpoint-store.ts";
 import { createAgentLoop } from "./agent-loop.ts";
+import { createArcForWorld, evaluateArc, markSparWon } from "./arcs.ts";
 import { clearDialogueHistories, dialogueAvailable, dialogueContext, generateDialogueReply } from "./dialogue.ts";
 import { createDirector } from "./director.ts";
 import { createLlmProposer } from "./llm/proposer.ts";
@@ -56,13 +57,39 @@ setInterval(() => {
   for (const client of sseClients) client.write(": ping\n\n");
 }, 25_000).unref();
 
+createArcForWorld(engine.state);
+
+/** check arc progress after world mutations; broadcast a director-style beat on stage advance */
+function checkArc(): void {
+  const beat = evaluateArc(engine.state);
+  if (!beat) return;
+  broadcastSse("tick", {
+    summary: {
+      tick: engine.state.tick,
+      actions: [
+        {
+          action: { type: "remember", actorId: beat.focusId, text: beat.text },
+          text: `${beat.text} (+${beat.xpAwarded} XP)`,
+          fromDirector: true,
+        },
+      ],
+      rejected: [],
+      checksum: "arc-beat",
+      clock: engine.state.clock,
+    },
+  });
+}
+
 const agentLoop = createAgentLoop(engine, {
   intervalMs: AGENT_LOOP_INTERVAL_MS,
   maxTicks: AGENT_LOOP_MAX_TICKS,
   maxCheckpoints: AGENT_LOOP_MAX_CHECKPOINTS,
   initialCheckpoints: initialAgentLoopCheckpoints,
   onCheckpoint: (checkpoint) => upsertAgentLoopCheckpoint(AGENT_LOOP_CHECKPOINT_PATH, checkpoint, AGENT_LOOP_MAX_CHECKPOINTS),
-  onTick: (summary) => broadcastSse("tick", { summary }),
+  onTick: (summary) => {
+    broadcastSse("tick", { summary });
+    checkArc();
+  },
 });
 if (AGENT_LOOP_AUTOSTART) agentLoop.start();
 
@@ -71,6 +98,23 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === "/api/state" && req.method === "GET") {
     return json(res, 200, engine.state);
+  }
+  if (url.pathname === "/api/worlds" && req.method === "GET") {
+    return json(res, 200, { worlds: listBundledWorlds(), currentId: engine.state.id });
+  }
+  if (url.pathname === "/api/worlds/select" && req.method === "POST") {
+    const body = await readJson(req).catch(() => null);
+    const id = body && typeof body === "object" ? (body as { id?: unknown }).id : undefined;
+    const entry = listBundledWorlds().find((world) => world.id === id);
+    if (!entry) return json(res, 404, { error: "unknown world" });
+    try {
+      const raw = JSON.parse(readFileSync(new URL(entry.file, CWD), "utf8")) as Record<string, unknown>;
+      const nextWorld = entry.kind === "source" ? worldSourceToWorld(raw as never) : (raw as unknown as World);
+      const agentLoopStatus = await replaceEngineState(nextWorld);
+      return json(res, 200, { ok: true, state: engine.state, agentLoopStatus });
+    } catch (error) {
+      return json(res, 400, { error: (error as Error).message });
+    }
   }
   if (url.pathname === "/api/events" && req.method === "GET") {
     res.writeHead(200, {
@@ -236,6 +280,7 @@ const server = createServer(async (req, res) => {
           },
         });
       }
+      checkArc();
       const done = streamResult.ok
         ? { llm: true, reply: streamResult.reply, action: streamResult.action ?? null, relationship: streamResult.relationship }
         : { llm: true, error: streamResult.reason };
@@ -261,13 +306,42 @@ const server = createServer(async (req, res) => {
         },
       });
     }
+    checkArc();
     return json(res, 200, { llm: true, reply: result.reply, action: result.action ?? null, relationship: result.relationship });
+  }
+  if (url.pathname === "/api/arc/event" && req.method === "POST") {
+    const body = await readJson(req).catch(() => null);
+    const kind = body && typeof body === "object" ? (body as { kind?: unknown }).kind : undefined;
+    if (kind === "spar_won") {
+      const award = markSparWon(engine.state);
+      if (award) {
+        broadcastSse("tick", {
+          summary: {
+            tick: engine.state.tick,
+            actions: [
+              {
+                action: { type: "remember", actorId: engine.state.arc?.mentorId ?? "player", text: "The spar is won." },
+                text: "You held your ground in the spar. (+50 XP)",
+                fromDirector: true,
+              },
+            ],
+            rejected: [],
+            checksum: "arc-spar",
+            clock: engine.state.clock,
+          },
+        });
+      }
+      checkArc();
+      return json(res, 200, { ok: true, arc: engine.state.arc ?? null, growth: engine.state.player.growth ?? null });
+    }
+    return json(res, 400, { error: "unknown arc event" });
   }
   if (url.pathname === "/api/tick" && req.method === "POST") {
     const body = await readJson(req).catch(() => null);
     try {
       const action = (body && typeof body === "object" ? (body as { action?: PlayerAction }).action : undefined) ?? undefined;
       const summary = await engine.tick(action);
+      checkArc();
       return json(res, 200, { summary, state: engine.state });
     } catch (error) {
       return json(res, 400, { error: (error as Error).message });
@@ -306,6 +380,7 @@ async function replaceEngineState(nextWorld: World) {
   if (agentLoop.status().state === "running") agentLoop.stop("world_replaced");
   await agentLoop.waitForIdle();
   engine.setState(nextWorld);
+  createArcForWorld(engine.state);
   const status = agentLoop.clearCheckpoints();
   writeAgentLoopCheckpoints(AGENT_LOOP_CHECKPOINT_PATH, []);
   clearDialogueHistories();
@@ -328,6 +403,52 @@ function readJson(req: IncomingMessage): Promise<unknown> {
 server.listen(PORT, () => {
   console.info(`${engine.state.name} running at http://localhost:${PORT} (${isLlmEnabled() ? "LLM" : "scripted"} mode)`);
 });
+
+interface BundledWorld {
+  id: string;
+  name: string;
+  blurb: string;
+  kind: "world" | "source";
+  file: string;
+}
+
+let bundledWorldsCache: BundledWorld[] | null = null;
+
+function listBundledWorlds(): BundledWorld[] {
+  if (bundledWorldsCache) return bundledWorldsCache;
+  const entries: BundledWorld[] = [];
+  const scan = (dir: string) => {
+    let files: string[] = [];
+    try {
+      files = readdirSync(new URL(dir, CWD)).filter((file) => file.endsWith(".json"));
+    } catch {
+      return;
+    }
+    for (const file of files) {
+      try {
+        const raw = JSON.parse(readFileSync(new URL(`${dir}${file}`, CWD), "utf8")) as Record<string, unknown>;
+        const isSource = typeof raw["title"] === "string" && Array.isArray(raw["characters"]);
+        const isWorld = typeof raw["name"] === "string" && Array.isArray(raw["npcs"]);
+        if (!isSource && !isWorld) continue;
+        const id = String(raw["worldId"] ?? raw["id"] ?? file.replace(".json", ""));
+        if (entries.some((entry) => entry.id === id)) continue;
+        entries.push({
+          id,
+          name: String(raw["title"] ?? raw["name"]),
+          blurb: String(raw["synopsis"] ?? (raw["story"] as { premise?: string } | undefined)?.premise ?? "").slice(0, 160),
+          kind: isSource ? "source" : "world",
+          file: `${dir}${file}`,
+        });
+      } catch {
+        // unreadable file; skip
+      }
+    }
+  };
+  scan("./worlds/");
+  scan("./fixtures/anime/");
+  bundledWorldsCache = entries;
+  return entries;
+}
 
 function readCutsceneManifest(): CutsceneManifestEntry[] {
   try {

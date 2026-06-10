@@ -7,6 +7,7 @@ import {
   retrieveRelevantMemories,
   scheduledBlockFor,
 } from "./agents.ts";
+import { awardXp, reassignArcRoles, XP_FIGHT_WON, XP_QUEST_COMPLETE } from "./arcs.ts";
 import { combatMoveFor, combatMovesFor } from "./combat.ts";
 import { questItemTargetsFor } from "./quest-targets.ts";
 import { storyConfrontationTargetId } from "./story-context.ts";
@@ -230,7 +231,10 @@ export function applyAction(world: World, action: Action): ActionResult {
       adjustRelationship(world, action.targetId, action.actorId, -2, { trust: -2, fear: 2, respect: 1, suspicion: 3 });
       nudgeMood(world, action.actorId, { confidence: 8, stress: 3 });
       nudgeMood(world, action.targetId, { stress: 12, confidence: -8, suspicion: 5 });
-      if (getNpc(world, action.targetId)?.combat?.defeated) resolveFightConsequences(world, action.actorId, action.targetId);
+      if (getNpc(world, action.targetId)?.combat?.defeated) {
+        resolveFightConsequences(world, action.actorId, action.targetId);
+        if (action.actorId === "player") awardXp(world, XP_FIGHT_WON);
+      }
       return applied(action, fightOutcomeText(world, action.actorId, action.targetId, action.moveId, counterText));
     }
     case "choose_character": {
@@ -245,6 +249,7 @@ export function applyAction(world: World, action: Action): ActionResult {
         locationId: playerLocation,
       };
       remember(world, chosen.id, `${nameOf(world, action.actorId)} chose to play as ${chosen.name}.`);
+      reassignArcRoles(world);
       return applied(action, `${nameOf(world, action.actorId)} is now playing as ${chosen.name}.`);
     }
     case "inspect": {
@@ -317,6 +322,7 @@ export function applyAction(world: World, action: Action): ActionResult {
       quest.status = "done";
       applyQuestDeltas(world, quest.rewards?.relationshipDelta, quest.acceptedBy);
       applyQuestCompletionConsequences(world, quest, action.actorId);
+      if (quest.acceptedBy === "player") awardXp(world, XP_QUEST_COMPLETE);
       if (action.actorId !== "player" && quest.giverId) remember(world, action.actorId, `Completed "${quest.title}" for ${nameOf(world, quest.giverId)}.`);
       markAmbitionProgress(world, quest);
       syncStoryProgress(world);

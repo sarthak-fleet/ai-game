@@ -273,12 +273,32 @@ export interface Quest {
   consequences?: { relationshipDelta?: Record<ActorId, number> };
 }
 
+export interface PlayerGrowth {
+  xp: number;
+  level: number;
+}
+
 export interface Player {
   locationId: LocationId;
   name?: string;
   characterId?: ActorId;
   appearance?: CharacterAppearance;
   combat?: CombatState;
+  growth?: PlayerGrowth;
+}
+
+export type ArcStage = "training" | "trial" | "confrontation" | "complete";
+
+export interface WorldArc {
+  id: string;
+  title: string;
+  stage: ArcStage;
+  mentorId: ActorId;
+  villainId: ActorId | null;
+  sparWon: boolean;
+  /** quests completed by the player at arc creation (trial counts from here) */
+  questsDoneBaseline: number;
+  stageTexts: Record<ArcStage, string>;
 }
 
 export interface Story {
@@ -371,6 +391,7 @@ export interface World {
   items: Item[];
   interactables?: InteractableProp[];
   quests?: Quest[];
+  arc?: WorldArc;
   eventLog: TickSummary[];
 }
 

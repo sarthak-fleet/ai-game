@@ -19,7 +19,7 @@ import type { DistrictModel, WorldModel } from "../worldgen/index.ts";
 import { interiorForBuilding } from "../worldgen/interiors.ts";
 import type { WorldPlacements } from "../worldgen/placements.ts";
 import { attachInput, input } from "./input.ts";
-import { cameraShake, cameraState, npcRegistry, playerHeading, playerPosition, teleportRequest } from "./runtime.ts";
+import { cameraShake, cameraState, npcRegistry, playerHeading, playerPosition, scaledDelta, teleportRequest } from "./runtime.ts";
 
 const WALK_SPEED = 4.2;
 const RUN_SPEED = 7.8;
@@ -175,7 +175,8 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     if (dialogueOpen && document.pointerLockElement === gl.domElement) document.exitPointerLock();
   }, [dialogueOpen, gl]);
 
-  useFrame((frame, delta) => {
+  useFrame((frame, rawDelta) => {
+    const delta = scaledDelta(rawDelta);
     const rigidBody = body.current;
     const controller = controllerRef.current;
     if (!rigidBody || !controller) return;

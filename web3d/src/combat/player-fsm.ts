@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import { npcRegistry, playerPosition } from "../controls/runtime.ts";
+import { knockback, npcRegistry, playerPosition } from "../controls/runtime.ts";
 import { useCombatStore } from "./store.ts";
 
 export type PlayerCombatStateKind = "free" | "attack" | "dodge" | "hitstun" | "dead";
@@ -216,6 +216,7 @@ function enterDodge(
 function performHit(spec: AttackSpec, faceYaw: number): void {
   const store = useCombatStore.getState();
   const forward = forwardOf(faceYaw);
+  const levelMultiplier = 1 + (store.playerLevel - 1) * 0.15;
   for (const actor of npcRegistry.values()) {
     const enemy = store.enemies[actor.npcId];
     if (enemy?.defeated) continue;
@@ -225,11 +226,12 @@ function performHit(spec: AttackSpec, faceYaw: number): void {
     if (distance > ATTACK_RANGE) continue;
     const angle = forward.angleTo(offset.normalize());
     if (angle > ATTACK_HALF_ANGLE) continue;
-    store.damageEnemy(actor.npcId, spec.damage, {
+    store.damageEnemy(actor.npcId, Math.round(spec.damage * levelMultiplier), {
       x: actor.position.x,
       y: actor.position.y + 1.2,
       z: actor.position.z,
     });
+    knockback(actor.npcId, { x: forward.x, z: forward.z }, spec.kind === "attack3" ? 0.7 : 0.3);
   }
 }
 

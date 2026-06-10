@@ -1,8 +1,9 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { type DialogueResponse, fetchDialogueHistory, postDialogue, postDialogueStream } from "../api/client.ts";
-import { followChime, questChime, talkBlip } from "../audio/sfx.ts";
+import { followChime, questChime, talkBlip, uiBlip } from "../audio/sfx.ts";
 import { setFollowing } from "../characters/followers.ts";
+import { useCombatStore } from "../combat/store.ts";
 import { useUiStore } from "../store/ui.ts";
 import { npcById, useWorldStore } from "../store/world.ts";
 
@@ -86,6 +87,10 @@ export function Dialogue() {
         pushLine({ speaker: "event", speakerName: "", text: response.action.text });
         if (response.action.type === "follow") setFollowing(npc.id, true);
         if (response.action.type === "unfollow") setFollowing(npc.id, false);
+        if (response.action.type === "spar") {
+          useCombatStore.getState().engageSpar(npc.id);
+          window.setTimeout(() => useUiStore.getState().closeDialogue(), 900);
+        }
         if (response.action.type === "fight" || response.action.type === "move") {
           window.setTimeout(() => useUiStore.getState().closeDialogue(), 1100);
         }
@@ -131,6 +136,11 @@ export function Dialogue() {
               ui.pushDialogueLine({ speaker: "event", speakerName: "", text: response.action.text });
               if (response.action.type === "create_quest" || response.action.type === "offer_quest" || response.action.type === "complete_quest") questChime();
               if (response.action.type === "follow") { setFollowing(npc.id, true); followChime(); }
+              if (response.action.type === "spar") {
+                uiBlip();
+                useCombatStore.getState().engageSpar(npc.id);
+                window.setTimeout(() => useUiStore.getState().closeDialogue(), 900);
+              }
               if (response.action.type === "unfollow") setFollowing(npc.id, false);
               if (response.action.type === "fight" || response.action.type === "move") {
                 window.setTimeout(() => useUiStore.getState().closeDialogue(), 1100);

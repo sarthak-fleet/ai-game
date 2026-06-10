@@ -6,7 +6,7 @@ import * as THREE from "three";
 import type { Npc as NpcData, Quest } from "../../../src/types.ts";
 import { applyIncomingHit, playerCombatState } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
-import { npcRegistry, playerPosition, registerNpc, unregisterNpc } from "../controls/runtime.ts";
+import { npcRegistry, playerPosition, registerNpc, scaledDelta, unregisterNpc } from "../controls/runtime.ts";
 import { useDirectorStore } from "../director/store.ts";
 import { actorVisualFor, clothingColorsFor } from "../mapping/visuals.ts";
 import { useUiStore } from "../store/ui.ts";
@@ -107,9 +107,21 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
   useEffect(() => {
     const actor = registerNpc(npc.id);
     actor.position.copy(group.current?.position ?? new THREE.Vector3(spawn.x, 0, spawn.z));
+    actor.node = group.current ?? undefined;
     return () => unregisterNpc(npc.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- register once per npc
   }, [npc.id]);
+
+  // hit feedback: flash + flinch when this NPC loses HP
+  const prevHp = useRef<number | null>(null);
+  useEffect(() => {
+    const hp = enemy?.hp ?? null;
+    if (hp !== null && prevHp.current !== null && hp < prevHp.current && !enemy?.defeated) {
+      animation.current?.trigger("hit");
+      animation.current?.flash?.();
+    }
+    prevHp.current = hp;
+  }, [enemy?.hp, enemy?.defeated]);
 
   // sim moved this NPC to another district: walk there along the street graph
   useEffect(() => {
@@ -122,7 +134,8 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     s.wanderTarget.set(spawn.x, 0, spawn.z);
   }, [spawn.districtId, spawn.x, spawn.z, model]);
 
-  useFrame((frame, delta) => {
+  useFrame((frame, rawDelta) => {
+    const delta = scaledDelta(rawDelta);
     const node = group.current;
     if (!node) return;
     const s = state.current;

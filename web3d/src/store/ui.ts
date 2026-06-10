@@ -13,7 +13,11 @@ export interface InteractionTarget {
   verb: string;
 }
 
+export type GamePhase = "title" | "character" | "playing";
+
 interface UiStore {
+  gamePhase: GamePhase;
+  setGamePhase: (phase: GamePhase) => void;
   dialogueNpcId: string | null;
   dialogueLines: DialogueLine[];
   dialogueBusy: boolean;
@@ -31,6 +35,10 @@ interface UiStore {
 }
 
 export const useUiStore = create<UiStore>((set, get) => ({
+  gamePhase: "title",
+  setGamePhase(phase) {
+    set({ gamePhase: phase });
+  },
   dialogueNpcId: null,
   dialogueLines: [],
   dialogueBusy: false,
