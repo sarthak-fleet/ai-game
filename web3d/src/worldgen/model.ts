@@ -55,6 +55,8 @@ export interface NpcSpawn {
 export interface DistrictModel {
   locationId: string;
   name: string;
+  /** name + visual role + tags — drives role-keyword styling */
+  roleText: string;
   palette: Palette;
   /** World-space rect in meters. origin = min corner. */
   origin: { x: number; z: number };

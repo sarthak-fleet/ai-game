@@ -3,7 +3,7 @@ import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer, FXAA, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { Physics } from "@react-three/rapier";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 
 import { isNight, type World } from "../../../src/types.ts";
 import { Npc } from "../characters/Npc.tsx";
@@ -24,10 +24,11 @@ export function GameWorld({ world }: { world: World }) {
   const placements = useMemo(() => computePlacements(world, model.districts), [world, model]);
   const night = isNight(world.clock);
 
-  if (import.meta.env.DEV && typeof window !== "undefined") {
+  useEffect(() => {
+    if (!import.meta.env.DEV || typeof window === "undefined") return;
     const debug = (window as unknown as Record<string, unknown>)["__game"] as Record<string, unknown> | undefined;
     if (debug) debug["doors"] = model.doors;
-  }
+  }, [model]);
 
   const activeDistrict = model.districts.find((district) => district.locationId === world.player.locationId) ?? model.districts[0];
   if (!activeDistrict) return null;

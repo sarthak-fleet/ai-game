@@ -39,5 +39,5 @@ export function unregisterNpc(npcId: string): void {
 }
 
 if (import.meta.env.DEV) {
-  (window as unknown as Record<string, unknown>)["__game"] = { playerPosition, npcRegistry, cameraState };
+  (window as unknown as Record<string, unknown>)["__game"] = { playerPosition, npcRegistry, cameraState, requestTeleport };
 }

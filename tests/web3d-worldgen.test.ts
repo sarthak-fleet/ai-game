@@ -84,6 +84,9 @@ describe("web3d worldgen", () => {
     const model = generateWorldModel(world);
     expect(model.interiors).toHaveLength(world.locations.length);
     expect(model.doors).toHaveLength(world.locations.length);
+    // role-driven floor plans: not every room is the same size
+    const footprints = new Set(model.interiors.map((interior) => `${interior.width}x${interior.depth}`));
+    expect(footprints.size).toBeGreaterThan(1);
     for (const interior of model.interiors) {
       expect(interior.furniture.length).toBeGreaterThanOrEqual(4);
       for (const piece of interior.furniture) {

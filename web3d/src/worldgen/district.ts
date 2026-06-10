@@ -33,9 +33,12 @@ const ROLE_PROFILES: Array<{ pattern: RegExp; profile: RoleProfile }> = [
 
 const FOLIAGE_COLORS = ["#4e8f4a", "#5da55a", "#3f7e44", "#6fae5c"];
 
+export function roleTextFor(location: Location): string {
+  return `${location.name} ${location.visual?.role ?? ""} ${(location.visual?.visualTags ?? []).join(" ")}`;
+}
+
 function profileFor(location: Location): RoleProfile {
-  const text = `${location.name} ${location.visual?.role ?? ""} ${(location.visual?.visualTags ?? []).join(" ")}`;
-  return ROLE_PROFILES.find((entry) => entry.pattern.test(text))?.profile ?? DEFAULT_PROFILE;
+  return ROLE_PROFILES.find((entry) => entry.pattern.test(roleTextFor(location)))?.profile ?? DEFAULT_PROFILE;
 }
 
 export function generateDistrict(world: World, location: Location): DistrictModel {
@@ -63,6 +66,7 @@ export function generateDistrict(world: World, location: Location): DistrictMode
   return {
     locationId: location.id,
     name: location.name,
+    roleText: roleTextFor(location),
     palette,
     origin,
     width,
