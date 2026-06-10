@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { timeOfDay } from "../../../src/types.ts";
+import { updateMusicMood } from "../audio/music.ts";
 import { isSfxEnabled, pickupChime, setSfxEnabled } from "../audio/sfx.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { isTypingTarget } from "../controls/input.ts";
 import { requestTeleport } from "../controls/runtime.ts";
+import { worldPressure } from "../mapping/mood.ts";
 import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
 import { cityModelFor } from "../worldgen/cache.ts";
@@ -39,6 +41,12 @@ export function Hud() {
     const interval = window.setInterval(() => pruneEvents(performance.now()), 1000);
     return () => window.clearInterval(interval);
   }, [pruneEvents]);
+
+  // score follows the world: time of day, story pressure, combat
+  useEffect(() => {
+    if (!world) return;
+    updateMusicMood({ phase: timeOfDay(world.clock), pressure: worldPressure(world), combat: inCombat });
+  }, [world, inCombat]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

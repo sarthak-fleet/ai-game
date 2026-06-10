@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type { World } from "../../../src/types.ts";
+import { startMusic } from "../audio/music.ts";
 import { attackSwing, dodgeWhoosh, doorCreak, ensureAudio, footstep } from "../audio/sfx.ts";
 import type { CharacterAnimationHandle } from "../characters/CharacterModel.tsx";
 import { RiggedCharacter } from "../characters/RiggedCharacter.tsx";
@@ -108,6 +109,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     let dragDistance = 0;
     const onPointerDown = (event: PointerEvent) => {
       ensureAudio();
+      startMusic();
       if (event.button !== 0) return;
       if (isLocked()) {
         combatInput.attackPressed = true;

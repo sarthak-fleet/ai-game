@@ -1,0 +1,233 @@
+{
+  "title": "Demon Slayer: Asakusa Nights",
+  "worldId": "ds_asakusa",
+  "synopsis": "Taisho-era Asakusa hums with electric lights and unease. Tanjiro escorts his demon-turned sister Nezuko through the lantern-lit market while rumors spread of disappearances near a shadowed alley. Somewhere in the crowd walks Muzan Kibutsuji, the demon progenitor wearing a human family like a disguise. The slayers must protect the city, gather wisteria, and keep Nezuko's secret — before nightfall hands the streets to demons.",
+  "themes": ["family bonds against darkness", "monsters who pass as human", "breath and blade discipline"],
+  "locations": [
+    {
+      "name": "Asakusa Market",
+      "role": "hub",
+      "description": "A bustling Taisho-era market square strung with electric lanterns, udon stalls, and rickshaws. Crowds by day, demon rumors by night."
+    },
+    {
+      "name": "Butterfly Mansion",
+      "role": "home and healing house",
+      "description": "Shinobu's serene estate garden where wounded slayers recover among butterflies and medicine sheds."
+    },
+    {
+      "name": "Swordsmith Forge",
+      "role": "training and repair site",
+      "description": "A soot-dark workshop where nichirin blades are ground and quenched. The smith despairs over every chipped edge."
+    },
+    {
+      "name": "Wisteria Grove",
+      "role": "garden sanctuary",
+      "description": "A protective garden of hanging wisteria that demons cannot enter. Charms are cut and dried here."
+    },
+    {
+      "name": "Shadowed Alley",
+      "role": "threat site",
+      "description": "A narrow back alley behind the theater district where people have been vanishing. The walls smell faintly of blood."
+    },
+    {
+      "name": "Udon Stand Row",
+      "role": "report station and meeting point",
+      "description": "Steaming food stalls where slayers trade rumors over noodles. The cook hears everything twice."
+    }
+  ],
+  "factions": [
+    {
+      "name": "Demon Slayer Corps",
+      "goals": ["protect Asakusa's people", "track the demon progenitor", "keep Nezuko's secret from the Corps' hardliners"],
+      "resources": ["nichirin blades", "wisteria charms", "kasugai crows"],
+      "reputation": 2
+    },
+    {
+      "name": "Muzan's Shadow",
+      "goals": ["spread demon blood quietly", "erase witnesses", "remain invisible inside the crowd"],
+      "resources": ["demon blood", "night cover", "human disguise"],
+      "reputation": -4
+    }
+  ],
+  "characters": [
+    {
+      "name": "Tanjiro Kamado",
+      "role": "kind-hearted demon slayer with a keen nose",
+      "faction": "Demon Slayer Corps",
+      "description": "A gentle boy carrying his sister's box on his back and the weight of his family's death. He smells emotions and demon blood alike, and he is incapable of abandoning anyone.",
+      "look": {
+        "sourceLook": "Tanjiro Kamado / checkered haori slayer",
+        "bodyType": "lean athletic teenager",
+        "hair": "dark burgundy hair, messy",
+        "outfit": "black-and-green checkered haori over Corps uniform, hanafuda earrings",
+        "palette": ["#2e4a3f", "#7a2a2a", "#e8c9a0"],
+        "silhouette": "Checkered haori, slim build, a wooden box taller than his shoulders.",
+        "visualTags": ["checkered haori", "scar", "earrings", "kind eyes"]
+      },
+      "traits": ["empathetic", "determined", "earnest"],
+      "values": ["family", "mercy even for demons", "hard work"],
+      "flaws": ["too trusting", "cries easily"],
+      "fears": ["losing Nezuko", "failing the people beside him"],
+      "speechStyle": "polite, warm, painfully sincere",
+      "goals": ["find a cure for Nezuko", "track the demon scent threading through the market", "protect Asakusa's night crowds"],
+      "secrets": ["The box on his back hides his demon sister from the Corps."],
+      "memories": [
+        "A demon's scent crossed the market road at dusk — the same scent as the night my family died.",
+        "Nezuko stirred in the box when the lanterns came on."
+      ]
+    },
+    {
+      "name": "Nezuko Kamado",
+      "role": "demon girl fighting her own hunger",
+      "faction": "Demon Slayer Corps",
+      "description": "Tanjiro's younger sister, turned demon but refusing to harm humans. She sleeps in a wooden box by day and guards her brother by night, a bamboo muzzle between her and the world.",
+      "look": {
+        "sourceLook": "Nezuko Kamado / bamboo muzzle demon girl",
+        "bodyType": "petite girl, sometimes shrinking smaller",
+        "hair": "long black hair fading to flame orange, tied",
+        "outfit": "pink kimono with asanoha pattern, bamboo muzzle, dark haori",
+        "palette": ["#e8a8b8", "#2a2330", "#f2d8a0"],
+        "silhouette": "Small girl with a long ponytail and a bamboo muzzle.",
+        "visualTags": ["pink kimono", "bamboo muzzle", "ponytail", "she"]
+      },
+      "traits": ["protective", "gentle", "fierce when family is threatened"],
+      "values": ["her brother", "humans as family"],
+      "flaws": ["cannot speak", "burns in sunlight"],
+      "fears": ["hurting a human"],
+      "speechStyle": "muffled hums and nods; she cannot speak through the muzzle",
+      "goals": ["guard Tanjiro", "resist the hunger", "nap safely through the day"],
+      "secrets": ["Her demon blood art sparks pink fire when she fights."],
+      "memories": ["A human child smiled at me near the udon stand and I did not feel hungry."]
+    },
+    {
+      "name": "Zenitsu Agatsuma",
+      "role": "cowardly slayer who fights asleep",
+      "faction": "Demon Slayer Corps",
+      "description": "A trembling blond boy who hears heartbeats like music. Terrified of everything while awake — and a single flawless thunderclap of a swordsman when he faints.",
+      "look": {
+        "sourceLook": "Zenitsu Agatsuma / thunder breathing slayer",
+        "bodyType": "slim, perpetually cowering",
+        "hair": "short blond with orange tips",
+        "outfit": "yellow gradient haori patterned like lightning over Corps uniform",
+        "palette": ["#e8c95a", "#f2e2b0", "#8a5a3c"],
+        "silhouette": "Slim boy in a lightning-yellow haori, usually mid-flinch.",
+        "visualTags": ["yellow haori", "lightning", "blond"]
+      },
+      "traits": ["cowardly", "loyal", "dramatic"],
+      "values": ["being needed", "pretty girls", "his late master"],
+      "flaws": ["panics loudly", "self-pitying"],
+      "fears": ["demons", "dying unloved", "Inosuke's headbutts"],
+      "speechStyle": "shrill panic that collapses into earnest mumbling",
+      "goals": ["survive the night patrol", "impress someone, anyone", "nap (strategically)"],
+      "secrets": ["He remembers everything he does while asleep but pretends not to."],
+      "memories": ["The sound near the shadowed alley had no heartbeat at all. None."]
+    },
+    {
+      "name": "Inosuke Hashibira",
+      "role": "boar-headed berserker slayer",
+      "faction": "Demon Slayer Corps",
+      "description": "Raised by boars on the mountain, fights with two chipped blades and zero patience. Challenges everything that moves, including doors.",
+      "look": {
+        "sourceLook": "Inosuke Hashibira / boar mask berserker",
+        "bodyType": "broad muscled shoulders, shirtless",
+        "hair": "wild black mane under a grey boar mask",
+        "outfit": "boar's-head mask, bare chest, fur-trimmed hakama",
+        "palette": ["#6a7280", "#3a3330", "#c9b8a0"],
+        "silhouette": "Broad shirtless frame topped by a boar head.",
+        "visualTags": ["boar mask", "broad", "wild"]
+      },
+      "traits": ["aggressive", "competitive", "secretly soft"],
+      "values": ["strength", "winning", "comrades (he would never say it)"],
+      "flaws": ["cannot read", "charges first, thinks never"],
+      "fears": ["being seen as weak"],
+      "speechStyle": "bellowed challenges and mangled names",
+      "goals": ["fight the strongest thing in Asakusa", "beat Tanjiro at anything", "headbutt the alley demon"],
+      "secrets": ["He keeps the rice ball an old woman gave him wrapped and uneaten."],
+      "memories": ["Something in the alley dodged my blade without footsteps. I want to fight it again."]
+    },
+    {
+      "name": "Shinobu Kocho",
+      "role": "insect hashira and healer",
+      "faction": "Demon Slayer Corps",
+      "description": "The smiling pillar who replaced strength with poison and grief with a pleasant voice. She runs the Butterfly Mansion and measures every demon for a dose.",
+      "look": {
+        "sourceLook": "Shinobu Kocho / insect hashira",
+        "bodyType": "petite and graceful",
+        "hair": "black hair to purple, butterfly pin, she",
+        "outfit": "white haori fading to butterfly-wing teal and purple over uniform",
+        "palette": ["#9a7ab8", "#d8e8e2", "#2a2330"],
+        "silhouette": "Small, elegant, haori spread like wings.",
+        "visualTags": ["butterfly haori", "purple", "she", "smile"]
+      },
+      "traits": ["serene", "razor-tongued", "patient"],
+      "values": ["her sister's dream of mercy", "precision"],
+      "flaws": ["smiles instead of grieving", "provokes the strong"],
+      "fears": ["forgetting her sister's face"],
+      "speechStyle": "sweetly polite with a poisoned edge",
+      "goals": ["brew a wisteria poison strong enough for an upper rank", "keep the wounded breathing", "watch the Kamado siblings — they interest her"],
+      "secrets": ["Her new poison recipe requires demon blood fresher than any sample she has."],
+      "memories": ["The disappearances near the theater follow the pattern of a blood-spreading demon, not a hungry one."]
+    },
+    {
+      "name": "Muzan Kibutsuji",
+      "role": "demon progenitor hiding as a gentleman",
+      "faction": "Muzan's Shadow",
+      "description": "The first demon, dressed as a Taisho gentleman with a wife and daughter who believe him human. He kills the careless with a fingertip and despises being noticed.",
+      "look": {
+        "sourceLook": "Muzan Kibutsuji / white-hat gentleman demon",
+        "bodyType": "tall and composed",
+        "hair": "black curls under a white fedora",
+        "outfit": "white fedora, black western suit, red eyes when angered",
+        "palette": ["#2a2330", "#e8e4dc", "#a01828"],
+        "silhouette": "A tall gentleman silhouette with a pale hat in lantern light.",
+        "visualTags": ["fedora", "suit", "crimson eyes"]
+      },
+      "traits": ["cold", "vain", "absolute"],
+      "values": ["self-preservation", "perfection", "erasure of weakness"],
+      "flaws": ["pathological fear of the sun and of being known"],
+      "fears": ["the breath users finding his scent", "sunlight"],
+      "speechStyle": "soft, courteous, terrifyingly final",
+      "goals": ["seed new demons in Asakusa's crowds", "erase the boy with the hanafuda earrings", "stay invisible"],
+      "secrets": ["He is the demon who slaughtered the Kamado family.", "His human family suspects nothing."],
+      "memories": ["A boy in the market wore hanafuda earrings I have seen before. That bloodline should be ash."]
+    }
+  ],
+  "conflicts": [
+    {
+      "title": "The progenitor walks the market",
+      "pressure": 52,
+      "involved": ["Muzan Kibutsuji", "Tanjiro Kamado", "Shadowed Alley"],
+      "antagonist": "Muzan Kibutsuji",
+      "objective": "Convert fresh demons in the alley, erase the earring boy's trail, and vanish before any pillar arrives.",
+      "clue": "The vanishings cluster within a lantern's walk of the theater district, always after the last tram."
+    },
+    {
+      "title": "Nezuko's secret strains the Corps",
+      "pressure": 38,
+      "involved": ["Nezuko Kamado", "Shinobu Kocho", "Butterfly Mansion"],
+      "antagonist": "Shinobu Kocho",
+      "objective": "Shinobu watches the box-carrying boy: if the demon girl ever feeds, her poison is ready.",
+      "clue": "Butterfly Mansion's medicine log has a new page titled only 'K. siblings — observation'."
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "Wisteria charm",
+      "description": "A dried sprig of wisteria in a paper ward. Demons cannot bear its scent; patrols carry one each.",
+      "location": "Wisteria Grove",
+      "clue": "The grove keeper cut fresh charms this morning; one bundle is missing."
+    },
+    {
+      "name": "Chipped nichirin blade",
+      "description": "Inosuke's spare blade, deliberately chipped along the spine. The smith wept when he saw it.",
+      "location": "Swordsmith Forge",
+      "clue": "The smith refuses to return it until someone apologizes for the chips."
+    },
+    {
+      "name": "Demon blood sample",
+      "description": "A stoppered vial of fresh demon blood, drawn in the alley. Shinobu needs it for her poison work.",
+      "location": "Shadowed Alley",
+      "clue": "The vial was dropped near the theater's back door during last night's struggle."
+    }
+  ]
+}
