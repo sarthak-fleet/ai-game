@@ -447,6 +447,22 @@
   margin-top: 2px;
 }
 
+.quest-giver {
+  font-weight: 400;
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.quest-step {
+  font-size: 12px;
+  margin-top: 3px;
+  color: #8ec4ff;
+}
+
+.quest-step.met {
+  color: #8de8a0;
+}
+
 .modal-backdrop {
   position: absolute;
   inset: 0;

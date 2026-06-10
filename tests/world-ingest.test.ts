@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import { activeObjectives } from "../src/objectives.ts";
+import { questItemTargetsFor } from "../src/quest-targets.ts";
 import { applyAction, getQuest } from "../src/simulation.ts";
 import { storyPackageFromWorld, validateStoryPackage } from "../src/story-package.ts";
 import { validateWorldIngestSource, type WorldIngestSource, worldSourceToWorld } from "../src/world-ingest.ts";
@@ -330,6 +331,8 @@ describe("generic world ingest", () => {
 
     for (const questId of ["recover_route_token", "recover_prism_gear", "recover_painted_flag_scrap"]) {
       expect(applyAction(world, { type: "accept_quest", actorId: "player", questId }).applied).toBe(true);
+      const target = questItemTargetsFor(world, getQuest(world, questId)!)[0];
+      if (target) world.items.find((item) => item.id === target.itemId)!.holderId = "player";
       expect(applyAction(world, { type: "complete_quest", actorId: "player", questId }).applied).toBe(true);
     }
 

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import { activeObjectives } from "../src/objectives.ts";
+import { questItemTargetsFor } from "../src/quest-targets.ts";
 import { applyAction } from "../src/simulation.ts";
 import { isCutsceneUnlocked, STARTER_QUEST_IDS, syncStoryProgress } from "../src/story-progress.ts";
 import type { World } from "../src/types.ts";
@@ -53,6 +54,7 @@ describe("story progress", () => {
     expect(isCutsceneUnlocked(world, "garden_morning")).toBe(false);
 
     applyAction(world, { type: "accept_quest", actorId: "player", questId: "return_shears" });
+    fulfillQuestObjective(world, "return_shears");
     applyAction(world, { type: "complete_quest", actorId: "player", questId: "return_shears" });
 
     expect(isCutsceneUnlocked(world, "garden_morning")).toBe(true);
@@ -63,6 +65,13 @@ describe("story progress", () => {
 function completeStarterQuests(world: World): void {
   for (const questId of STARTER_QUEST_IDS) {
     applyAction(world, { type: "accept_quest", actorId: "player", questId });
+    fulfillQuestObjective(world, questId);
     applyAction(world, { type: "complete_quest", actorId: "player", questId });
   }
+}
+
+function fulfillQuestObjective(world: World, questId: string): void {
+  const quest = (world.quests ?? []).find((entry) => entry.id === questId)!;
+  const target = questItemTargetsFor(world, quest)[0];
+  if (target) world.items.find((item) => item.id === target.itemId)!.holderId = "player";
 }

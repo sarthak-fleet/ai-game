@@ -21,18 +21,35 @@ export function questItemTargetsFor(world: World, quest: Quest): QuestItemTarget
   return inferQuestItemTargets(world, quest);
 }
 
+const STOP_WORDS = new Set(["the", "and", "for", "with", "from", "near", "into", "that", "this", "them", "back", "need", "needs", "find", "before"]);
+
+function significantWords(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((word) => word.length >= 4 && !STOP_WORDS.has(word))
+  );
+}
+
+/** match quest prose to item names — works for any imported world and LLM-created quests */
 function inferQuestItemTargets(world: World, quest: Quest): QuestItemTarget[] {
   if (!quest.giverId) return [];
-  const questIndex = Math.max(0, (world.quests ?? []).findIndex((candidate) => candidate.id === quest.id));
-  const primaryItem = world.items[questIndex];
-  const proofItem = questIndex === 2 ? world.items[3] : undefined;
-  return [primaryItem, proofItem]
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    .map((item) => ({
-      itemId: item.id,
-      returnNpcId: quest.giverId!,
-      searchLocationId: item.locationId ?? locationForNpc(world, quest.giverId!) ?? world.player.locationId,
-    }));
+  const questWords = significantWords(`${quest.title} ${quest.description ?? ""}`);
+  const scored = world.items
+    .map((item) => {
+      const itemWords = significantWords(`${item.name} ${item.id.replace(/[_-]/g, " ")}`);
+      let score = 0;
+      for (const word of itemWords) if (questWords.has(word)) score += 1;
+      return { item, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored.map(({ item }) => ({
+    itemId: item.id,
+    returnNpcId: quest.giverId!,
+    searchLocationId: item.locationId ?? locationForNpc(world, quest.giverId!) ?? world.player.locationId,
+  }));
 }
 
 function locationForNpc(world: World, npcId: string): string | undefined {

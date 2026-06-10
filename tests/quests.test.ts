@@ -14,6 +14,7 @@ describe("quests", () => {
     expect(accept.applied).toBe(true);
     expect(getQuest(world, "return_shears")!.status).toBe("active");
 
+    world.items.find((item) => item.id === "shears")!.holderId = "player";
     const done = applyAction(world, { type: "complete_quest", actorId: "player", questId: "return_shears" });
     expect(done.applied).toBe(true);
     expect(getQuest(world, "return_shears")!.status).toBe("done");

@@ -1,4 +1,5 @@
 import { completeText, type CompleteTextResult, isLlmEnabled, streamText } from "./llm/router.ts";
+import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { applyAction, locationName, retrieveMemories, validateAction } from "./simulation.ts";
 import type { Action, Npc, World } from "./types.ts";
 
@@ -239,7 +240,19 @@ function buildDialogueUser(world: World, npc: Npc, history: DialogueTurn[], play
   const quests = (world.quests ?? [])
     .filter((quest) => quest.giverId === npc.id)
     .filter((quest) => (quest.status ?? "open") === "open" || quest.status === "active")
-    .map((quest) => `quest ${quest.id}: ${quest.title} [${quest.status ?? "open"}${quest.status === "active" ? " — completable if done" : " — offerable"}]`)
+    .map((quest) => {
+      let state = " — offerable";
+      if (quest.status === "active") {
+        const met = questObjectiveMet(world, quest);
+        state =
+          met === false
+            ? ` — NOT completable: ${questObjectiveBlockText(world, quest)} Do not complete_quest yet; tell the player what is still missing.`
+            : met === true
+              ? " — the task is verifiably done; complete_quest now and thank them"
+              : " — completable if the player has truly done it";
+      }
+      return `quest ${quest.id}: ${quest.title} [${quest.status ?? "open"}${state}]`;
+    })
     .join("\n");
   const held = world.items
     .filter((item) => item.holderId === npc.id)

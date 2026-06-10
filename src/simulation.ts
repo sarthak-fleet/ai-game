@@ -9,6 +9,7 @@ import {
 } from "./agents.ts";
 import { awardXp, reassignArcRoles, XP_FIGHT_WON, XP_QUEST_COMPLETE } from "./arcs.ts";
 import { combatMoveFor, combatMovesFor } from "./combat.ts";
+import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { questItemTargetsFor } from "./quest-targets.ts";
 import { storyConfrontationTargetId } from "./story-context.ts";
 import {
@@ -800,6 +801,9 @@ export function validateAction(world: World, action: Action | unknown): Validati
     if (a.type === "complete_quest" || a.type === "fail_quest") {
       if (quest.status !== "active") return invalid(`Quest is ${quest.status ?? "unstarted"}.`);
       if (quest.acceptedBy !== a.actorId) return invalid("Only the accepter can resolve.");
+    }
+    if (a.type === "complete_quest" && questObjectiveMet(world, quest) === false) {
+      return invalid(questObjectiveBlockText(world, quest));
     }
   }
 
