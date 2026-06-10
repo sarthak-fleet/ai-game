@@ -45,12 +45,23 @@ const initialAgentLoopCheckpoints = readAgentLoopCheckpoints(AGENT_LOOP_CHECKPOI
 const propose = isLlmEnabled() ? createLlmProposer({ tier: "normal", maxNpcs: LLM_MAX_NPCS }) : undefined;
 const director = createDirector({ propose: isLlmEnabled() ? proposeAction : undefined });
 const engine = createEngine(world, { propose, director });
+
+const sseClients = new Set<ServerResponse>();
+function broadcastSse(event: string, payload: unknown): void {
+  const frame = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const client of sseClients) client.write(frame);
+}
+setInterval(() => {
+  for (const client of sseClients) client.write(": ping\n\n");
+}, 25_000).unref();
+
 const agentLoop = createAgentLoop(engine, {
   intervalMs: AGENT_LOOP_INTERVAL_MS,
   maxTicks: AGENT_LOOP_MAX_TICKS,
   maxCheckpoints: AGENT_LOOP_MAX_CHECKPOINTS,
   initialCheckpoints: initialAgentLoopCheckpoints,
   onCheckpoint: (checkpoint) => upsertAgentLoopCheckpoint(AGENT_LOOP_CHECKPOINT_PATH, checkpoint, AGENT_LOOP_MAX_CHECKPOINTS),
+  onTick: (summary) => broadcastSse("tick", { summary }),
 });
 if (AGENT_LOOP_AUTOSTART) agentLoop.start();
 
@@ -59,6 +70,17 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === "/api/state" && req.method === "GET") {
     return json(res, 200, engine.state);
+  }
+  if (url.pathname === "/api/events" && req.method === "GET") {
+    res.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    res.write(`event: hello\ndata: ${JSON.stringify({ worldId: engine.state.id, tick: engine.state.tick })}\n\n`);
+    sseClients.add(res);
+    req.on("close", () => sseClients.delete(res));
+    return;
   }
   if (url.pathname === "/api/unreal/state" && req.method === "GET") {
     return json(res, 200, unrealWorldStateFromWorld(engine.state, agentLoop.status()));
@@ -216,6 +238,7 @@ async function replaceEngineState(nextWorld: World) {
   engine.setState(nextWorld);
   const status = agentLoop.clearCheckpoints();
   writeAgentLoopCheckpoints(AGENT_LOOP_CHECKPOINT_PATH, []);
+  broadcastSse("world", { worldId: engine.state.id, tick: engine.state.tick });
   return status;
 }
 

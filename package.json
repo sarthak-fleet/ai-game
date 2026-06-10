@@ -12,6 +12,8 @@
     "build": "tsc -p tsconfig.build.json && vite build && node scripts/copy-web-assets.mjs",
     "budget:bundle": "tsx src/bundle-budget.ts",
     "dev": "vite",
+    "dev:3d": "vite --config vite.web3d.config.ts",
+    "build:3d": "vite build --config vite.web3d.config.ts",
     "dev:server": "tsx watch --env-file-if-exists=.env src/server.ts",
     "eval:llm": "tsx --env-file-if-exists=.env src/eval.ts",
     "eval:lmstudio": "tsx --env-file-if-exists=.env src/lmstudio-eval.ts",
@@ -65,8 +67,13 @@
     ]
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "@react-three/rapier": "^2.2.0",
     "phaser": "^4.1.0",
     "posthog-js": "^1.372.1",
+    "postprocessing": "^6.39.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "^0.184.0",

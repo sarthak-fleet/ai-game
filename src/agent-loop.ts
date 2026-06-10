@@ -31,6 +31,7 @@ export interface AgentLoopOptions {
   setIntervalFn?: (callback: () => void, ms: number) => unknown;
   clearIntervalFn?: (handle: unknown) => void;
   onCheckpoint?: (checkpoint: AgentLoopCheckpoint) => void;
+  onTick?: (summary: TickSummary) => void;
   initialCheckpoints?: AgentLoopCheckpoint[];
   maxCheckpoints?: number;
 }
@@ -107,6 +108,7 @@ export function createAgentLoop(engine: Engine, options: AgentLoopOptions = {}):
         lastTick = summary;
         lastError = null;
         restoredCheckpoint = null;
+        options.onTick?.(summary);
         if (ticksRun % checkpointEveryTicks === 0) captureCheckpoint();
         if (maxTicks !== null && ticksRun >= maxTicks && state === "running") loop.stop("max_ticks");
         return summary;

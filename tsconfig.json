@@ -18,11 +18,14 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "paths": {
+      "@react-three/postprocessing": ["./web3d/src/types/react-three-postprocessing.d.ts"]
+    },
     "noEmit": true,
     "declaration": false,
     "sourceMap": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*", "web/**/*", "tests/**/*", "vite.config.ts"],
+  "include": ["src/**/*", "web/**/*", "web3d/**/*", "tests/**/*", "vite.config.ts", "vite.web3d.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

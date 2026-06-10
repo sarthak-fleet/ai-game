@@ -1,0 +1,314 @@
+import { Billboard, Text } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+
+import type { Npc as NpcData, Quest } from "../../../src/types.ts";
+import { applyIncomingHit, playerCombatState } from "../combat/player-fsm.ts";
+import { useCombatStore } from "../combat/store.ts";
+import { npcRegistry, playerPosition, registerNpc, unregisterNpc } from "../controls/runtime.ts";
+import { useDirectorStore } from "../director/store.ts";
+import { actorVisualFor } from "../mapping/visuals.ts";
+import { useUiStore } from "../store/ui.ts";
+import { findDistrictPath, type NavGraph } from "../worldgen/index.ts";
+import type { PlacedNpcSpawn } from "../worldgen/placements.ts";
+import { rngFor } from "../worldgen/rng.ts";
+import { type CharacterAnimationHandle, CharacterModel } from "./CharacterModel.tsx";
+
+const WALK_SPEED = 1.15;
+const TRAVEL_SPEED = 3.4;
+const WANDER_RADIUS = 3.2;
+
+const CHASE_SPEED = 3.0;
+const RETREAT_SPEED = 2.2;
+const STRIKE_REACH = 2.1;
+const STRIKE_DAMAGE = 11;
+const TELEGRAPH_S = 0.42;
+const RECOVER_S = 0.95;
+const RETREAT_HP_FRACTION = 0.25;
+
+type EnemyAiState = "approach" | "telegraph" | "strike" | "recover" | "retreat";
+
+interface NpcProps {
+  npc: NpcData;
+  worldId: string;
+  spawn: PlacedNpcSpawn;
+  nav: NavGraph;
+  quests: Quest[];
+}
+
+export function Npc({ npc, worldId, spawn, nav, quests }: NpcProps) {
+  const group = useRef<THREE.Group>(null);
+  const animation = useRef<CharacterAnimationHandle>(null);
+  // position prop must stay constant: movement is imperative, and a reactive
+  // position would teleport the node whenever the sim relocates the NPC
+  const [initialSpawn] = useState(() => ({ x: spawn.x, z: spawn.z, heading: spawn.heading }));
+  const visual = useMemo(() => actorVisualFor(npc.appearance, npc.tier === "quest" ? "#b5e48c" : "#ff8a65"), [npc.appearance, npc.tier]);
+  const inDialogue = useUiStore((state) => state.dialogueNpcId === npc.id);
+  const enemy = useCombatStore((state) => state.enemies[npc.id]);
+  const lockedOn = useCombatStore((state) => state.lockTargetId === npc.id);
+
+  const state = useRef({
+    rng: rngFor(worldId, npc.id, "wander"),
+    districtId: spawn.districtId,
+    travelWaypoints: null as Array<{ x: number; z: number }> | null,
+    wanderTarget: new THREE.Vector3(spawn.x, 0, spawn.z),
+    wanderCenter: { x: spawn.x, z: spawn.z },
+    waitUntil: 0,
+    heading: spawn.heading,
+    aiState: "approach" as EnemyAiState,
+    aiUntil: 0,
+    struck: false,
+  });
+
+  useEffect(() => {
+    const actor = registerNpc(npc.id);
+    actor.position.copy(group.current?.position ?? new THREE.Vector3(spawn.x, 0, spawn.z));
+    return () => unregisterNpc(npc.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- register once per npc
+  }, [npc.id]);
+
+  // sim moved this NPC to another district: walk there along the street graph
+  useEffect(() => {
+    const s = state.current;
+    s.wanderCenter = { x: spawn.x, z: spawn.z };
+    if (spawn.districtId === s.districtId) return;
+    const path = findDistrictPath(nav, s.districtId, spawn.districtId) ?? [];
+    s.travelWaypoints = [...path.slice(1), { x: spawn.x, z: spawn.z }];
+    s.districtId = spawn.districtId;
+    s.wanderTarget.set(spawn.x, 0, spawn.z);
+  }, [spawn.districtId, spawn.x, spawn.z, nav]);
+
+  useFrame((frame, delta) => {
+    const node = group.current;
+    if (!node) return;
+    const s = state.current;
+    const time = frame.clock.elapsedTime;
+
+    const clientDefeated = Boolean(enemy?.defeated) || Boolean(npc.combat?.defeated);
+    if (clientDefeated) {
+      animation.current?.setSpeed(0);
+      syncRegistry(npc.id, node.position);
+      return;
+    }
+
+    // story cutscenes pause combat AI (ambient behavior continues below)
+    const inCutscene = Boolean(useDirectorStore.getState().cutscene);
+
+    // hostile combat AI takes priority over ambient behavior
+    if (enemy?.hostile && playerCombatState.kind !== "dead" && !inCutscene) {
+      updateEnemyAi(npc.id, s, node, time, delta, animation.current, visualHitPoint(node));
+      syncRegistry(npc.id, node.position);
+      return;
+    }
+
+    if (inDialogue && !s.travelWaypoints) {
+      animation.current?.setSpeed(0);
+      const toPlayer = Math.atan2(playerPosition.x - node.position.x, playerPosition.z - node.position.z);
+      s.heading = dampAngle(s.heading, toPlayer, 8, delta);
+      node.rotation.y = s.heading;
+      syncRegistry(npc.id, node.position);
+      return;
+    }
+
+    if (s.travelWaypoints && s.travelWaypoints.length > 0) {
+      const next = s.travelWaypoints[0]!;
+      const target = new THREE.Vector3(next.x, 0, next.z);
+      const distance = node.position.distanceTo(target);
+      if (distance < 0.3) {
+        s.travelWaypoints.shift();
+        if (s.travelWaypoints.length === 0) {
+          s.travelWaypoints = null;
+          s.waitUntil = time + 1;
+        }
+      } else {
+        const direction = target.clone().sub(node.position).normalize();
+        node.position.addScaledVector(direction, Math.min(TRAVEL_SPEED * delta, distance));
+        s.heading = dampAngle(s.heading, Math.atan2(direction.x, direction.z), 10, delta);
+        node.rotation.y = s.heading;
+        animation.current?.setSpeed(TRAVEL_SPEED);
+      }
+      syncRegistry(npc.id, node.position);
+      return;
+    }
+
+    const distance = node.position.distanceTo(s.wanderTarget);
+    if (distance < 0.15) {
+      if (time > s.waitUntil) {
+        if (s.waitUntil !== 0) {
+          const angle = s.rng() * Math.PI * 2;
+          const radius = s.rng() * WANDER_RADIUS;
+          s.wanderTarget.set(s.wanderCenter.x + Math.cos(angle) * radius, 0, s.wanderCenter.z + Math.sin(angle) * radius);
+        }
+        s.waitUntil = time + 2 + s.rng() * 4;
+      }
+      animation.current?.setSpeed(0);
+    } else {
+      const direction = s.wanderTarget.clone().sub(node.position).normalize();
+      node.position.addScaledVector(direction, Math.min(WALK_SPEED * delta, distance));
+      s.heading = dampAngle(s.heading, Math.atan2(direction.x, direction.z), 10, delta);
+      node.rotation.y = s.heading;
+      animation.current?.setSpeed(WALK_SPEED);
+    }
+    syncRegistry(npc.id, node.position);
+  });
+
+  const hasOpenQuest = quests.some((quest) => quest.giverId === npc.id && (quest.status ?? "open") === "open");
+  const defeated = Boolean(enemy?.defeated) || Boolean(npc.combat?.defeated);
+  const hostile = Boolean(enemy?.hostile) && !defeated;
+
+  return (
+    <group ref={group} position={[initialSpawn.x, 0, initialSpawn.z]} rotation={[0, initialSpawn.heading, 0]}>
+      <group rotation={defeated ? [-Math.PI / 2, 0, 0] : [0, 0, 0]} position={defeated ? [0, 0.3, 0] : [0, 0, 0]}>
+        <CharacterModel ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} />
+      </group>
+      <Billboard position={[0, 2.35, 0]}>
+        <Text
+          fontSize={0.24}
+          color={defeated ? "#8b93a3" : hostile ? "#ff7a6a" : "#ffffff"}
+          outlineWidth={0.02}
+          outlineColor="#101421"
+          anchorX="center"
+        >
+          {npc.name}
+        </Text>
+        {hasOpenQuest && !defeated && !hostile ? (
+          <Text position={[0, 0.34, 0]} fontSize={0.4} color="#ffd84d" outlineWidth={0.03} outlineColor="#3d2a05" anchorX="center">
+            !
+          </Text>
+        ) : null}
+        {hostile && enemy ? (
+          <group position={[0, 0.32, 0]}>
+            <mesh>
+              <planeGeometry args={[1.3, 0.13]} />
+              <meshBasicMaterial color="#1a1010" transparent opacity={0.85} depthWrite={false} />
+            </mesh>
+            <mesh position={[-(1.26 * (1 - enemy.hp / enemy.maxHp)) / 2, 0, 0.001]}>
+              <planeGeometry args={[Math.max(0.01, 1.26 * (enemy.hp / enemy.maxHp)), 0.09]} />
+              <meshBasicMaterial color="#ff5a4a" depthWrite={false} />
+            </mesh>
+          </group>
+        ) : null}
+        {lockedOn && !defeated ? (
+          <Text position={[0, 0.62, 0]} fontSize={0.34} color="#ffd84d" outlineWidth={0.03} outlineColor="#3d2a05" anchorX="center">
+            ◆
+          </Text>
+        ) : null}
+      </Billboard>
+    </group>
+  );
+}
+
+function syncRegistry(npcId: string, position: THREE.Vector3): void {
+  const actor = npcRegistry.get(npcId);
+  if (actor) actor.position.copy(position);
+}
+
+interface EnemyAiContext {
+  heading: number;
+  aiState: EnemyAiState;
+  aiUntil: number;
+  struck: boolean;
+}
+
+function visualHitPoint(node: THREE.Group): { x: number; y: number; z: number } {
+  return { x: node.position.x, y: node.position.y + 1.2, z: node.position.z };
+}
+
+function updateEnemyAi(
+  npcId: string,
+  s: EnemyAiContext,
+  node: THREE.Group,
+  time: number,
+  delta: number,
+  animation: CharacterAnimationHandle | null,
+  hitPoint: { x: number; y: number; z: number }
+): void {
+  const store = useCombatStore.getState();
+  const enemy = store.enemies[npcId];
+  const toPlayer = playerPosition.clone().sub(node.position);
+  toPlayer.y = 0;
+  const distance = toPlayer.length();
+  const faceYaw = Math.atan2(toPlayer.x, toPlayer.z);
+
+  const lowHp = enemy ? enemy.hp / enemy.maxHp < RETREAT_HP_FRACTION : false;
+
+  if (s.aiState === "approach") {
+    if (lowHp && distance < 6) {
+      s.aiState = "retreat";
+      s.aiUntil = time + 2.2;
+    } else if (distance <= STRIKE_REACH * 0.85) {
+      s.aiState = "telegraph";
+      s.aiUntil = time + TELEGRAPH_S;
+      s.struck = false;
+      animation?.trigger("telegraph");
+      store.addVfx({
+        kind: "telegraph",
+        ...hitPoint,
+        color: "#ff6a5a",
+        startedAt: performance.now(),
+        expiresAt: performance.now() + TELEGRAPH_S * 1000,
+      });
+    } else {
+      const step = toPlayer.normalize().multiplyScalar(Math.min(CHASE_SPEED * delta, Math.max(0, distance - 1.2)));
+      node.position.add(step);
+      animation?.setSpeed(CHASE_SPEED);
+    }
+    s.heading = dampAngle(s.heading, faceYaw, 10, delta);
+    node.rotation.y = s.heading;
+    if (s.aiState === "approach") return;
+  }
+
+  if (s.aiState === "telegraph") {
+    animation?.setSpeed(0);
+    s.heading = dampAngle(s.heading, faceYaw, 6, delta);
+    node.rotation.y = s.heading;
+    if (time >= s.aiUntil) {
+      s.aiState = "strike";
+      s.aiUntil = time + 0.18;
+      animation?.trigger("attack1");
+    }
+    return;
+  }
+
+  if (s.aiState === "strike") {
+    animation?.setSpeed(0);
+    if (!s.struck && distance <= STRIKE_REACH) {
+      s.struck = true;
+      applyIncomingHit(playerCombatState, performance.now(), STRIKE_DAMAGE, {
+        x: playerPosition.x,
+        y: playerPosition.y + 1.2,
+        z: playerPosition.z,
+      });
+    }
+    if (time >= s.aiUntil) {
+      s.aiState = "recover";
+      s.aiUntil = time + RECOVER_S;
+    }
+    return;
+  }
+
+  if (s.aiState === "recover") {
+    animation?.setSpeed(0);
+    if (time >= s.aiUntil) s.aiState = "approach";
+    return;
+  }
+
+  // retreat
+  if (time >= s.aiUntil || distance > 9) {
+    s.aiState = "approach";
+    return;
+  }
+  const away = toPlayer.normalize().multiplyScalar(-RETREAT_SPEED * delta);
+  node.position.add(away);
+  s.heading = dampAngle(s.heading, faceYaw, 10, delta);
+  node.rotation.y = s.heading;
+  animation?.setSpeed(RETREAT_SPEED);
+}
+
+function dampAngle(current: number, target: number, lambda: number, delta: number): number {
+  let diff = target - current;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return current + diff * (1 - Math.exp(-lambda * delta));
+}

@@ -1,0 +1,596 @@
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: #f1f5fb;
+  font-size: 14px;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+.topbar {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  background: rgba(10, 14, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 14px;
+  backdrop-filter: blur(6px);
+}
+
+.topbar-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.topbar-meta {
+  opacity: 0.75;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.objective {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  max-width: 320px;
+  background: rgba(10, 14, 24, 0.72);
+  border: 1px solid rgba(248, 212, 78, 0.35);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.objective-label {
+  color: #f8d44e;
+  font-weight: 700;
+  margin-right: 6px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.toasts {
+  position: absolute;
+  right: 16px;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 320px;
+  pointer-events: none;
+}
+
+.toast {
+  background: rgba(10, 14, 24, 0.66);
+  border-left: 3px solid #7fd0ff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  animation: toast-in 200ms ease-out;
+}
+
+.toast.director {
+  border-left-color: #f8d44e;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 24, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.prompt-key {
+  display: inline-block;
+  background: #f1f5fb;
+  color: #10141f;
+  font-weight: 800;
+  border-radius: 4px;
+  padding: 1px 7px;
+  margin-right: 8px;
+}
+
+.controls-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.55;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  width: min(620px, calc(100vw - 40px));
+  background: rgba(8, 12, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+}
+
+.dialogue-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dialogue-portrait {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.dialogue-name {
+  font-weight: 700;
+}
+
+.dialogue-role {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.dialogue-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #f1f5fb;
+  opacity: 0.6;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.dialogue-close:hover {
+  opacity: 1;
+}
+
+.dialogue-log {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialogue-hint {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.dialogue-line.player .dialogue-speaker {
+  color: #7fd0ff;
+  font-weight: 700;
+}
+
+.dialogue-line.npc .dialogue-speaker {
+  color: #f8d44e;
+  font-weight: 700;
+}
+
+.dialogue-line.thinking {
+  opacity: 0.6;
+}
+
+.dialogue-input {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dialogue-input input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: #f1f5fb;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.dialogue-input input:focus {
+  border-color: #7fd0ff;
+}
+
+.dialogue-input button {
+  background: #2563b8;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dialogue-input button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.error-banner {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(160, 40, 50, 0.92);
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.screen-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #f1f5fb;
+}
+
+.screen-center button {
+  background: #2563b8;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f1f5fb;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.chip.on {
+  border-color: #6ee787;
+  color: #6ee787;
+}
+
+.quests {
+  position: absolute;
+  left: 16px;
+  top: 96px;
+  width: 270px;
+  background: rgba(10, 14, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 6px 10px 10px;
+  backdrop-filter: blur(6px);
+}
+
+.quests-header {
+  background: none;
+  border: none;
+  color: #f8d44e;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.quest {
+  display: flex;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.quest-status {
+  color: #f8d44e;
+  width: 14px;
+}
+
+.quest.done {
+  opacity: 0.55;
+}
+
+.quest.done .quest-status {
+  color: #6ee787;
+}
+
+.quest.failed {
+  opacity: 0.55;
+}
+
+.quest.failed .quest-status {
+  color: #ff7a7a;
+}
+
+.quest-title {
+  font-weight: 600;
+}
+
+.quest-desc {
+  font-size: 12px;
+  opacity: 0.65;
+  margin-top: 2px;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 6, 12, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: min(640px, calc(100vw - 48px));
+  background: rgba(12, 16, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.modal-title {
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.modal-hint {
+  opacity: 0.7;
+  font-size: 13px;
+  margin: 8px 0 12px;
+}
+
+.modal textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  color: #f1f5fb;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  align-items: center;
+}
+
+.modal-actions button,
+.modal-file {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f1f5fb;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.modal-actions button.primary {
+  background: #2563b8;
+  border-color: #2563b8;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.modal-file {
+  margin-right: auto;
+}
+
+.modal-error {
+  margin-top: 10px;
+  color: #ff8d8d;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.player-hp {
+  position: absolute;
+  bottom: 36px;
+  left: 24px;
+  width: 240px;
+  opacity: 0;
+  transition: opacity 250ms;
+  pointer-events: none;
+}
+
+.player-hp.visible {
+  opacity: 1;
+}
+
+.player-hp-label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.player-hp-track {
+  height: 12px;
+  background: rgba(8, 10, 18, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.player-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #57d977, #8fe9a4);
+  transition: width 180ms ease-out;
+}
+
+.player-hp-fill.low {
+  background: linear-gradient(90deg, #e0524a, #ff8a6a);
+}
+
+.death-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(40, 5, 8, 0.45), rgba(10, 2, 4, 0.82));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  animation: death-in 600ms ease-out;
+}
+
+.death-title {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ff8d8d;
+  text-transform: uppercase;
+}
+
+.death-sub {
+  opacity: 0.75;
+}
+
+@keyframes death-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.letterbox {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.letterbox-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11%;
+  background: #05070c;
+  animation: bar-in 450ms ease-out;
+}
+
+.letterbox-bar.top {
+  top: 0;
+}
+
+.letterbox-bar.bottom {
+  bottom: 0;
+}
+
+@keyframes bar-in {
+  from {
+    height: 0;
+  }
+}
+
+.letterbox-beat {
+  position: absolute;
+  left: 50%;
+  bottom: 12.5%;
+  transform: translateX(-50%);
+  max-width: 640px;
+  text-align: center;
+  animation: beat-in 700ms ease-out;
+}
+
+@keyframes beat-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+}
+
+.letterbox-kind {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #f8d44e;
+  margin-bottom: 6px;
+}
+
+.letterbox-text {
+  font-size: 17px;
+  line-height: 1.45;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+}
+
+.letterbox-actor {
+  font-weight: 700;
+  color: #ffd9a8;
+}
+
+.letterbox-skip {
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.minimap {
+  position: absolute;
+  right: 16px;
+  bottom: 36px;
+  background: rgba(8, 12, 22, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 6px;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.minimap canvas {
+  display: block;
+  border-radius: 8px;
+}
