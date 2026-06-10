@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type { World } from "../../../src/types.ts";
+import { attackSwing, dodgeWhoosh, doorCreak, ensureAudio, footstep } from "../audio/sfx.ts";
 import type { CharacterAnimationHandle } from "../characters/CharacterModel.tsx";
 import { RiggedCharacter } from "../characters/RiggedCharacter.tsx";
 import { combatInput, playerCombatState, updatePlayerCombat } from "../combat/player-fsm.ts";
@@ -61,6 +62,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     lookInitialized: false,
     fov: 50,
     lastDust: 0,
+    lastStep: 0,
   });
 
   // initial spawn only — crossing districts must NOT re-apply the position prop
@@ -105,6 +107,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     let downAt = 0;
     let dragDistance = 0;
     const onPointerDown = (event: PointerEvent) => {
+      ensureAudio();
       if (event.button !== 0) return;
       if (isLocked()) {
         combatInput.attackPressed = true;
@@ -178,6 +181,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
 
     // door transitions request a one-shot teleport
     if (teleportRequest.target) {
+      doorCreak();
       const { x, z } = teleportRequest.target;
       teleportRequest.target = null;
       rigidBody.setNextKinematicTranslation({ x, y: CAPSULE_CENTER_Y + 0.2, z });
@@ -232,7 +236,11 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
       moveDirection: direction,
       moving,
     });
-    if (combatFrame.trigger) animation.current?.trigger(combatFrame.trigger);
+    if (combatFrame.trigger) {
+      animation.current?.trigger(combatFrame.trigger);
+      if (combatFrame.trigger.startsWith("attack")) attackSwing(Number(combatFrame.trigger.slice(-1)) || 1);
+      if (combatFrame.trigger === "dodge") dodgeWhoosh();
+    }
     if (combatFrame.faceYaw !== null) s.heading = combatFrame.faceYaw;
 
     // death → respawn at the active courtyard
@@ -300,6 +308,15 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     }
     const horizontalSpeed = s.velocity.length();
     animation.current?.setSpeed(combatFrame.moveLock ? 0 : horizontalSpeed);
+
+    // footsteps timed to stride
+    if (!combatFrame.moveLock && horizontalSpeed > 0.6 && grounded) {
+      const stride = horizontalSpeed > 5.4 ? 0.31 : 0.45;
+      if (frame.clock.elapsedTime - s.lastStep > stride) {
+        s.lastStep = frame.clock.elapsedTime;
+        footstep(horizontalSpeed > 5.4);
+      }
+    }
 
     // run dust puffs
     if (!combatFrame.moveLock && horizontalSpeed > 5.4 && grounded && frame.clock.elapsedTime - s.lastDust > 0.22) {

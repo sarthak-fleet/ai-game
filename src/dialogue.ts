@@ -1,4 +1,4 @@
-import { completeText, type CompleteTextResult, isLlmEnabled } from "./llm/router.ts";
+import { completeText, type CompleteTextResult, isLlmEnabled, streamText } from "./llm/router.ts";
 import { applyAction, locationName, retrieveMemories, validateAction } from "./simulation.ts";
 import type { Action, Npc, World } from "./types.ts";
 
@@ -11,7 +11,18 @@ export interface DialogueTurn {
   text: string;
 }
 
-export type DialogueCompleter = (req: { tier: "normal" | "quest"; system: string; user: string }) => Promise<CompleteTextResult>;
+export type DialogueCompleter = (req: {
+  tier: "normal" | "quest";
+  system: string;
+  user: string;
+  onToken?: (delta: string) => void;
+}) => Promise<CompleteTextResult>;
+
+export interface DialogueOptions {
+  complete?: DialogueCompleter;
+  /** stream visible reply tokens as they arrive (the @@ control tail is held back) */
+  onToken?: (delta: string) => void;
+}
 
 export interface DialogueRelationship {
   score: number;
@@ -76,18 +87,24 @@ export async function generateDialogueReply(
   world: World,
   npcId: string,
   playerText: string,
-  complete: DialogueCompleter = completeText
+  options: DialogueOptions = {}
 ): Promise<DialogueResult | DialogueFailure> {
+  const complete: DialogueCompleter = options.complete ?? (options.onToken ? streamText : completeText);
   const npc = world.npcs.find((entry) => entry.id === npcId);
   if (!npc) return { ok: false, reason: "unknown_npc" };
   if (npc.combat?.defeated) return { ok: false, reason: "npc_defeated" };
-  if (npc.locationId !== world.player.locationId) return { ok: false, reason: "npc_not_here" };
+  // same location, or exit-adjacent: the sim flips locations instantly while the
+  // visual walk catches up, so a face-to-face NPC may already be "elsewhere"
+  if (npc.locationId !== world.player.locationId && !isAdjacent(world, npc.locationId, world.player.locationId)) {
+    return { ok: false, reason: "npc_not_here" };
+  }
 
   const history = historyFor(world.id, npcId);
   const system = buildDialogueSystem(world, npc);
   const user = buildDialogueUser(world, npc, history, playerText);
 
-  const result = await complete({ tier: npc.tier === "quest" ? "quest" : "normal", system, user });
+  const onToken = options.onToken ? heldBackTokenizer(options.onToken) : undefined;
+  const result = await complete({ tier: npc.tier === "quest" ? "quest" : "normal", system, user, onToken });
   if ("skipped" in result && result.skipped) return { ok: false, reason: result.reason };
   if ("error" in result && result.error) return { ok: false, reason: result.error };
   if (!("text" in result) || !result.text) return { ok: false, reason: "empty_reply" };
@@ -174,8 +191,9 @@ function buildDialogueSystem(world: World, npc: Npc): string {
     knownSecrets ? `Secrets you hold:\n${knownSecrets}` : "",
     ``,
     `You are talking face to face with the player INSIDE a living world where you`,
-    `can really act. Respond with ONLY minified JSON, no markdown:`,
-    `{"reply":"<your spoken line, 1-3 sentences, in character>","action":null,"disposition":0}`,
+    `can really act. FORMAT: write your spoken line directly (1-3 sentences, in`,
+    `character, no name prefix, no quotes, no markdown). Then, on a NEW final line,`,
+    `write exactly: @@{"action":null,"disposition":0}`,
     ``,
     `"disposition": how this exchange shifted your feelings about the player,`,
     `an integer from -2 (offended) to 2 (warmed), usually 0.`,
@@ -242,7 +260,7 @@ function buildDialogueUser(world: World, npc: Npc, history: DialogueTurn[], play
     conversation ? `Conversation so far:\n${conversation}` : "",
     ``,
     `Player says: "${playerText}"`,
-    `Your JSON response:`,
+    `Your spoken reply (then the @@ control line):`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -281,6 +299,24 @@ function createDynamicQuest(world: World, npc: Npc, action: NonNullable<ParsedDi
 
 function parseDialogueJson(raw: string, npcName: string): ParsedDialogue {
   const text = raw.trim().replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+  // streaming format: spoken text, then a final "@@{...}" control line
+  const marker = text.lastIndexOf("@@");
+  if (marker !== -1) {
+    const spoken = sanitizeReply(text.slice(0, marker), npcName);
+    const tail = text.slice(marker + 2).trim();
+    try {
+      const control = JSON.parse(tail) as { action?: ParsedDialogue["action"]; disposition?: unknown };
+      return {
+        reply: spoken,
+        action: control.action && typeof control.action === "object" ? control.action : null,
+        disposition: typeof control.disposition === "number" ? Math.max(-2, Math.min(2, Math.round(control.disposition))) : 0,
+      };
+    } catch {
+      if (spoken) return { reply: spoken, action: null, disposition: 0 };
+    }
+  }
+
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start !== -1 && end > start) {
@@ -330,4 +366,37 @@ function sanitizeReply(raw: string, npcName: string): string {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function isAdjacent(world: World, a: string, b: string): boolean {
+  return (world.exits ?? []).some(
+    (exit) => (exit.from === a && exit.to === b) || (exit.bidirectional !== false && exit.from === b && exit.to === a)
+  );
+}
+
+/**
+ * Forwards visible reply tokens but withholds anything from "@@" onward (the
+ * control tail) plus a small boundary buffer so the JSON never flashes onscreen.
+ */
+function heldBackTokenizer(emit: (delta: string) => void): (delta: string) => void {
+  let pending = "";
+  let stopped = false;
+  return (delta: string) => {
+    if (stopped) return;
+    pending += delta;
+    const marker = pending.indexOf("@@");
+    if (marker !== -1) {
+      const safe = pending.slice(0, marker);
+      if (safe) emit(safe);
+      stopped = true;
+      return;
+    }
+    // keep one trailing "@"-risk char buffered
+    const holdFrom = pending.endsWith("@") ? pending.length - 1 : pending.length;
+    const safe = pending.slice(0, holdFrom);
+    if (safe) {
+      emit(safe);
+      pending = pending.slice(holdFrom);
+    }
+  };
 }

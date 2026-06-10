@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { timeOfDay } from "../../../src/types.ts";
+import { isSfxEnabled, pickupChime, setSfxEnabled } from "../audio/sfx.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { isTypingTarget } from "../controls/input.ts";
 import { requestTeleport } from "../controls/runtime.ts";
@@ -28,6 +29,7 @@ export function Hud() {
   const openDialogue = useUiStore((state) => state.openDialogue);
   const interiorBuildingId = useUiStore((state) => state.interiorBuildingId);
   const [importOpen, setImportOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => isSfxEnabled());
   const playerHp = useCombatStore((state) => state.playerHp);
   const playerMaxHp = useCombatStore((state) => state.playerMaxHp);
   const playerDown = useCombatStore((state) => state.playerDown);
@@ -45,7 +47,10 @@ export function Hud() {
       const current = ui.interactionTarget;
       if (!current || ui.dialogueNpcId) return;
       if (current.kind === "npc") openDialogue(current.id);
-      if (current.kind === "item") void send({ type: "pickup", itemId: current.id });
+      if (current.kind === "item") {
+        pickupChime();
+        void send({ type: "pickup", itemId: current.id });
+      }
       if (current.kind === "prop") void send({ type: "inspect", propId: current.id });
       if (current.kind === "door") {
         const currentWorld = useWorldStore.getState().world;
@@ -97,6 +102,9 @@ export function Hud() {
           </button>
           <button type="button" className="chip" onClick={() => setImportOpen(true)}>
             Import world
+          </button>
+          <button type="button" className={`chip ${soundOn ? "on" : ""}`} onClick={() => { setSfxEnabled(!soundOn); setSoundOn(!soundOn); }}>
+            {soundOn ? "🔊" : "🔇"}
           </button>
         </div>
       </div>

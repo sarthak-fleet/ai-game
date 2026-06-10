@@ -24,6 +24,7 @@ interface UiStore {
   openDialogue: (npcId: string) => void;
   setDialogueLines: (lines: DialogueLine[]) => void;
   pushDialogueLine: (line: DialogueLine) => void;
+  updateLastDialogueLine: (text: string) => void;
   setDialogueBusy: (busy: boolean) => void;
   closeDialogue: () => void;
   setInteractionTarget: (target: InteractionTarget | null) => void;
@@ -49,6 +50,11 @@ export const useUiStore = create<UiStore>((set, get) => ({
   },
   pushDialogueLine(line) {
     set({ dialogueLines: [...get().dialogueLines, line] });
+  },
+  updateLastDialogueLine(text) {
+    const lines = get().dialogueLines;
+    if (lines.length === 0) return;
+    set({ dialogueLines: [...lines.slice(0, -1), { ...lines.at(-1)!, text }] });
   },
   setDialogueBusy(busy) {
     set({ dialogueBusy: busy });

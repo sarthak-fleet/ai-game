@@ -51,6 +51,51 @@ export async function postDialogue(npcId: string, text: string): Promise<Dialogu
   return readApiJson<DialogueResponse>(res, "postDialogue");
 }
 
+/** Streaming dialogue: onToken receives visible reply deltas; resolves with the final payload. */
+export async function postDialogueStream(
+  npcId: string,
+  text: string,
+  onToken: (delta: string) => void
+): Promise<DialogueResponse> {
+  const res = await fetch("/api/dialogue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ npcId, text, stream: true }),
+  });
+  if (!res.ok || !res.body) throw new Error(`postDialogueStream failed: ${res.status}`);
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/event-stream")) {
+    // server answered non-streaming (e.g. llm:false)
+    return JSON.parse(await res.text()) as DialogueResponse;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let eventName = "";
+  let done: DialogueResponse | null = null;
+  for (;;) {
+    const { done: finished, value } = await reader.read();
+    if (finished) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line.startsWith("event:")) eventName = line.slice(6).trim();
+      else if (line.startsWith("data:")) {
+        const payload = line.slice(5).trim();
+        try {
+          if (eventName === "token") onToken((JSON.parse(payload) as { t: string }).t);
+          else if (eventName === "done") done = JSON.parse(payload) as DialogueResponse;
+        } catch {
+          // partial frame
+        }
+      }
+    }
+  }
+  if (!done) throw new Error("postDialogueStream: stream ended without done event");
+  return done;
+}
+
 export async function fetchDialogueHistory(npcId: string): Promise<DialogueHistoryResponse> {
   const res = await fetch(`/api/dialogue/history?npcId=${encodeURIComponent(npcId)}`);
   return readApiJson<DialogueHistoryResponse>(res, "fetchDialogueHistory");

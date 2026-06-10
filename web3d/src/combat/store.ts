@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { combatMovesFor } from "../../../src/combat.ts";
 import type { World } from "../../../src/types.ts";
+import { deathThud, hitImpact, hurt } from "../audio/sfx.ts";
 import { addCameraShake } from "../controls/runtime.ts";
 import { useWorldStore } from "../store/world.ts";
 
@@ -90,6 +91,8 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       ...(defeated && get().lockTargetId === npcId ? { lockTargetId: null } : {}),
     });
     addCameraShake(defeated ? 0.3 : 0.12);
+    if (defeated) deathThud();
+    else hitImpact(amount >= 35);
     get().addVfx({ kind: "spark", ...at, color: "#ffd84d", startedAt: performance.now(), expiresAt: performance.now() + 380 });
     get().addVfx({
       kind: "damage",
@@ -107,6 +110,8 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     const playerHp = Math.max(0, get().playerHp - amount);
     set({ playerHp, playerDown: playerHp <= 0 });
     addCameraShake(playerHp <= 0 ? 0.45 : 0.22);
+    if (playerHp <= 0) deathThud();
+    else hurt();
     get().addVfx({ kind: "spark", ...at, color: "#ff6a5a", startedAt: performance.now(), expiresAt: performance.now() + 380 });
   },
 

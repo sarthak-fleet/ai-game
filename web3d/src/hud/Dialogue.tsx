@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
-import { type DialogueResponse, fetchDialogueHistory, postDialogue } from "../api/client.ts";
+import { type DialogueResponse, fetchDialogueHistory, postDialogue, postDialogueStream } from "../api/client.ts";
+import { followChime, questChime, talkBlip } from "../audio/sfx.ts";
 import { setFollowing } from "../characters/followers.ts";
 import { useUiStore } from "../store/ui.ts";
 import { npcById, useWorldStore } from "../store/world.ts";
@@ -104,19 +105,59 @@ export function Dialogue() {
     pushLine({ speaker: "player", speakerName: world?.player.name ?? "You", text });
     setBusy(true);
 
-    // LLM conversation first: in-character, free-flowing, no sim tick consumed
+    // LLM conversation first: streamed in-character reply, no sim tick consumed
     if (llmDialogueAvailable !== false) {
       try {
-        const response = await postDialogue(npc.id, text);
-        const handled = handleLlmResponse(response);
-        if (handled) {
+        let streamedAny = false;
+        let streamedText = "";
+        const ui = useUiStore.getState();
+        const response = await postDialogueStream(npc.id, text, (delta) => {
+          if (!streamedAny) {
+            streamedAny = true;
+            talkBlip();
+            ui.pushDialogueLine({ speaker: "npc", speakerName: npc.name, text: "" });
+          }
+          streamedText += delta;
+          ui.updateLastDialogueLine(streamedText.trimStart());
+        });
+        if (response.llm) {
+          llmDialogueAvailable = true;
           setBusy(false);
+          if (response.relationship) setRelationship(response.relationship);
+          if (response.reply) {
+            if (streamedAny) ui.updateLastDialogueLine(response.reply);
+            else ui.pushDialogueLine({ speaker: "npc", speakerName: npc.name, text: response.reply });
+            if (response.action) {
+              ui.pushDialogueLine({ speaker: "event", speakerName: "", text: response.action.text });
+              if (response.action.type === "create_quest" || response.action.type === "offer_quest" || response.action.type === "complete_quest") questChime();
+              if (response.action.type === "follow") { setFollowing(npc.id, true); followChime(); }
+              if (response.action.type === "unfollow") setFollowing(npc.id, false);
+              if (response.action.type === "fight" || response.action.type === "move") {
+                window.setTimeout(() => useUiStore.getState().closeDialogue(), 1100);
+              }
+            }
+          } else {
+            const soft = `${npc.name} pauses, lost in thought. (say that again)`;
+            if (streamedAny) ui.updateLastDialogueLine(soft);
+            else ui.pushDialogueLine({ speaker: "event", speakerName: "", text: soft });
+          }
           inputRef.current?.focus();
           return;
         }
         llmDialogueAvailable = false;
       } catch {
-        // network failure: fall through to the scripted path once
+        // streaming/network failure: try non-streaming once, else scripted path
+        try {
+          const response = await postDialogue(npc.id, text);
+          if (handleLlmResponse(response)) {
+            setBusy(false);
+            inputRef.current?.focus();
+            return;
+          }
+          llmDialogueAvailable = false;
+        } catch {
+          // fall through to scripted
+        }
       }
     }
 

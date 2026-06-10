@@ -209,6 +209,40 @@ const server = createServer(async (req, res) => {
     if (typeof npcId !== "string" || typeof text !== "string" || !text.trim()) {
       return json(res, 400, { error: "npcId and text are required" });
     }
+    if (body && typeof body === "object" && (body as { stream?: unknown }).stream) {
+      // streaming: visible reply tokens flow as SSE, structured result in `done`
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      let tokensSent = false;
+      const onToken = (delta: string) => {
+        tokensSent = true;
+        res.write(`event: token\ndata: ${JSON.stringify({ t: delta })}\n\n`);
+      };
+      let streamResult = await generateDialogueReply(engine.state, npcId, text.trim().slice(0, 500), { onToken });
+      if (!streamResult.ok && !tokensSent && !["unknown_npc", "npc_defeated", "npc_not_here"].includes(streamResult.reason)) {
+        streamResult = await generateDialogueReply(engine.state, npcId, text.trim().slice(0, 500), { onToken });
+      }
+      if (streamResult.ok && streamResult.action) {
+        broadcastSse("tick", {
+          summary: {
+            tick: engine.state.tick,
+            actions: [{ action: { type: streamResult.action.type, actorId: npcId, targetId: "player" }, text: streamResult.action.text }],
+            rejected: [],
+            checksum: "dialogue-action",
+            clock: engine.state.clock,
+          },
+        });
+      }
+      const done = streamResult.ok
+        ? { llm: true, reply: streamResult.reply, action: streamResult.action ?? null, relationship: streamResult.relationship }
+        : { llm: true, error: streamResult.reason };
+      res.write(`event: done\ndata: ${JSON.stringify(done)}\n\n`);
+      res.end();
+      return;
+    }
     let result = await generateDialogueReply(engine.state, npcId, text.trim().slice(0, 500));
     if (!result.ok && !["unknown_npc", "npc_defeated", "npc_not_here"].includes(result.reason)) {
       // transient model failure (cooldown/timeout): one retry before giving up

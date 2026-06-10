@@ -33,7 +33,7 @@ describe("LLM dialogue", () => {
     const before = npc.memories.length;
     const { complete } = completerReturning('{"reply":"Stay sharp out there.","action":null,"disposition":0}');
 
-    const result = await generateDialogueReply(world, npc.id, "Anything dangerous nearby?", complete);
+    const result = await generateDialogueReply(world, npc.id, "Anything dangerous nearby?", { complete: complete });
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.reply).toBe("Stay sharp out there.");
     expect(npc.memories.length).toBe(before + 2);
@@ -44,7 +44,7 @@ describe("LLM dialogue", () => {
     const world = loadWorld();
     const npc = npcWithPlayer(world);
     const { complete } = completerReturning(`${npc.name}: "Keep your voice down."`);
-    const result = await generateDialogueReply(world, npc.id, "Psst", complete);
+    const result = await generateDialogueReply(world, npc.id, "Psst", { complete: complete });
     expect(result.ok && result.reply).toBe("Keep your voice down.");
   });
 
@@ -53,8 +53,8 @@ describe("LLM dialogue", () => {
     const npc = npcWithPlayer(world);
     const { calls, complete } = completerReturning('{"reply":"As I said, the plaza is safe.","action":null,"disposition":0}');
 
-    await generateDialogueReply(world, npc.id, "Is the plaza safe?", complete);
-    await generateDialogueReply(world, npc.id, "Are you sure?", complete);
+    await generateDialogueReply(world, npc.id, "Is the plaza safe?", { complete: complete });
+    await generateDialogueReply(world, npc.id, "Are you sure?", { complete: complete });
 
     expect(calls[1]!.user).toContain("Is the plaza safe?");
     expect(calls[1]!.user).toContain("Conversation so far:");
@@ -65,7 +65,7 @@ describe("LLM dialogue", () => {
     const npc = npcWithPlayer(world);
     const start = npc.relationships?.["player"] ?? 0;
     const { complete } = completerReturning('{"reply":"You honor me.","action":null,"disposition":2}');
-    const result = await generateDialogueReply(world, npc.id, "Your courage saved the plaza.", complete);
+    const result = await generateDialogueReply(world, npc.id, "Your courage saved the plaza.", { complete: complete });
     expect(result.ok).toBe(true);
     expect(npc.relationships?.["player"]).toBe(start + 2);
     if (result.ok) expect(result.relationship.score).toBe(start + 2);
@@ -82,7 +82,7 @@ describe("LLM dialogue", () => {
     }
     const item = world.items.find((entry) => entry.holderId === npc.id)!;
     const { complete } = completerReturning(`{"reply":"Take this.","action":{"type":"give","itemId":"${item.id}"},"disposition":1}`);
-    const result = await generateDialogueReply(world, npc.id, "Can you help me?", complete);
+    const result = await generateDialogueReply(world, npc.id, "Can you help me?", { complete: complete });
     expect(result.ok && result.action?.type).toBe("give");
     expect(item.holderId).toBe("player");
   });
@@ -94,7 +94,7 @@ describe("LLM dialogue", () => {
     const { complete } = completerReturning(
       '{"reply":"There is something you could do…","action":{"type":"create_quest","title":"Scout the overpass","description":"Check the humming."},"disposition":1}'
     );
-    const result = await generateDialogueReply(world, npc.id, "Need any help?", complete);
+    const result = await generateDialogueReply(world, npc.id, "Need any help?", { complete: complete });
     expect(result.ok && result.action?.type).toBe("create_quest");
     const quests = world.quests ?? [];
     expect(quests.length).toBe(before + 1);
@@ -109,7 +109,7 @@ describe("LLM dialogue", () => {
     const world = loadWorld();
     const npc = npcWithPlayer(world);
     const { complete } = completerReturning('{"reply":"Very well, lead the way.","action":{"type":"follow"},"disposition":1}');
-    const result = await generateDialogueReply(world, npc.id, "Come with me.", complete);
+    const result = await generateDialogueReply(world, npc.id, "Come with me.", { complete: complete });
     expect(result.ok && result.action?.type).toBe("follow");
     expect(result.ok && result.action?.text).toContain("starts following");
   });
@@ -118,7 +118,7 @@ describe("LLM dialogue", () => {
     const world = loadWorld();
     const npc = npcWithPlayer(world);
     const { complete } = completerReturning('{"reply":"I shall go.","action":{"type":"move","locationId":"nowhere_real"},"disposition":0}');
-    const result = await generateDialogueReply(world, npc.id, "Leave!", complete);
+    const result = await generateDialogueReply(world, npc.id, "Leave!", { complete: complete });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.reply).toBe("I shall go.");
@@ -130,22 +130,53 @@ describe("LLM dialogue", () => {
     const world = loadWorld();
     const npc = npcWithPlayer(world);
     const { calls, complete } = completerReturning('{"reply":"Hm.","action":null,"disposition":0}');
-    await generateDialogueReply(world, npc.id, "Hello", complete);
+    await generateDialogueReply(world, npc.id, "Hello", { complete: complete });
     expect(calls[0]!.user).toContain("CAPABILITIES");
     expect(calls[0]!.user).toContain("Places you can walk to:");
     expect(calls[0]!.system).toContain('"type":"create_quest"');
     expect(calls[0]!.system).not.toContain("Ashment");
   });
 
-  it("refuses when the NPC is elsewhere or defeated", async () => {
+  it("parses the streaming format (reply text + @@ control tail) and streams only the reply", async () => {
     const world = loadWorld();
-    const elsewhere = world.npcs.find((entry) => entry.locationId !== world.player.locationId)!;
-    const { complete } = completerReturning("Should not be called");
-    expect(await generateDialogueReply(world, elsewhere.id, "Hello?", complete)).toEqual({ ok: false, reason: "npc_not_here" });
+    const npc = npcWithPlayer(world);
+    const full = 'Hold the line, friend.\n@@{"action":null,"disposition":1}';
+    const streamed: string[] = [];
+    const complete: DialogueCompleter = async (req) => {
+      // emit in awkward chunks crossing the @@ boundary
+      for (const chunk of ["Hold the li", "ne, friend.", "\n@", '@{"action":null,', '"disposition":1}']) {
+        req.onToken?.(chunk);
+      }
+      return { text: full, raw: full, meta: { tier: req.tier, model: "test", latencyMs: 1, error: null, jsonOk: false } };
+    };
+    const result = await generateDialogueReply(world, npc.id, "Ready?", {
+      complete,
+      onToken: (delta) => streamed.push(delta),
+    });
+    expect(result.ok && result.reply).toBe("Hold the line, friend.");
+    const visible = streamed.join("");
+    expect(visible).toContain("Hold the line, friend.");
+    expect(visible).not.toContain("@@");
+    expect(visible).not.toContain("disposition");
+  });
 
+  it("refuses when the NPC is far away (non-adjacent) or defeated", async () => {
+    const world = loadWorld();
+    // hub-and-spoke map: stand at one leaf so an NPC at another leaf is non-adjacent
+    const adjacentTo = (id: string) =>
+      new Set(world.exits.flatMap((exit) => (exit.from === id ? [exit.to] : exit.to === id ? [exit.from] : [])));
+    const leaf = world.locations.find((location) =>
+      world.npcs.some((npc) => npc.locationId !== location.id && !adjacentTo(location.id).has(npc.locationId))
+    )!;
+    world.player.locationId = leaf.id;
+    const elsewhere = world.npcs.find((npc) => npc.locationId !== leaf.id && !adjacentTo(leaf.id).has(npc.locationId))!;
+    const { complete } = completerReturning("Should not be called");
+    expect(await generateDialogueReply(world, elsewhere.id, "Hello?", { complete: complete })).toEqual({ ok: false, reason: "npc_not_here" });
+
+    world.player.locationId = loadWorld().player.locationId;
     const here = npcWithPlayer(world);
     here.combat = { hp: 0, maxHp: 100, posture: 0, defeated: true };
-    expect(await generateDialogueReply(world, here.id, "Hello?", complete)).toEqual({ ok: false, reason: "npc_defeated" });
+    expect(await generateDialogueReply(world, here.id, "Hello?", { complete: complete })).toEqual({ ok: false, reason: "npc_defeated" });
   });
 
   it("propagates completer errors as failures without writing memories", async () => {
@@ -154,7 +185,7 @@ describe("LLM dialogue", () => {
     const before = npc.memories.length;
     const failing: DialogueCompleter = () =>
       Promise.resolve({ error: "timeout", meta: { tier: "normal", model: "test", latencyMs: 1, error: "timeout", jsonOk: false } });
-    expect(await generateDialogueReply(world, npc.id, "Hello", failing)).toEqual({ ok: false, reason: "timeout" });
+    expect(await generateDialogueReply(world, npc.id, "Hello", { complete: failing })).toEqual({ ok: false, reason: "timeout" });
     expect(npc.memories.length).toBe(before);
   });
 });
