@@ -167,7 +167,30 @@ export async function runTick(
   refreshAgentIntents(world);
   const summary = summarizeTick(world, actions, rejected);
   world.eventLog.push(summary);
+  trimWorldGrowth(world);
   return summary;
+}
+
+const EVENT_LOG_CAP = 60;
+const MEMORY_CAP = 120;
+const MEMORY_KEEP_RECENT = 90;
+
+/**
+ * Long sessions hang the client without this: eventLog grows one summary per
+ * tick and NPC memories grow with every exchange, so the world JSON that is
+ * serialized on every action/autosave climbs into the megabytes.
+ */
+export function trimWorldGrowth(world: World): void {
+  if (world.eventLog.length > EVENT_LOG_CAP) {
+    world.eventLog.splice(0, world.eventLog.length - EVENT_LOG_CAP);
+  }
+  for (const npc of world.npcs) {
+    if (npc.memories.length <= MEMORY_CAP) continue;
+    const recent = npc.memories.slice(-MEMORY_KEEP_RECENT);
+    const older = npc.memories.slice(0, -MEMORY_KEEP_RECENT);
+    const important = older.filter((memory) => (memory.meta?.importance ?? 0) >= 3).slice(-(MEMORY_CAP - MEMORY_KEEP_RECENT));
+    npc.memories = [...important, ...recent];
+  }
 }
 
 function advanceClock(world: World): void {

@@ -174,6 +174,20 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
     return { head, chest, hips };
   }, [appearance, seedId, visual, female]);
 
+  // per-clone GPU resources (painted geometry + body material) must be freed
+  // or long sessions with world switches leak VRAM
+  useEffect(() => {
+    return () => {
+      scene.traverse((object: THREE.Object3D) => {
+        const mesh = object as THREE.Mesh;
+        if (mesh.isMesh || (mesh as unknown as THREE.SkinnedMesh).isSkinnedMesh) {
+          mesh.geometry?.dispose();
+          if (mesh.material && !Array.isArray(mesh.material)) mesh.material.dispose();
+        }
+      });
+    };
+  }, [scene]);
+
   useEffect(() => {
     // bind-pose correction: rotate bone orientation into model axes
     scene.updateWorldMatrix(true, true);
