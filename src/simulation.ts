@@ -9,6 +9,7 @@ import {
 } from "./agents.ts";
 import { awardXp, reassignArcRoles, XP_FIGHT_WON, XP_QUEST_COMPLETE } from "./arcs.ts";
 import { combatMoveFor, combatMovesFor } from "./combat.ts";
+import { executeConfrontations } from "./confrontations.ts";
 import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { questItemTargetsFor } from "./quest-targets.ts";
 import { propagateInformation } from "./rumors.ts";
@@ -169,6 +170,15 @@ export async function runTick(
     actions.push({
       applied: true,
       action: { type: "remember", actorId: event.actorId, text: event.text },
+      text: event.text,
+    } as AppliedAction);
+  }
+  // …and grudges move bodies: confrontation goals walk to their target
+  for (const event of executeConfrontations(world)) {
+    if (event.kind === "approach") continue; // stalking is quiet
+    actions.push({
+      applied: true,
+      action: { type: "confront", actorId: event.actorId, targetId: event.targetId, text: event.text },
       text: event.text,
     } as AppliedAction);
   }

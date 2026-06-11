@@ -9,6 +9,7 @@ import {
   setAgentLoopRunning,
   subscribeEvents,
 } from "../api/client.ts";
+import { useBanterStore } from "../characters/banter.ts";
 import { useDirectorStore } from "../director/store.ts";
 import { useUiStore } from "./ui.ts";
 
@@ -68,6 +69,18 @@ function toastsFrom(summary: TickSummary): WorldEvent[] {
       expiresAt: now + 6000,
     };
   });
+}
+
+/** NPC↔NPC talk becomes overhearable speech bubbles in the player's district */
+function surfaceNpcBanter(summary: TickSummary, world: World): void {
+  for (const entry of summary.actions) {
+    const action = entry.action as { type: string; actorId?: string; targetId?: string; text?: string };
+    if (!["talk", "gossip", "confront"].includes(action.type)) continue;
+    if (!action.actorId || !action.targetId || action.actorId === "player" || action.targetId === "player") continue;
+    const actor = world.npcs.find((npc) => npc.id === action.actorId);
+    if (!actor || actor.locationId !== world.player.locationId) continue;
+    useBanterStore.getState().show(action.actorId, action.targetId, action.text ?? entry.text, action.type === "confront");
+  }
 }
 
 const INITIATION_COOLDOWN_MS = 90_000;
@@ -134,6 +147,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
               events: [...get().events, ...toastsFrom(summary)],
             });
             useDirectorStore.getState().maybeTriggerFromSummary(summary, prevWorld, world);
+            surfaceNpcBanter(summary, world);
             await maybeNpcInitiatesDialogue(summary, world);
             await markHostilesFrom(summary);
           } catch {

@@ -13,6 +13,7 @@ import { useUiStore } from "../store/ui.ts";
 import { findDistrictPath, type WorldModel } from "../worldgen/index.ts";
 import type { PlacedNpcSpawn } from "../worldgen/placements.ts";
 import { rngFor } from "../worldgen/rng.ts";
+import { useBanterStore } from "./banter.ts";
 import type { CharacterAnimationHandle } from "./CharacterModel.tsx";
 import { followersStore } from "./followers.ts";
 import { RiggedCharacter } from "./RiggedCharacter.tsx";
@@ -70,6 +71,7 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
   }, [npc.appearance, npc.id]);
   const personaText = `${npc.name} ${npc.role ?? ""} ${npc.description ?? ""}`;
   const inDialogue = useUiStore((state) => state.dialogueNpcId === npc.id);
+  const banter = useBanterStore((state) => state.byNpc[npc.id]);
   const enemy = useCombatStore((state) => state.enemies[npc.id]);
   const lockedOn = useCombatStore((state) => state.lockTargetId === npc.id);
 
@@ -220,6 +222,20 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
       return;
     }
 
+    // mid-conversation with another NPC: stop and face them
+    const liveBanter = useBanterStore.getState().byNpc[npc.id];
+    if (liveBanter && performance.now() < liveBanter.until) {
+      animation.current?.setSpeed(0);
+      animation.current?.setTalking?.(true);
+      const partner = npcRegistry.get(liveBanter.partnerId);
+      if (partner) {
+        s.heading = dampAngle(s.heading, Math.atan2(partner.position.x - node.position.x, partner.position.z - node.position.z), 8, delta);
+        node.rotation.y = s.heading;
+      }
+      syncRegistry(npc.id, node.position);
+      return;
+    }
+
     // ambient routine targets
     if (time > s.waitUntil) {
       if (s.waitUntil !== 0) {
@@ -269,6 +285,26 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
   return (
     <group ref={group} position={[initialSpawn.x, 0, initialSpawn.z]} rotation={[0, initialSpawn.heading, 0]}>
       <RiggedCharacter ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} personaText={personaText} />
+      {banter ? (
+        <Billboard position={[0, 2.75, 0]}>
+          <mesh position={[0, 0, -0.01]}>
+            <planeGeometry args={[Math.min(2.6, 0.6 + banter.text.length * 0.024), 0.62]} />
+            <meshBasicMaterial color={banter.confrontation ? "#3a1418" : "#10141f"} transparent opacity={0.88} depthWrite={false} />
+          </mesh>
+          <Text
+            fontSize={0.13}
+            maxWidth={Math.min(2.4, 0.5 + banter.text.length * 0.024)}
+            color={banter.confrontation ? "#ffb3a8" : "#e8ecf5"}
+            outlineWidth={0.008}
+            outlineColor="#0a0d16"
+            anchorX="center"
+            anchorY="middle"
+            textAlign="center"
+          >
+            {banter.text}
+          </Text>
+        </Billboard>
+      ) : null}
       <Billboard ref={labelRef} position={[0, 2.2, 0]}>
         <Text
           fontSize={0.19}

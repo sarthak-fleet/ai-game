@@ -4,6 +4,7 @@ import { xpForNextLevel } from "../../../src/arcs.ts";
 import { timeOfDay } from "../../../src/types.ts";
 import { updateMusicMood } from "../audio/music.ts";
 import { isSfxEnabled, pickupChime, questChime, setSfxEnabled } from "../audio/sfx.ts";
+import { useBanterStore } from "../characters/banter.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { isTypingTarget } from "../controls/input.ts";
 import { playerGesture, requestTeleport } from "../controls/runtime.ts";
@@ -49,7 +50,10 @@ export function Hud() {
   const inCombat = useCombatStore((state) => Object.values(state.enemies).some((enemy) => enemy.hostile && !enemy.defeated));
 
   useEffect(() => {
-    const interval = window.setInterval(() => pruneEvents(performance.now()), 1000);
+    const interval = window.setInterval(() => {
+      pruneEvents(performance.now());
+      useBanterStore.getState().prune(performance.now());
+    }, 1000);
     return () => window.clearInterval(interval);
   }, [pruneEvents]);
 
