@@ -51,8 +51,12 @@ async function markHostilesFrom(summary: TickSummary): Promise<void> {
 async function resetCombatForWorld(): Promise<void> {
   const { useCombatStore } = await import("../combat/store.ts");
   const { clearFollowers } = await import("../characters/followers.ts");
+  const { useDirectorStore: directorStore } = await import("../director/store.ts");
   useCombatStore.getState().resetForWorld();
   clearFollowers();
+  directorStore.getState().reset();
+  useUiStore.getState().closeDialogue();
+  useUiStore.getState().setInteractionTarget(null);
 }
 
 function toastsFrom(summary: TickSummary): WorldEvent[] {

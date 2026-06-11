@@ -23,6 +23,7 @@ interface DirectorStore {
   lastEndedAt: number;
   beginCutscene: (beat: { actorId: string; text: string; kind: Cutscene["kind"] }) => void;
   endCutscene: () => void;
+  reset: () => void;
   maybeTriggerFromSummary: (summary: TickSummary, prevWorld: World | null, world: World) => void;
 }
 
@@ -51,6 +52,10 @@ export const useDirectorStore = create<DirectorStore>((set, get) => ({
   endCutscene() {
     if (!get().cutscene) return;
     set({ cutscene: null, lastEndedAt: performance.now() });
+  },
+
+  reset() {
+    set({ cutscene: null, lastEndedAt: Number.NEGATIVE_INFINITY });
   },
 
   maybeTriggerFromSummary(summary, prevWorld, world) {

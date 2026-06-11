@@ -66,4 +66,12 @@ describe("web3d director beats", () => {
     useDirectorStore.getState().maybeTriggerFromSummary(summaryWith([directorEntry]), world, world);
     expect(useDirectorStore.getState().cutscene?.text).toBe("first");
   });
+
+  it("can be reset on world replacement", () => {
+    const store = useDirectorStore.getState();
+    store.beginCutscene({ actorId: "mira", text: "first", kind: "director" });
+    store.reset();
+    expect(useDirectorStore.getState().cutscene).toBeNull();
+    expect(useDirectorStore.getState().lastEndedAt).toBe(Number.NEGATIVE_INFINITY);
+  });
 });
