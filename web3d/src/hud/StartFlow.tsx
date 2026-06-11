@@ -9,6 +9,9 @@ import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
 import { CharacterPortrait } from "./CharacterPortrait.tsx";
 
+// showcase mode hides world-import UI; flip on with VITE_ENABLE_IMPORT=1
+const IMPORT_ENABLED = import.meta.env["VITE_ENABLE_IMPORT"] === "1";
+
 interface BundledWorld {
   id: string;
   name: string;
@@ -105,15 +108,17 @@ export function StartFlow() {
                 </button>
               ))}
             </div>
-            <FandomImport
-              busy={busy}
-              onStart={() => setBusy("fandom")}
-              onDone={(err) => {
-                setBusy(null);
-                if (err) setError(err);
-                else setPhase("character");
-              }}
-            />
+            {IMPORT_ENABLED ? (
+              <FandomImport
+                busy={busy}
+                onStart={() => setBusy("fandom")}
+                onDone={(err) => {
+                  setBusy(null);
+                  if (err) setError(err);
+                  else setPhase("character");
+                }}
+              />
+            ) : null}
           </>
         ) : (
           <CharacterSelect world={world} busy={busy} onPick={(id) => void selectCharacter(id)} onBack={() => setPhase("title")} />

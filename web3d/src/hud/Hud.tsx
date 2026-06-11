@@ -133,9 +133,11 @@ export function Hud() {
               ▶ Resume world
             </button>
           ) : null}
-          <button type="button" className="chip" onClick={() => setImportOpen(true)}>
-            Import world
-          </button>
+          {import.meta.env["VITE_ENABLE_IMPORT"] === "1" ? (
+            <button type="button" className="chip" onClick={() => setImportOpen(true)}>
+              Import world
+            </button>
+          ) : null}
           <button type="button" className={`chip ${soundOn ? "on" : ""}`} onClick={() => { setSfxEnabled(!soundOn); setSoundOn(!soundOn); }}>
             {soundOn ? "🔊" : "🔇"}
           </button>
