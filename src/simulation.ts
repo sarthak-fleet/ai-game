@@ -11,6 +11,7 @@ import { awardXp, reassignArcRoles, XP_FIGHT_WON, XP_QUEST_COMPLETE } from "./ar
 import { combatMoveFor, combatMovesFor } from "./combat.ts";
 import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { questItemTargetsFor } from "./quest-targets.ts";
+import { propagateInformation } from "./rumors.ts";
 import { storyConfrontationTargetId } from "./story-context.ts";
 import {
   advanceNightfallTravel,
@@ -162,6 +163,15 @@ export async function runTick(
   world.tick += 1;
   advanceClock(world);
   refreshMoods(world);
+  // information travels and changes minds — the world schemes on its own
+  for (const event of propagateInformation(world)) {
+    if (event.kind === "gossip_spread") continue; // too chatty to surface
+    actions.push({
+      applied: true,
+      action: { type: "remember", actorId: event.actorId, text: event.text },
+      text: event.text,
+    } as AppliedAction);
+  }
   syncStoryProgress(world);
   advanceStoryPressure(world, actions);
   refreshAgentIntents(world);

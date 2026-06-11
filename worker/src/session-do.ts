@@ -1,5 +1,7 @@
 import { createAgentLoop } from "../../src/agent-loop.ts";
 import { createArcForWorld, evaluateArc, markSparWon } from "../../src/arcs.ts";
+import { authorBeat, shouldAuthorBeat } from "../../src/author.ts";
+import { catchUpWorld } from "../../src/catch-up.ts";
 import { clearDialogueHistories, dialogueAvailable, dialogueContext, generateDialogueReply } from "../../src/dialogue.ts";
 import { createDirector } from "../../src/director.ts";
 import { fandomToWorldSource } from "../../src/fandom-import.ts";
@@ -44,6 +46,8 @@ export class GameSessionDO {
   private sseWriters = new Set<WritableStreamDefaultWriter<Uint8Array>>();
   private hits = new Map<string, number[]>();
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastTouchedAt = 0;
+  private authoring = false;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private readonly encoder = new TextEncoder();
 
@@ -90,6 +94,7 @@ export class GameSessionDO {
       onTick: (summary) => {
         this.broadcast("tick", { summary });
         this.checkArc();
+        this.maybeAuthor();
       },
     });
     return { engine: this.engine, agentLoop: this.agentLoop };
@@ -101,6 +106,7 @@ export class GameSessionDO {
       this.persistTimer = null;
       if (!this.engine) return;
       void this.ctx.storage.put("world", JSON.stringify(this.engine.state));
+      void this.ctx.storage.put("savedAt", Date.now());
     }, PERSIST_DEBOUNCE_MS);
   }
 
@@ -121,6 +127,35 @@ export class GameSessionDO {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
+  }
+
+  /** the showrunner writes new content (quest/arrival/incident) on a slow cadence */
+  private maybeAuthor(): void {
+    const engine = this.engine;
+    if (!engine || this.authoring || !isLlmEnabled() || !shouldAuthorBeat(engine.state)) return;
+    this.authoring = true;
+    this.ctx.waitUntil(
+      (async () => {
+        try {
+          const beat = await authorBeat(engine.state);
+          if (!beat) return;
+          this.schedulePersist();
+          this.broadcast("tick", {
+            summary: {
+              tick: engine.state.tick,
+              actions: [{ action: { type: "remember", actorId: beat.focusActorId, text: beat.text }, text: beat.text, fromDirector: true }],
+              rejected: [],
+              checksum: "authored-beat",
+              clock: engine.state.clock,
+            },
+          });
+        } catch {
+          // authored beats are a bonus; failures must never break the DO
+        } finally {
+          this.authoring = false;
+        }
+      })()
+    );
   }
 
   private checkArc(): void {
@@ -181,8 +216,24 @@ export class GameSessionDO {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
+    const hadEngine = Boolean(this.engine);
     const { engine, agentLoop } = await this.ensureEngine();
     const historyKey = this.ctx.id.toString();
+
+    // the world advances while you're away — replay missed time on return
+    const now = Date.now();
+    let awayMs = 0;
+    if (!hadEngine) {
+      const savedAt = await this.ctx.storage.get<number>("savedAt");
+      if (savedAt) awayMs = now - savedAt;
+    } else if (this.lastTouchedAt) {
+      awayMs = now - this.lastTouchedAt;
+    }
+    this.lastTouchedAt = now;
+    if (awayMs > 10 * 60_000) {
+      const recap = await catchUpWorld(engine.state, awayMs).catch(() => null);
+      if (recap) this.schedulePersist();
+    }
 
     if (path === "/api/state" && request.method === "GET") return json(200, engine.state);
     if (path === "/api/worlds" && request.method === "GET") {

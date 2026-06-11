@@ -19,6 +19,7 @@ import { ImportScreen } from "./ImportScreen.tsx";
 import { Letterbox } from "./Letterbox.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { QuestTracker } from "./QuestTracker.tsx";
+import { Recap } from "./Recap.tsx";
 
 export function Hud() {
   const world = useWorldStore((state) => state.world);
@@ -145,6 +146,8 @@ export function Hud() {
       </div>
 
       {pointerLocked && !dialogueNpcId ? <div className="crosshair" /> : null}
+
+      <Recap />
 
       <QuestTracker />
 

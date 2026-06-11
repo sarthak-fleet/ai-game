@@ -1,3 +1,4 @@
+import { memoryMetaFromText } from "./agents.ts";
 import { completeText, type CompleteTextResult, isLlmEnabled, streamText } from "./llm/router.ts";
 import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { applyAction, locationName, retrieveMemories, validateAction } from "./simulation.ts";
@@ -128,8 +129,15 @@ export async function generateDialogueReply(
   history.push({ speaker: "player", text: playerText }, { speaker: "npc", text: parsed.reply });
 
   const playerName = world.player.name ?? "the visitor";
+  // what you tell an NPC is no longer sealed: juicy lines become shareable
+  // and travel the rumor network (see src/rumors.ts)
+  const playerLineMeta = memoryMetaFromText(playerText);
   npc.memories.push(
-    { tick: world.tick, text: `${playerName} said to me: ${playerText}`, meta: { sourceActorId: "player", visibility: "private", importance: 2 } },
+    {
+      tick: world.tick,
+      text: `${playerName} said to me: ${playerText}`,
+      meta: { ...playerLineMeta, sourceActorId: "player", visibility: (playerLineMeta.importance ?? 0) >= 5 ? "shared" : "private" },
+    },
     { tick: world.tick, text: `I replied to ${playerName}: ${parsed.reply}`, meta: { visibility: "private", importance: 2 } }
   );
 

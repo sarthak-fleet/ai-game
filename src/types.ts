@@ -356,6 +356,8 @@ export interface DirectorState {
   quietTicks: number;
   lastNudgeTick?: TickIndex;
   pendingReveals?: string[];
+  /** last tick the authoring director wrote a new beat (quest/arrival/incident) */
+  lastAuthoredTick?: TickIndex;
 }
 
 export interface AppliedAction { applied: true; action: Action; text: string; fromDirector?: boolean; }
@@ -392,7 +394,17 @@ export interface World {
   interactables?: InteractableProp[];
   quests?: Quest[];
   arc?: WorldArc;
+  /** what happened while the player was away (set by catch-up, shown once) */
+  recap?: WorldRecap;
   eventLog: TickSummary[];
+}
+
+export interface WorldRecap {
+  since: { day: number; hour: number };
+  until: { day: number; hour: number };
+  ticks: number;
+  awayMs: number;
+  lines: string[];
 }
 
 export type Proposer = (world: World) => Promise<Action[]> | Action[];

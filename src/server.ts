@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { readAgentLoopCheckpoints, upsertAgentLoopCheckpoint, writeAgentLoopCheckpoints } from "./agent-checkpoint-store.ts";
 import { createAgentLoop } from "./agent-loop.ts";
 import { createArcForWorld, evaluateArc, markSparWon } from "./arcs.ts";
+import { authorBeat, shouldAuthorBeat } from "./author.ts";
+import { catchUpWorld } from "./catch-up.ts";
 import { clearDialogueHistories, dialogueAvailable, dialogueContext, generateDialogueReply } from "./dialogue.ts";
 import { createDirector } from "./director.ts";
 import { fandomToWorldSource } from "./fandom-import.ts";
@@ -69,7 +71,10 @@ interface GameSession {
   agentLoop: ReturnType<typeof createAgentLoop>;
   sseClients: Set<ServerResponse>;
   dirty: boolean;
+  authoring: boolean;
   lastActiveAt: number;
+  /** when this session's autosave was written (catch-up baseline on restore) */
+  restoredSavedAt: number | null;
   /** rate-limit buckets: key -> timestamps of recent hits */
   hits: Map<string, number[]>;
 }
@@ -86,15 +91,17 @@ function savePathFor(sessionId: string): string {
   return fileURLToPath(new URL(`./${sessionId}.json`, SESSION_SAVE_DIR));
 }
 
-function loadAutosave(sessionId: string): World | null {
+function loadAutosave(sessionId: string): { world: World; savedAt: number } | null {
   if (!AUTOSAVE_ENABLED) return null;
   try {
     const path = savePathFor(sessionId);
     if (!existsSync(path)) return null;
-    const saved = JSON.parse(readFileSync(path, "utf8")) as World;
-    if (!saved || typeof saved !== "object" || !("npcs" in saved)) return null;
-    console.info(`[autosave] session "${sessionId}" resuming "${saved.name}" at tick ${saved.tick}`);
-    return saved;
+    const raw = JSON.parse(readFileSync(path, "utf8")) as { savedAt?: number; world?: World } | World;
+    const world = raw && typeof raw === "object" && "world" in raw && raw.world ? raw.world : (raw as World);
+    const savedAt = raw && typeof raw === "object" && "savedAt" in raw && typeof raw.savedAt === "number" ? raw.savedAt : Date.now();
+    if (!world || typeof world !== "object" || !("npcs" in world)) return null;
+    console.info(`[autosave] session "${sessionId}" resuming "${world.name}" at tick ${world.tick}`);
+    return { world, savedAt };
   } catch (error) {
     console.error("[autosave] failed to load, starting fresh:", (error as Error).message);
     return null;
@@ -107,7 +114,7 @@ function flushSession(session: GameSession): void {
   try {
     const path = savePathFor(session.id);
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(`${path}.tmp`, JSON.stringify(session.engine.state));
+    writeFileSync(`${path}.tmp`, JSON.stringify({ savedAt: Date.now(), world: session.engine.state }));
     renameSync(`${path}.tmp`, path);
   } catch (error) {
     session.dirty = true;
@@ -116,7 +123,8 @@ function flushSession(session: GameSession): void {
 }
 
 function createSession(id: string): GameSession {
-  const world = loadAutosave(id) ?? parseInitialWorld();
+  const restored = loadAutosave(id);
+  const world = restored?.world ?? parseInitialWorld();
   const propose = isLlmEnabled() ? createLlmProposer({ tier: "normal", maxNpcs: LLM_MAX_NPCS }) : undefined;
   const director = createDirector({ propose: isLlmEnabled() ? proposeAction : undefined });
   const engine = createEngine(world, { propose, director });
@@ -131,7 +139,9 @@ function createSession(id: string): GameSession {
     agentLoop: null as never,
     sseClients: new Set(),
     dirty: false,
+    authoring: false,
     lastActiveAt: Date.now(),
+    restoredSavedAt: restored?.savedAt ?? null,
     hits: new Map(),
   };
   session.agentLoop = createAgentLoop(engine, {
@@ -145,20 +155,34 @@ function createSession(id: string): GameSession {
     onTick: (summary) => {
       broadcastSse(session, "tick", { summary });
       checkArc(session);
+      maybeAuthor(session);
     },
   });
   return session;
 }
 
-function sessionFor(req: IncomingMessage, url: URL): GameSession {
+async function sessionFor(req: IncomingMessage, url: URL): Promise<GameSession> {
   const id = sessionIdFrom(req, url);
   let session = sessions.get(id);
+  let awayMs = 0;
   if (!session) {
     if (sessions.size >= MAX_SESSIONS) evictOldestIdleSession();
     session = createSession(id);
     sessions.set(id, session);
+    if (session.restoredSavedAt) awayMs = Date.now() - session.restoredSavedAt;
+  } else {
+    awayMs = Date.now() - session.lastActiveAt;
   }
   session.lastActiveAt = Date.now();
+  if (awayMs > 10 * 60_000) {
+    // the world kept living: replay the missed time before answering
+    const recap = await catchUpWorld(session.engine.state, awayMs).catch(() => null);
+    if (recap) {
+      session.dirty = true;
+      console.info(`[catch-up] session "${session.id}": ${recap.ticks} ticks while away (${Math.round(awayMs / 60000)} min)`);
+    }
+  }
+  session.restoredSavedAt = null;
   return session;
 }
 
@@ -212,6 +236,38 @@ setInterval(() => {
     for (const client of session.sseClients) client.write(": ping\n\n");
   }
 }, 25_000).unref();
+
+/** the showrunner writes new content (quest/arrival/incident) on a slow cadence */
+function maybeAuthor(session: GameSession): void {
+  if (session.authoring || !isLlmEnabled() || !shouldAuthorBeat(session.engine.state)) return;
+  session.authoring = true;
+  void (async () => {
+    try {
+      const beat = await authorBeat(session.engine.state);
+      if (!beat) return;
+      session.dirty = true;
+      broadcastSse(session, "tick", {
+        summary: {
+          tick: session.engine.state.tick,
+          actions: [
+            {
+              action: { type: "remember", actorId: beat.focusActorId, text: beat.text },
+              text: beat.text,
+              fromDirector: true,
+            },
+          ],
+          rejected: [],
+          checksum: "authored-beat",
+          clock: session.engine.state.clock,
+        },
+      });
+    } catch {
+      // authored beats are a bonus; failures must never break the loop
+    } finally {
+      session.authoring = false;
+    }
+  })();
+}
 
 /** check arc progress after world mutations; broadcast a director-style beat on stage advance */
 function checkArc(session: GameSession): void {
@@ -274,7 +330,7 @@ const server = createServer(async (req, res) => {
   // the client is built with base /game/ — accept its API calls here too
   if (url.pathname.startsWith("/game/api/")) url.pathname = url.pathname.slice("/game".length);
   if (!url.pathname.startsWith("/api/")) return serveStatic(url.pathname, res);
-  const session = sessionFor(req, url);
+  const session = await sessionFor(req, url);
   const { engine, agentLoop } = session;
 
   if (url.pathname === "/api/state" && req.method === "GET") {
