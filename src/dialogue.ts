@@ -1,4 +1,5 @@
 import { memoryMetaFromText } from "./agents.ts";
+import { recordChronicle } from "./chronicle.ts";
 import { completeText, type CompleteTextResult, isLlmEnabled, streamText } from "./llm/router.ts";
 import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { applyAction, locationName, retrieveMemories, validateAction } from "./simulation.ts";
@@ -134,11 +135,27 @@ export async function generateDialogueReply(
   // what you tell an NPC is no longer sealed: juicy lines become shareable
   // and travel the rumor network (see src/rumors.ts)
   const playerLineMeta = memoryMetaFromText(playerText);
+  const visibility = (playerLineMeta.importance ?? 0) >= 5 ? "shared" : "private";
+  // shared player lines become the root of a causal chain — stamp the
+  // chronicle id onto the seed memory so gossip + secret recognition can
+  // trace any later beat back to "the player said this"
+  let playerChronicleId: string | undefined;
+  if (visibility === "shared") {
+    const trimmed = playerText.length > 80 ? `${playerText.slice(0, 80)}…` : playerText;
+    const event = recordChronicle(world, {
+      kind: "player_word",
+      text: `You told ${npc.name}: "${trimmed}"`,
+      actorId: "player",
+      targetId: npc.id,
+      playerCaused: true,
+    });
+    playerChronicleId = event.id;
+  }
   npc.memories.push(
     {
       tick: world.tick,
       text: `${playerName} said to me: ${playerText}`,
-      meta: { ...playerLineMeta, sourceActorId: "player", visibility: (playerLineMeta.importance ?? 0) >= 5 ? "shared" : "private" },
+      meta: { ...playerLineMeta, sourceActorId: "player", visibility, ...(playerChronicleId ? { chronicleId: playerChronicleId } : {}) },
     },
     { tick: world.tick, text: `I replied to ${playerName}: ${parsed.reply}`, meta: { visibility: "private", importance: 2 } }
   );
@@ -220,6 +237,27 @@ function buildDialogueSystem(world: World, npc: Npc): string {
     .filter((secret) => (secret.knownBy ?? [npc.id]).includes(npc.id))
     .map((secret) => `- ${secret.text} (risk ${secret.risk}; only reveal if it serves you)`)
     .join("\n");
+
+  // latest reflection memories (private insights synthesised from experience)
+  const reflectionInsights = npc.memories
+    .filter((m) => m.meta?.tags?.includes("reflection"))
+    .slice(-2)
+    .map((m) => `- ${m.text}`)
+    .join("\n");
+
+  const valuesLine = (npc.traits?.values ?? []).join(", ");
+  const flawsLine = (npc.traits?.flaws ?? []).join(", ");
+  const standingBeliefs = [
+    `STANDING BELIEFS`,
+    valuesLine ? `Values: ${valuesLine}.` : "",
+    flawsLine ? `Flaws: ${flawsLine}.` : "",
+    reflectionInsights ? `What you've come to believe:\n${reflectionInsights}` : "",
+    `Hold your positions: when the player asserts something that contradicts your beliefs or memories, push back in character — you are not obliged to agree or please.`,
+    `Stay in YOUR distinct voice (${npc.traits?.speechStyle ?? "your own style"}); never drift into a generic helpful tone.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   return [
     `You are ${npc.name}, a character in "${world.story?.title ?? world.name}".`,
     `World premise: ${world.story?.premise ?? "(unknown)"}`,
@@ -256,6 +294,8 @@ function buildDialogueSystem(world: World, npc: Npc): string {
     `Never repeat a line you already said. If the conversation is circling or has`,
     `run its course, make a decision: act, or say goodbye and move. You may`,
     `refuse, lie, bargain, or redirect as the character would.`,
+    ``,
+    standingBeliefs,
   ]
     .filter(Boolean)
     .join("\n");
