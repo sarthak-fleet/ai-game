@@ -1,5 +1,6 @@
 import type { ProposeMeta, ProposeRequest, ProposeResult, Tier } from "../types.ts";
 import { cliBackend, cliComplete } from "./cli.ts";
+import { localAiComplete, localAiUrl } from "./local-ai.ts";
 import { logLlmCall } from "./log.ts";
 import { ACTION_SCHEMA_PROMPT, parseActionJson } from "./schema.ts";
 
@@ -24,10 +25,28 @@ const TIER_MODEL: Record<Tier, () => string | null> = {
 };
 
 export function isLlmEnabled(): boolean {
-  // CLI backend (claude/codex), or any OpenAI-compatible endpoint.
-  // Local servers like Ollama/LM Studio need no API key.
-  if (cliBackend()) return true;
+  // local-ai server, CLI backend (claude/codex), or any OpenAI-compatible
+  // endpoint. Local servers like Ollama/LM Studio need no API key.
+  if (localAiUrl() || cliBackend()) return true;
   return Boolean(process.env["LLM_BASE_URL"]);
+}
+
+async function localCompleteAs(
+  kind: string,
+  tier: Tier,
+  system: string,
+  user: string,
+  onToken?: (delta: string) => void
+): Promise<CompleteTextResult> {
+  const started = Date.now();
+  const viaServer = Boolean(localAiUrl());
+  const result = viaServer ? await localAiComplete(system, user, onToken) : await cliComplete(`${system}\n\n---\n\n${user}`);
+  if (!viaServer && result.text) onToken?.(result.text);
+  const model = viaServer ? `local-ai:${process.env["LLM_LOCAL_AI_PROVIDER"] ?? "claude"}` : `cli:${cliBackend()}`;
+  const meta: ProposeMeta = { tier, model, latencyMs: Date.now() - started, usage: null, error: result.error ?? null, jsonOk: false };
+  logLlmCall({ kind, ...meta, raw: result.text });
+  if (result.error || !result.text) return { error: result.error ?? "empty", meta };
+  return { text: result.text, raw: result.text, meta };
 }
 
 function authHeaders(): Record<string, string> {
@@ -35,18 +54,6 @@ function authHeaders(): Record<string, string> {
   return key ? { authorization: `Bearer ${key}` } : {};
 }
 
-async function cliCompleteAs(kind: string, tier: Tier, system: string, user: string): Promise<CompleteTextResult> {
-  const started = Date.now();
-  const result = await cliComplete(`${system}
-
----
-
-${user}`);
-  const meta: ProposeMeta = { tier, model: `cli:${cliBackend()}`, latencyMs: Date.now() - started, usage: null, error: result.error ?? null, jsonOk: false };
-  logLlmCall({ kind, ...meta, raw: result.text });
-  if (result.error || !result.text) return { error: result.error ?? "empty", meta };
-  return { text: result.text, raw: result.text, meta };
-}
 
 export interface CompleteTextRequest {
   tier?: Tier;
@@ -64,8 +71,8 @@ export async function proposeAction({ tier = "normal", system, user, signal }: P
   if (tier === "background") return { skipped: true, reason: "background tier" };
   if (!isLlmEnabled()) return { skipped: true, reason: "no LLM_API_KEY" };
 
-  if (cliBackend()) {
-    const result = await cliCompleteAs("proposeAction", tier, `${system}\n\n${ACTION_SCHEMA_PROMPT}`, user);
+  if (localAiUrl() || cliBackend()) {
+    const result = await localCompleteAs("proposeAction", tier, `${system}\n\n${ACTION_SCHEMA_PROMPT}`, user);
     if ("error" in result && result.error) return { error: result.error, meta: result.meta };
     if (!("text" in result)) return { skipped: true, reason: "cli_unavailable" };
     const parsedCli = parseActionJson(result.text);
@@ -156,11 +163,7 @@ export async function streamText({ tier = "quest", system, user, signal, onToken
   if (tier === "background") return { skipped: true, reason: "background tier" };
   if (!isLlmEnabled()) return { skipped: true, reason: "no LLM_API_KEY" };
 
-  if (cliBackend()) {
-    const result = await cliCompleteAs("streamText", tier, system, user);
-    if ("text" in result && result.text) onToken?.(result.text);
-    return result;
-  }
+  if (localAiUrl() || cliBackend()) return localCompleteAs("streamText", tier, system, user, onToken);
 
   const model = TIER_MODEL[tier]?.();
   if (!model) return { skipped: true, reason: `unknown tier ${tier}` };
@@ -244,7 +247,7 @@ export async function completeText({ tier = "quest", system, user, signal }: Com
   if (tier === "background") return { skipped: true, reason: "background tier" };
   if (!isLlmEnabled()) return { skipped: true, reason: "no LLM_API_KEY" };
 
-  if (cliBackend()) return cliCompleteAs("completeText", tier, system, user);
+  if (localAiUrl() || cliBackend()) return localCompleteAs("completeText", tier, system, user);
 
   const model = TIER_MODEL[tier]?.();
   if (!model) return { skipped: true, reason: `unknown tier ${tier}` };

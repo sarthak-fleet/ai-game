@@ -18,19 +18,27 @@ LLM_BASE_URL=http://localhost:1234/v1
 LLM_MODEL_NORMAL=<model id from LM Studio>
 ```
 
-## Option 2 — coding-agent CLIs (claude / codex)
+## Option 2 — coding-agent CLIs (claude / codex / gemini)
 
-`LLM_CLI=claude` or `LLM_CLI=codex` routes every NPC brain call through the
-CLI in non-interactive mode (uses your existing subscription; ~2–5s per
-reply, so best for solo play):
+Preferred: the sibling [`../local-ai`](../../local-ai) server (spawns your
+authenticated CLIs, streams tokens, supports gemini too):
+
+```bash
+# in ../local-ai: npm start   (→ http://localhost:3456)
+LLM_LOCAL_AI_URL=http://localhost:3456
+LLM_LOCAL_AI_PROVIDER=claude   # or codex | gemini
+# LLM_LOCAL_AI_MODEL=sonnet    # optional CLI model override
+```
+
+No-server fallback — the game spawns the CLI itself (single-chunk replies):
 
 ```bash
 LLM_CLI=claude   # claude -p --output-format text --max-turns 1
 LLM_CLI=codex    # codex exec --output-last-message <tmp> -
 ```
 
-`LLM_CLI` wins over `LLM_BASE_URL` when both are set. Token streaming is
-emulated (the reply arrives as one chunk).
+Precedence: `LLM_LOCAL_AI_URL` > `LLM_CLI` > `LLM_BASE_URL`. Replies take
+~2–5s through a CLI, so these are best for solo play.
 
 ## Option 3 — the free-ai gateway (default / production)
 
