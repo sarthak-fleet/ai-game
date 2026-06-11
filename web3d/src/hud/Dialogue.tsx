@@ -34,6 +34,7 @@ export function Dialogue() {
 
   // load the shared past: previous conversations + current relationship
   useEffect(() => {
+    setDraft("");
     if (!dialogueNpcId) return;
     inputRef.current?.focus();
     let cancelled = false;
