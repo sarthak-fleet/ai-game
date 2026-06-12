@@ -12,7 +12,14 @@ import type { Npc, World } from "./types.ts";
 const STYLE_LOCK =
   "anime character portrait, bust shot, clean cel shading, soft toon lighting, plain dark background, single character, facing viewer";
 
-const PORTRAIT_CLI = process.env["PORTRAIT_CLI"] ?? "mflux-generate";
+// Default: Z-Image-Turbo — Apache-2.0 and ungated on HuggingFace (FLUX-schnell
+// is gated and needs an HF login, so it's opt-in via PORTRAIT_CLI=mflux-generate)
+const PORTRAIT_CLI = process.env["PORTRAIT_CLI"] ?? "mflux-generate-z-image-turbo";
+
+/** Model-selection flags differ per mflux entrypoint; size/seed/prompt flags are shared. */
+export function portraitCliArgs(cli: string): string[] {
+  return cli.endsWith("mflux-generate") ? ["--model", "schnell", "--quantize", "4", "--steps", "2"] : ["--steps", "6"];
+}
 
 // Portraits directory relative to project root (web3d/public so vite copies it)
 const PORTRAITS_DIR = fileURLToPath(
@@ -135,9 +142,7 @@ export function generatePortrait(
     const seed = String(portraitSeed(npcId, worldId));
 
     const args = [
-      "--model", "schnell",
-      "--quantize", "4",
-      "--steps", "2",
+      ...portraitCliArgs(PORTRAIT_CLI),
       "--width", "512",
       "--height", "512",
       "--seed", seed,
