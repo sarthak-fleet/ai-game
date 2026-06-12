@@ -3,25 +3,57 @@ import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { memo, useMemo } from "react";
 import * as THREE from "three";
 
-import { stableHash } from "../mapping/visuals.ts";
+import type { CharacterAppearance } from "../../../src/types.ts";
+import { RiggedCharacter } from "../characters/RiggedCharacter.tsx";
+import { actorVisualFor, clothingColorsFor, stableHash } from "../mapping/visuals.ts";
 import type { FurnitureModel, InteriorModel } from "../worldgen/interiors.ts";
-import { lightPoolTexture, plankTexture } from "./textures.ts";
+import { brickTexture, crackedWallTexture, lightPoolTexture, plankTexture, tileTexture } from "./textures.ts";
 import { toonGradientMap, toonMaterial } from "./toon.ts";
 
 const WALL_THICKNESS = 0.35;
 const DOOR_GAP = 2.4;
 
-export const Interior = memo(function Interior({ interior }: { interior: InteriorModel }) {
-  const { origin, width, depth, wallHeight } = interior;
+export const Interior = memo(function Interior({
+  interior,
+  npcs,
+}: {
+  interior: InteriorModel;
+  npcs: Array<{ id: string; role?: string; description?: string; appearance?: CharacterAppearance }>;
+}) {
+  const { origin, width, depth, wallHeight, preset } = interior;
   const cx = origin.x + width / 2;
   const cz = origin.z + depth / 2;
+
   const floorMat = useMemo(() => {
-    const texture = plankTexture(interior.floorColor).clone();
+    let texture: THREE.CanvasTexture;
+    if (preset.floorTexture === "stone") {
+      texture = brickTexture(interior.floorColor).clone();
+    } else if (preset.floorTexture === "tile") {
+      texture = tileTexture(interior.floorColor).clone();
+    } else {
+      texture = plankTexture(interior.floorColor).clone();
+    }
     texture.repeat.set(width / 5, depth / 5);
     texture.needsUpdate = true;
     return new THREE.MeshToonMaterial({ map: texture, gradientMap: toonGradientMap() });
-  }, [interior.floorColor, width, depth]);
-  const wallMat = toonMaterial(interior.wallColor);
+  }, [interior.floorColor, preset.floorTexture, width, depth]);
+
+  const wallMat = useMemo(() => {
+    if (preset.wallTexture === "brick") {
+      const texture = brickTexture(interior.wallColor).clone();
+      texture.repeat.set(width / 4, wallHeight / 2);
+      texture.needsUpdate = true;
+      return new THREE.MeshToonMaterial({ map: texture, gradientMap: toonGradientMap() });
+    }
+    if (preset.wallTexture === "broken") {
+      const texture = crackedWallTexture(interior.wallColor).clone();
+      texture.repeat.set(width / 4, wallHeight / 2);
+      texture.needsUpdate = true;
+      return new THREE.MeshToonMaterial({ map: texture, gradientMap: toonGradientMap() });
+    }
+    return toonMaterial(interior.wallColor);
+  }, [interior.wallColor, preset.wallTexture, width, wallHeight]);
+
   const trimMat = toonMaterial(interior.accentColor);
 
   // south wall (exit side) is split around the door gap
@@ -29,6 +61,15 @@ export const Interior = memo(function Interior({ interior }: { interior: Interio
   const southZ = origin.z + depth;
   const leftWidth = Math.max(0.1, gapCenter - DOOR_GAP / 2 - origin.x);
   const rightWidth = Math.max(0.1, origin.x + width - (gapCenter + DOOR_GAP / 2));
+
+  // inhabitant npc visual
+  const inhabitant = interior.inhabitantId ? npcs.find((n) => n.id === interior.inhabitantId) : null;
+  const inhabitantVisual = useMemo(() => {
+    if (!inhabitant) return null;
+    const fallback = clothingColorsFor(inhabitant.id);
+    const base = actorVisualFor(inhabitant.appearance, fallback.color);
+    return base.accentColor === base.color ? { ...base, accentColor: fallback.accent } : base;
+  }, [inhabitant]);
 
   return (
     <group>
@@ -71,69 +112,218 @@ export const Interior = memo(function Interior({ interior }: { interior: Interio
         </mesh>
       </RigidBody>
 
-      {/* skirting trim all around */}
-      <mesh position={[cx, 0.12, origin.z + WALL_THICKNESS / 2 + 0.04]} material={trimMat}>
-        <boxGeometry args={[width - 0.2, 0.24, 0.06]} />
-      </mesh>
-      <mesh position={[origin.x + WALL_THICKNESS / 2 + 0.04, 0.12, cz]} material={trimMat}>
-        <boxGeometry args={[0.06, 0.24, depth - 0.2]} />
-      </mesh>
-      <mesh position={[origin.x + width - WALL_THICKNESS / 2 - 0.04, 0.12, cz]} material={trimMat}>
-        <boxGeometry args={[0.06, 0.24, depth - 0.2]} />
-      </mesh>
+      {/* skirting trim — omitted on abandoned rooms (no intact skirting) */}
+      {preset.wallDressing !== "boarded" ? (
+        <>
+          <mesh position={[cx, 0.12, origin.z + WALL_THICKNESS / 2 + 0.04]} material={trimMat}>
+            <boxGeometry args={[width - 0.2, 0.24, 0.06]} />
+          </mesh>
+          <mesh position={[origin.x + WALL_THICKNESS / 2 + 0.04, 0.12, cz]} material={trimMat}>
+            <boxGeometry args={[0.06, 0.24, depth - 0.2]} />
+          </mesh>
+          <mesh position={[origin.x + width - WALL_THICKNESS / 2 - 0.04, 0.12, cz]} material={trimMat}>
+            <boxGeometry args={[0.06, 0.24, depth - 0.2]} />
+          </mesh>
+        </>
+      ) : null}
 
-      {/* wall dressing: framed art and a soft-glow window on the back wall */}
+      {/* wall dressing varies per role */}
       <WallDressing interior={interior} cx={cx} />
+
+      {/* layout feature: one distinguishing structural element per role */}
+      <LayoutFeature interior={interior} cx={cx} cz={cz} />
 
       {interior.furniture.map((piece) => (
         <Furniture key={piece.id} piece={piece} />
       ))}
 
-      {/* ceiling fixture + warm floor pool under it */}
-      <group position={[cx, 0, cz]}>
-        <mesh position={[0, wallHeight - 0.25, 0]} material={toonMaterial("#3a3f4c")}>
-          <cylinderGeometry args={[0.05, 0.05, 0.5, 6]} />
-        </mesh>
-        <mesh position={[0, wallHeight - 0.58, 0]} material={toonMaterial("#ffe7bd", "#ffd9a0")}>
-          <sphereGeometry args={[0.2, 12, 10]} />
-        </mesh>
-        <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[Math.min(width, depth) * 0.9, Math.min(width, depth) * 0.9]} />
-          <meshBasicMaterial
-            map={lightPoolTexture()}
-            color="#ffd9a0"
-            transparent
-            opacity={0.22}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </mesh>
-      </group>
+      {/* ceiling fixture — dim or absent for forge/abandoned */}
+      {preset.role !== "abandoned" ? (
+        <group position={[cx, 0, cz]}>
+          <mesh position={[0, wallHeight - 0.25, 0]} material={toonMaterial("#3a3f4c")}>
+            <cylinderGeometry args={[0.05, 0.05, 0.5, 6]} />
+          </mesh>
+          <mesh position={[0, wallHeight - 0.58, 0]} material={toonMaterial("#ffe7bd", "#ffd9a0")}>
+            <sphereGeometry args={[0.2, 12, 10]} />
+          </mesh>
+          <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[Math.min(width, depth) * 0.9, Math.min(width, depth) * 0.9]} />
+            <meshBasicMaterial
+              map={lightPoolTexture()}
+              color="#ffd9a0"
+              transparent
+              opacity={preset.role === "forge" ? 0.1 : 0.22}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+            />
+          </mesh>
+        </group>
+      ) : null}
 
-      {/* warm room light */}
-      <pointLight position={[cx, wallHeight - 0.4, cz]} color="#ffd9a8" intensity={30} distance={Math.max(width, depth) * 1.4} decay={1.7} />
+      {/* warm room light — intensity and color vary per role */}
+      <RoomLighting interior={interior} cx={cx} />
 
       <Billboard position={[cx, wallHeight + 1.2, cz]}>
         <Text fontSize={0.7} color="#ffffff" outlineWidth={0.04} outlineColor="#101421" anchorX="center">
           {interior.label}
         </Text>
       </Billboard>
+
+      {/* inhabitant NPC rendered as a decorative character at their anchor */}
+      {inhabitantVisual && interior.inhabitantAnchor ? (
+        <group
+          position={[interior.inhabitantAnchor.x, 0, interior.inhabitantAnchor.z]}
+          rotation={[0, interior.inhabitantAnchor.rotationY, 0]}
+        >
+          <RiggedCharacter
+            visual={inhabitantVisual}
+            appearance={inhabitant?.appearance}
+            seedId={interior.inhabitantId ?? ""}
+            personaText={`${inhabitant?.role ?? ""} ${inhabitant?.description ?? ""}`}
+          />
+        </group>
+      ) : null}
     </group>
   );
 });
 
+// ---------------------------------------------------------------------------
+// Room lighting
+
+function RoomLighting({ interior, cx }: { interior: InteriorModel; cx: number }) {
+  const { origin, depth, wallHeight, preset } = interior;
+  const cz = origin.z + depth / 2;
+
+  if (preset.role === "abandoned") {
+    // only a dim cool crack of daylight through the boarded window
+    return <pointLight position={[cx - interior.width * 0.22, wallHeight - 0.5, origin.z + WALL_THICKNESS + 0.5]} color="#9ab8c8" intensity={6} distance={8} decay={2} />;
+  }
+
+  if (preset.role === "forge") {
+    // primary warm source is the forge/hearth; overhead is very dim
+    return (
+      <>
+        <pointLight position={[cx, wallHeight - 0.4, cz]} color="#b07850" intensity={preset.ambientIntensity} distance={Math.max(interior.width, depth) * 1.4} decay={1.7} />
+        {/* extra orange forge glow near hearth/anvil */}
+        <pointLight position={[cx - interior.width * 0.18, 0.8, origin.z + depth * 0.3]} color="#ff7020" intensity={14} distance={6} decay={1.8} />
+      </>
+    );
+  }
+
+  if (preset.role === "tavern") {
+    // multiple warm pendant-like lights along the length
+    return (
+      <>
+        <pointLight position={[cx, wallHeight - 0.4, cz]} color="#ffc870" intensity={preset.ambientIntensity} distance={Math.max(interior.width, depth) * 1.4} decay={1.7} />
+        <pointLight position={[origin.x + interior.width * 0.25, wallHeight - 0.6, cz - depth * 0.2]} color="#ffd070" intensity={14} distance={7} decay={1.9} />
+        <pointLight position={[origin.x + interior.width * 0.75, wallHeight - 0.6, cz + depth * 0.2]} color="#ffd070" intensity={14} distance={7} decay={1.9} />
+      </>
+    );
+  }
+
+  // home / default: single warm overhead
+  return <pointLight position={[cx, wallHeight - 0.4, cz]} color="#ffd9a8" intensity={preset.ambientIntensity} distance={Math.max(interior.width, depth) * 1.4} decay={1.7} />;
+}
+
+// ---------------------------------------------------------------------------
+// Wall dressing
+
 const ART_COLORS = ["#7fb0d8", "#d8a26a", "#9cc78a", "#c98aa8", "#b9a2e0", "#e0c878"];
 
 function WallDressing({ interior, cx }: { interior: InteriorModel; cx: number }) {
-  const { origin, width, wallHeight } = interior;
+  const { origin, width, wallHeight, preset } = interior;
   const hash = stableHash(interior.buildingId);
   const backZ = origin.z + WALL_THICKNESS / 2 + 0.06;
   const artA = ART_COLORS[hash % ART_COLORS.length]!;
   const artB = ART_COLORS[(hash >> 3) % ART_COLORS.length]!;
+  const artC = ART_COLORS[(hash >> 6) % ART_COLORS.length]!;
   const artY = Math.min(wallHeight - 0.9, 1.9);
+
+  if (preset.wallDressing === "boarded") {
+    // abandoned: boarded-up window, no art
+    return (
+      <group>
+        <mesh position={[cx - width * 0.22, artY, backZ]} material={toonMaterial("#2a2520")}>
+          <boxGeometry args={[1.5, 1.2, 0.06]} />
+        </mesh>
+        {/* crossing planks over the window */}
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.04]} material={toonMaterial("#5a4830")}>
+          <boxGeometry args={[1.4, 0.18, 0.04]} />
+        </mesh>
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.04]} rotation={[0, 0, 0.55]} material={toonMaterial("#5a4830")}>
+          <boxGeometry args={[1.5, 0.14, 0.04]} />
+        </mesh>
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.04]} rotation={[0, 0, -0.55]} material={toonMaterial("#5a4830")}>
+          <boxGeometry args={[1.5, 0.14, 0.04]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (preset.wallDressing === "banners") {
+    // tavern: banner strips and a lantern hook instead of paintings
+    return (
+      <group>
+        {/* window */}
+        <mesh position={[cx - width * 0.22, artY, backZ]} material={toonMaterial("#4a4034")}>
+          <boxGeometry args={[1.5, 1.2, 0.06]} />
+        </mesh>
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.035]} material={toonMaterial("#bcd8f0", "#9cc0e8")}>
+          <boxGeometry args={[1.3, 1, 0.02]} />
+        </mesh>
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.05]} material={toonMaterial("#4a4034")}>
+          <boxGeometry args={[0.06, 1, 0.02]} />
+        </mesh>
+        {/* hanging banner strip A */}
+        <mesh position={[cx + width * 0.18, artY + 0.2, backZ]} material={toonMaterial(artA)}>
+          <boxGeometry args={[0.55, 1.4, 0.04]} />
+        </mesh>
+        <mesh position={[cx + width * 0.18, artY + 0.96, backZ - 0.02]} material={toonMaterial("#3a2a18")}>
+          <boxGeometry args={[0.65, 0.1, 0.06]} />
+        </mesh>
+        {/* hanging banner strip B */}
+        <mesh position={[cx + width * 0.34, artY - 0.1, backZ]} material={toonMaterial(artB)}>
+          <boxGeometry args={[0.4, 1.0, 0.04]} />
+        </mesh>
+        <mesh position={[cx + width * 0.34, artY + 0.46, backZ - 0.02]} material={toonMaterial("#3a2a18")}>
+          <boxGeometry args={[0.5, 0.1, 0.06]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (preset.wallDressing === "many-frames") {
+    // home: three small family-portrait frames
+    return (
+      <group>
+        {/* window */}
+        <mesh position={[cx - width * 0.22, artY, backZ]} material={toonMaterial("#4a4034")}>
+          <boxGeometry args={[1.5, 1.2, 0.06]} />
+        </mesh>
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.035]} material={toonMaterial("#bcd8f0", "#9cc0e8")}>
+          <boxGeometry args={[1.3, 1, 0.02]} />
+        </mesh>
+        <mesh position={[cx - width * 0.22, artY, backZ + 0.05]} material={toonMaterial("#4a4034")}>
+          <boxGeometry args={[0.06, 1, 0.02]} />
+        </mesh>
+        {/* three small portrait frames */}
+        {[0, 0.58, 1.16].map((offsetX, i) => (
+          <group key={offsetX}>
+            <mesh position={[cx + width * 0.16 + offsetX, artY + (i === 1 ? 0.12 : 0), backZ]} material={toonMaterial("#3d3225")}>
+              <boxGeometry args={[0.46, 0.58, 0.05]} />
+            </mesh>
+            <mesh position={[cx + width * 0.16 + offsetX, artY + (i === 1 ? 0.12 : 0), backZ + 0.03]} material={toonMaterial([artA, artB, artC][i]!)}>
+              <boxGeometry args={[0.34, 0.46, 0.02]} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    );
+  }
+
+  // standard: window + two framed art pieces (forge and default)
   return (
     <group>
-      {/* window with a soft glow — rooms shouldn't feel like sealed boxes */}
       <mesh position={[cx - width * 0.22, artY, backZ]} material={toonMaterial("#4a4034")}>
         <boxGeometry args={[1.5, 1.2, 0.06]} />
       </mesh>
@@ -159,6 +349,100 @@ function WallDressing({ interior, cx }: { interior: InteriorModel; cx: number })
     </group>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Layout features: one distinguishing structural element per role
+
+function LayoutFeature({ interior, cx, cz }: { interior: InteriorModel; cx: number; cz: number }) {
+  const { origin, width, depth, wallHeight, preset, accentColor } = interior;
+
+  if (preset.role === "tavern") {
+    // curtain divider between main floor and a small back area
+    const curtainZ = origin.z + depth * 0.6;
+    const curtainColor = accentColor;
+    return (
+      <group>
+        {/* curtain rod */}
+        <mesh position={[cx, wallHeight * 0.72, curtainZ]} rotation={[0, 0, Math.PI / 2]} material={toonMaterial("#5a4830")}>
+          <cylinderGeometry args={[0.025, 0.025, width - 1.2, 6]} />
+        </mesh>
+        {/* curtain panels — three panels with gaps */}
+        {[-1.4, 0, 1.4].map((offset) => (
+          <mesh key={offset} position={[cx + offset, wallHeight * 0.44, curtainZ]} material={toonMaterial(curtainColor)}>
+            <boxGeometry args={[0.9, wallHeight * 0.58, 0.05]} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
+  if (preset.role === "forge") {
+    // cooling trough: a shallow rectangular pool with blue-tinted water
+    const troughX = origin.x + width * 0.72;
+    const troughZ = origin.z + depth * 0.38;
+    return (
+      <group>
+        {/* trough body */}
+        <mesh position={[troughX, 0.18, troughZ]} castShadow material={toonMaterial("#5b5e66")}>
+          <boxGeometry args={[1.8, 0.36, 0.8]} />
+        </mesh>
+        {/* water surface */}
+        <mesh position={[troughX, 0.34, troughZ]}>
+          <boxGeometry args={[1.6, 0.04, 0.64]} />
+          <meshBasicMaterial color="#2a6a9a" transparent opacity={0.72} depthWrite={false} />
+        </mesh>
+        {/* exposed beam ceiling strip above anvil area */}
+        <mesh position={[cx, wallHeight - 0.18, origin.z + depth * 0.3]} material={toonMaterial("#4a3820")}>
+          <boxGeometry args={[width * 0.55, 0.2, 0.32]} />
+        </mesh>
+        <mesh position={[cx, wallHeight - 0.18, origin.z + depth * 0.7]} material={toonMaterial("#4a3820")}>
+          <boxGeometry args={[width * 0.55, 0.2, 0.32]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (preset.role === "home") {
+    // bedroom alcove: a half-wall partition, ~1.5m tall, behind the bed area
+    const partitionX = origin.x + width * 0.6;
+    return (
+      <group>
+        <mesh position={[partitionX, 0.75, cz - depth * 0.1]} castShadow material={toonMaterial(interior.wallColor)}>
+          <boxGeometry args={[WALL_THICKNESS, 1.5, depth * 0.5]} />
+        </mesh>
+        <CuboidCollider args={[WALL_THICKNESS / 2, 0.75, depth * 0.25]} position={[partitionX, 0.75, cz - depth * 0.1]} />
+      </group>
+    );
+  }
+
+  if (preset.role === "abandoned") {
+    // rubble pile in the northwest corner
+    const rubbleX = origin.x + 1.4;
+    const rubbleZ = origin.z + 1.4;
+    return (
+      <group>
+        <mesh position={[rubbleX, 0.18, rubbleZ]} material={toonMaterial("#58585e")}>
+          <boxGeometry args={[1.6, 0.36, 1.2]} />
+        </mesh>
+        <mesh position={[rubbleX + 0.3, 0.38, rubbleZ - 0.2]} material={toonMaterial("#4a4e56")}>
+          <boxGeometry args={[0.7, 0.28, 0.5]} />
+        </mesh>
+        <mesh position={[rubbleX - 0.4, 0.32, rubbleZ + 0.3]} material={toonMaterial("#62575a")}>
+          <boxGeometry args={[0.5, 0.24, 0.4]} />
+        </mesh>
+        {/* missing wall corner: a dark void patch to suggest the wall is broken */}
+        <mesh position={[origin.x + 0.3, wallHeight * 0.5, origin.z + 0.3]} material={toonMaterial("#161820")}>
+          <boxGeometry args={[0.8, wallHeight * 0.7, 0.1]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Furniture
 
 function Furniture({ piece }: { piece: FurnitureModel }) {
   const wood = toonMaterial("#7a5a3d");

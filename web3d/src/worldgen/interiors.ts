@@ -38,6 +38,18 @@ export interface InteriorDoor {
   outsideZ: number;
 }
 
+export type RoomRole = "tavern" | "forge" | "home" | "abandoned" | "default";
+
+export interface RoomPreset {
+  role: RoomRole;
+  ceilingHeight: number;
+  wallTexture: "plaster" | "wood" | "brick" | "broken";
+  floorTexture: "plank" | "stone" | "tile";
+  ambientIntensity: number;
+  hearthBoost: number;
+  wallDressing: "standard" | "many-frames" | "banners" | "boarded";
+}
+
 export interface InteriorModel {
   buildingId: string;
   districtId: string;
@@ -52,9 +64,13 @@ export interface InteriorModel {
   spawn: { x: number; z: number };
   exit: { x: number; z: number };
   furniture: FurnitureModel[];
+  preset: RoomPreset;
+  /** npc id that inhabits this room, null if empty */
+  inhabitantId: string | null;
+  /** world-space anchor for the inhabitant, tied to the role-relevant furniture */
+  inhabitantAnchor: { x: number; z: number; rotationY: number } | null;
 }
 
-const WALL_HEIGHT = 3.2;
 const ROOM_MARGIN_FROM_CITY = 120;
 
 interface FurniturePlan {
@@ -62,6 +78,7 @@ interface FurniturePlan {
   extra: FurnitureKind[];
   wallTint: string;
   names: string[];
+  role: RoomRole;
 }
 
 const ROLE_FURNITURE: Array<{ pattern: RegExp; plan: FurniturePlan }> = [
@@ -72,6 +89,7 @@ const ROLE_FURNITURE: Array<{ pattern: RegExp; plan: FurniturePlan }> = [
       extra: ["barrel", "plant", "chair"],
       wallTint: "#8a6a4a",
       names: ["Common Hall", "Tavern Rooms", "Guest House", "Trading Post", "Counter Room"],
+      role: "tavern",
     },
   },
   {
@@ -81,6 +99,7 @@ const ROLE_FURNITURE: Array<{ pattern: RegExp; plan: FurniturePlan }> = [
       extra: ["crate", "barrel"],
       wallTint: "#4a4440",
       names: ["Workshop", "Tool Shed", "Smelting Room", "Storage Bay", "Machine Shop"],
+      role: "forge",
     },
   },
   {
@@ -90,6 +109,7 @@ const ROLE_FURNITURE: Array<{ pattern: RegExp; plan: FurniturePlan }> = [
       extra: ["plant", "chair"],
       wallTint: "#9a8468",
       names: ["Cottage", "Apartment", "Family Home", "Garden House", "Loft"],
+      role: "home",
     },
   },
   {
@@ -99,6 +119,7 @@ const ROLE_FURNITURE: Array<{ pattern: RegExp; plan: FurniturePlan }> = [
       extra: ["crate"],
       wallTint: "#52565e",
       names: ["Abandoned Room", "Squatter Den", "Storage Ruin", "Boarded House"],
+      role: "abandoned",
     },
   },
 ];
@@ -108,10 +129,132 @@ const DEFAULT_PLAN: FurniturePlan = {
   extra: ["chair", "crate"],
   wallTint: "#7a7468",
   names: ["House", "Office", "Workroom", "Quarters", "Den"],
+  role: "default",
 };
 
 function planFor(district: DistrictModel): FurniturePlan {
   return ROLE_FURNITURE.find((entry) => entry.pattern.test(district.roleText))?.plan ?? DEFAULT_PLAN;
+}
+
+/** Per-role visual preset. The preset drives ceiling height, textures, lighting, and wall dressing. */
+export function roomVisualFor(role: RoomRole): RoomPreset {
+  switch (role) {
+    case "forge":
+      return {
+        role,
+        ceilingHeight: 2.6,
+        wallTexture: "brick",
+        floorTexture: "stone",
+        ambientIntensity: 12,
+        hearthBoost: 2.4,
+        wallDressing: "standard",
+      };
+    case "tavern":
+      return {
+        role,
+        ceilingHeight: 3.2,
+        wallTexture: "wood",
+        floorTexture: "plank",
+        ambientIntensity: 28,
+        hearthBoost: 1.0,
+        wallDressing: "banners",
+      };
+    case "home":
+      return {
+        role,
+        ceilingHeight: 2.9,
+        wallTexture: "plaster",
+        floorTexture: "tile",
+        ambientIntensity: 22,
+        hearthBoost: 1.2,
+        wallDressing: "many-frames",
+      };
+    case "abandoned":
+      return {
+        role,
+        ceilingHeight: 3.0,
+        wallTexture: "broken",
+        floorTexture: "stone",
+        ambientIntensity: 4,
+        hearthBoost: 0,
+        wallDressing: "boarded",
+      };
+    default:
+      return {
+        role,
+        ceilingHeight: 3.2,
+        wallTexture: "plaster",
+        floorTexture: "plank",
+        ambientIntensity: 26,
+        hearthBoost: 1.0,
+        wallDressing: "standard",
+      };
+  }
+}
+
+/** Regex patterns mapping npc role/description text to a RoomRole for inhabitant matching. */
+const NPC_ROLE_PATTERNS: Array<{ pattern: RegExp; role: RoomRole }> = [
+  { pattern: /merchant|shop|keeper|vendor|clerk|innkeep|trader|bartend|counter/i, role: "tavern" },
+  { pattern: /forge|smith|blacksmith|craft|engineer|mechanic|tinker/i, role: "forge" },
+  { pattern: /elder|parent|mother|father|farmer|gardener|child|family|home/i, role: "home" },
+];
+
+function npcRoleFor(npc: { role?: string; description?: string }): RoomRole | null {
+  const text = `${npc.role ?? ""} ${npc.description ?? ""}`;
+  for (const { pattern, role } of NPC_ROLE_PATTERNS) {
+    if (pattern.test(text)) return role;
+  }
+  return null;
+}
+
+/** Choose one inhabitant NPC for a building, deterministically. Returns null if no suitable NPC exists. */
+function inhabitantFor(
+  world: World,
+  district: DistrictModel,
+  building: BuildingModel,
+  planRole: RoomRole
+): string | null {
+  if (planRole === "abandoned") return null;
+  const candidates = world.npcs.filter((npc) => {
+    if (npc.id === world.player.characterId) return false;
+    if (npc.locationId !== district.locationId) return false;
+    if (npc.combat?.defeated) return false;
+    const npcRole = npcRoleFor(npc);
+    // role matches, or for default/home we accept any non-combat NPC
+    if (planRole === "default" || planRole === "home") return npcRole !== "forge" && npcRole !== "tavern";
+    return npcRole === planRole;
+  });
+  if (candidates.length === 0) return null;
+  const buildingIndex = district.buildings.findIndex((b) => b.id === building.id);
+  return candidates[buildingIndex % candidates.length]!.id;
+}
+
+/** World-space anchor for the inhabitant, positioned near the role-relevant furniture piece. */
+function anchorFor(
+  furniture: FurnitureModel[],
+  role: RoomRole,
+  origin: { x: number; z: number },
+  width: number,
+  depth: number
+): { x: number; z: number; rotationY: number } {
+  const priorityKinds: FurnitureKind[] =
+    role === "forge"
+      ? ["anvil", "hearth"]
+      : role === "tavern"
+        ? ["counter", "shelf"]
+        : role === "home"
+          ? ["bed", "hearth"]
+          : ["table", "shelf"];
+
+  for (const kind of priorityKinds) {
+    const piece = furniture.find((f) => f.kind === kind);
+    if (piece) {
+      // stand slightly in front of the furniture, facing inward
+      return { x: piece.x, z: piece.z + 0.9, rotationY: Math.PI };
+    }
+  }
+  // fallback: center of the room
+  return { x: origin.x + width / 2, z: origin.z + depth / 2, rotationY: 0 };
 }
 
 function doorFaceFor(district: DistrictModel, building: BuildingModel): { x: number; z: number; outsideX: number; outsideZ: number } {
@@ -164,6 +307,7 @@ export function interiorForBuilding(world: World, model: WorldModel, buildingId:
   if (!district || !building || !door) return null;
 
   const plan = planFor(district);
+  const preset = roomVisualFor(plan.role);
   const rng = rngFor(world.id, buildingId, "interior");
 
   // room scales with the building footprint
@@ -192,6 +336,9 @@ export function interiorForBuilding(world: World, model: WorldModel, buildingId:
     });
   });
 
+  const inhabitantId = inhabitantFor(world, district, building, plan.role);
+  const inhabitantAnchor = inhabitantId ? anchorFor(furniture, plan.role, origin, width, depth) : null;
+
   const interior: InteriorModel = {
     buildingId,
     districtId: district.locationId,
@@ -199,13 +346,16 @@ export function interiorForBuilding(world: World, model: WorldModel, buildingId:
     origin,
     width,
     depth,
-    wallHeight: WALL_HEIGHT,
+    wallHeight: preset.ceilingHeight,
     floorColor: shiftHex(district.palette.ground, 0.32),
     wallColor: blendHex(shiftHex(district.palette.structure, 0.18), plan.wallTint, 0.45),
     accentColor: district.palette.accent,
     spawn,
     exit,
     furniture,
+    preset,
+    inhabitantId,
+    inhabitantAnchor,
   };
   interiorCache.set(cacheKey, interior);
   if (interiorCache.size > 24) {

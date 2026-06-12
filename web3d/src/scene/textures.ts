@@ -373,6 +373,128 @@ export function lightPoolTexture(): THREE.CanvasTexture {
   return poolTexture;
 }
 
+const brickCache = new Map<string, THREE.CanvasTexture>();
+
+/** interior brick walls: horizontal courses with staggered joints, soot-tinted mortar */
+export function brickTexture(baseColor: string): THREE.CanvasTexture {
+  const cached = brickCache.get(baseColor);
+  if (cached) return cached;
+  const rng = mulberry32(seedFromString(`brick:${baseColor}`));
+  const size = 256;
+  const [canvas, ctx] = makeCanvas(size, size);
+  const brickH = 20;
+  const brickW = 42;
+  // mortar bed
+  ctx.fillStyle = shade(baseColor, -0.42);
+  ctx.fillRect(0, 0, size, size);
+  for (let row = 0; row < size / brickH; row += 1) {
+    const offset = row % 2 === 0 ? 0 : brickW / 2;
+    for (let x = -brickW; x < size; x += brickW) {
+      const px = x + offset;
+      const py = row * brickH;
+      const tone = -0.1 + rng() * 0.22;
+      ctx.fillStyle = shade(baseColor, tone);
+      ctx.fillRect(px + 2, py + 2, brickW - 4, brickH - 4);
+      // top light catch
+      ctx.fillStyle = "rgba(255,255,255,0.07)";
+      ctx.fillRect(px + 2, py + 2, brickW - 4, 3);
+      // bottom shadow
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.fillRect(px + 2, py + brickH - 4, brickW - 4, 3);
+      // surface speckle (soot)
+      if (rng() > 0.55) {
+        ctx.fillStyle = `rgba(0,0,0,${0.06 + rng() * 0.1})`;
+        ctx.fillRect(px + 4 + rng() * (brickW - 10), py + 4 + rng() * (brickH - 8), 4 + rng() * 8, 2 + rng() * 4);
+      }
+    }
+  }
+  const texture = asTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  brickCache.set(baseColor, texture);
+  return texture;
+}
+
+const tileCache = new Map<string, THREE.CanvasTexture>();
+
+/** interior floor tiles: square grid with grout lines and slight per-tile tone variation */
+export function tileTexture(baseColor: string): THREE.CanvasTexture {
+  const cached = tileCache.get(baseColor);
+  if (cached) return cached;
+  const rng = mulberry32(seedFromString(`tile:${baseColor}`));
+  const size = 256;
+  const [canvas, ctx] = makeCanvas(size, size);
+  const tile = 40;
+  ctx.fillStyle = shade(baseColor, -0.28);
+  ctx.fillRect(0, 0, size, size);
+  for (let row = 0; row < size / tile; row += 1) {
+    for (let col = 0; col < size / tile; col += 1) {
+      const px = col * tile;
+      const py = row * tile;
+      const tone = -0.04 + rng() * 0.12;
+      ctx.fillStyle = shade(baseColor, tone);
+      ctx.fillRect(px + 2, py + 2, tile - 4, tile - 4);
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(px + 2, py + 2, tile - 4, 4);
+      ctx.fillStyle = "rgba(0,0,0,0.07)";
+      ctx.fillRect(px + 2, py + tile - 6, tile - 4, 4);
+    }
+  }
+  const texture = asTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  tileCache.set(baseColor, texture);
+  return texture;
+}
+
+const crackedWallCache = new Map<string, THREE.CanvasTexture>();
+
+/** abandoned wall texture: dark, irregular, with crack lines and peeling patches */
+export function crackedWallTexture(baseColor: string): THREE.CanvasTexture {
+  const cached = crackedWallCache.get(baseColor);
+  if (cached) return cached;
+  const rng = mulberry32(seedFromString(`cracked:${baseColor}`));
+  const size = 256;
+  const [canvas, ctx] = makeCanvas(size, size);
+  // base dirty plaster
+  ctx.fillStyle = shade(baseColor, -0.18);
+  ctx.fillRect(0, 0, size, size);
+  // patchy peeling — dark irregular blobs
+  for (let i = 0; i < 18; i += 1) {
+    const px = rng() * size;
+    const py = rng() * size;
+    const w = 14 + rng() * 38;
+    const h = 10 + rng() * 28;
+    ctx.fillStyle = shade(baseColor, -0.38 - rng() * 0.18);
+    ctx.beginPath();
+    ctx.ellipse(px, py, w / 2, h / 2, rng() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // crack lines
+  ctx.strokeStyle = shade(baseColor, -0.52);
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 7; i += 1) {
+    ctx.beginPath();
+    let cx = rng() * size;
+    let cy = rng() * size;
+    ctx.moveTo(cx, cy);
+    const steps = 4 + Math.floor(rng() * 5);
+    for (let s = 0; s < steps; s += 1) {
+      cx += (rng() - 0.5) * 32;
+      cy += (rng() - 0.3) * 28;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  }
+  // overall grime noise
+  for (let i = 0; i < 180; i += 1) {
+    ctx.fillStyle = `rgba(0,0,0,${0.03 + rng() * 0.07})`;
+    ctx.fillRect(rng() * size, rng() * size, 2 + rng() * 6, 2 + rng() * 6);
+  }
+  const texture = asTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  crackedWallCache.set(baseColor, texture);
+  return texture;
+}
+
 const speckleCache = new Map<string, THREE.CanvasTexture>();
 
 export function speckleTexture(baseColor: string): THREE.CanvasTexture {

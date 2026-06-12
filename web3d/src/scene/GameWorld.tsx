@@ -62,7 +62,9 @@ export function GameWorld({ world }: { world: World }) {
           {model.districts.map((district) => (
             <District key={district.locationId} district={district} night={night} />
           ))}
-          {activeInterior ? <Interior key={activeInterior.buildingId} interior={activeInterior} /> : null}
+          {activeInterior ? (
+            <Interior key={activeInterior.buildingId} interior={activeInterior} npcs={world.npcs} />
+          ) : null}
           {placements.items.map((item) => (
             <ItemMarker key={item.itemId} item={item} />
           ))}
@@ -72,6 +74,8 @@ export function GameWorld({ world }: { world: World }) {
           {world.npcs.map((npc) => {
             const spawn = placements.npcSpawns[npc.id];
             if (!spawn) return null;
+            // hide exterior render for NPCs currently inhabiting the active interior
+            if (activeInterior?.inhabitantId === npc.id) return null;
             return <Npc key={npc.id} npc={npc} worldId={world.id} spawn={spawn} model={model} quests={world.quests ?? []} />;
           })}
           <PlayerController world={world} model={model} placements={placements} activeDistrict={activeDistrict} />
