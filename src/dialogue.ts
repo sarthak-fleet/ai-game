@@ -8,6 +8,8 @@ import type { Action, Npc, World } from "./types.ts";
 
 const HISTORY_LIMIT = 24;
 const MEMORY_LIMIT = Number(process.env["LLM_MEMORY_LIMIT"] ?? 5);
+/** ticks the NPC stays locked after each dialogue exchange (~24 s at 4 s/tick) */
+const LOCK_TICKS = 6;
 const REPLY_MAX_CHARS = 420;
 const DEFLECTION_LINE = "I'd rather not talk about that right now.";
 
@@ -117,6 +119,9 @@ export async function generateDialogueReply(
   if (npc.locationId !== world.player.locationId && !isAdjacent(world, npc.locationId, world.player.locationId)) {
     return { ok: false, reason: "npc_not_here" };
   }
+
+  // lock the NPC in-place for the duration of this exchange; refreshed each turn
+  npc.talkingToPlayerUntilTick = world.tick + LOCK_TICKS;
 
   const history = historyFor(world.id, npcId, options.historyKey);
   const system = buildDialogueSystem(world, npc);
@@ -229,10 +234,9 @@ export async function generateDialogueReply(
     history.push({ speaker: "event", text });
     npc.memories.push({ tick: world.tick, text: `I sparred with the player to test their resolve.`, meta: { importance: 2, visibility: "private" } });
   } else if (parsed.action?.type === "follow" || parsed.action?.type === "unfollow") {
-    const text =
-      parsed.action.type === "follow"
-        ? `${npc.name} starts following you.`
-        : `${npc.name} stops following you.`;
+    const isFollow = parsed.action.type === "follow";
+    npc.followingPlayer = isFollow;
+    const text = isFollow ? `${npc.name} starts following you.` : `${npc.name} stops following you.`;
     appliedAction = { type: parsed.action.type, text };
     history.push({ speaker: "event", text });
     npc.memories.push({ tick: world.tick, text, meta: { importance: 2, visibility: "private" } });

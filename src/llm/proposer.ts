@@ -46,7 +46,12 @@ async function proposeOne(world: World, npc: Npc, tier: Tier, propose: ProposeFn
 }
 
 function pickActiveNpcs(world: World): Npc[] {
-  return world.npcs.filter((npc) => npc.tier !== "background");
+  return world.npcs.filter((npc) => {
+    if (npc.tier === "background") return false;
+    // skip NPCs locked mid-conversation so the LLM doesn't move them away
+    if (npc.talkingToPlayerUntilTick && npc.talkingToPlayerUntilTick > world.tick) return false;
+    return true;
+  });
 }
 
 function buildSystem(world: World, npc: Npc): string {

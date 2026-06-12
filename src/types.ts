@@ -221,6 +221,10 @@ export interface Npc {
   relationshipAxes?: Record<ActorId | "player", RelationshipAxes>;
   memories: Memory[];
   tier?: "background" | "normal" | "quest";
+  /** while > world.tick, simulation/ambient/goal-pursuit skips this NPC */
+  talkingToPlayerUntilTick?: number;
+  /** when set, NPC pathfinds toward the player's location each tick */
+  followingPlayer?: boolean;
 }
 
 export interface Location {

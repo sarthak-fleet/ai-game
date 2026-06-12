@@ -48,6 +48,9 @@ const ACTION_TYPES: Set<ActionType> = new Set([
   "offer_quest", "accept_quest", "complete_quest", "fail_quest",
 ]);
 
+/** ticks of inactivity before a following NPC stops following the player */
+const FOLLOW_TIMEOUT_TICKS = 60;
+
 export function cloneWorld(world: World): World {
   return JSON.parse(JSON.stringify(world)) as World;
 }
@@ -188,10 +191,25 @@ export async function runTick(
   syncStoryProgress(world);
   advanceStoryPressure(world, actions);
   refreshAgentIntents(world);
+  expireFollowingState(world);
   const summary = summarizeTick(world, actions, rejected);
   world.eventLog.push(summary);
   trimWorldGrowth(world);
   return summary;
+}
+
+/** Cancel followingPlayer if the NPC hasn't been in active conversation for FOLLOW_TIMEOUT_TICKS. */
+function expireFollowingState(world: World): void {
+  for (const npc of world.npcs) {
+    if (!npc.followingPlayer) continue;
+    // talkingToPlayerUntilTick is refreshed every dialogue exchange; once it
+    // has drifted more than FOLLOW_TIMEOUT_TICKS ticks behind the current tick
+    // the player has stopped talking to this NPC for a full minute of sim time.
+    const lastTalk = npc.talkingToPlayerUntilTick ?? 0;
+    if (world.tick - lastTalk > FOLLOW_TIMEOUT_TICKS) {
+      delete npc.followingPlayer;
+    }
+  }
 }
 
 const EVENT_LOG_CAP = 60;
@@ -338,6 +356,10 @@ export function applyAction(world: World, action: Action): ActionResult {
         appearance: chosen.appearance ? clonePlain(chosen.appearance) : undefined,
         locationId: playerLocation,
       };
+      // followers of the old body should not trail indefinitely after a character swap
+      for (const npc of world.npcs) {
+        if (npc.id !== chosen.id) delete npc.followingPlayer;
+      }
       remember(world, chosen.id, `${nameOf(world, action.actorId)} chose to play as ${chosen.name}.`);
       reassignArcRoles(world);
       return applied(action, `${nameOf(world, action.actorId)} is now playing as ${chosen.name}.`);
@@ -528,6 +550,9 @@ function resolveFightConsequences(world: World, actorId: string, targetId: strin
       updatedTick: world.tick,
     };
     defeated.plan.nextActionHint = "Recover off-screen instead of re-engaging this route.";
+    // a defeated NPC can no longer follow the player
+    delete defeated.followingPlayer;
+    delete defeated.talkingToPlayerUntilTick;
     remember(world, targetId, `Defeated by ${nameOf(world, actorId)}; the current challenge is over.`);
   }
   const plan = world.villainPlans?.find((candidate) => candidate.actorId === targetId);
@@ -937,6 +962,7 @@ export function proposeNpcActions(world: World): Action[] {
         text: "Sonic is turning the overpass alert into a challenge stage.",
       });
     }
+    actions.push(...followingPlayerMoveActions(world, actions));
     actions.push(...hostileCombatActions(world, actions));
     actions.push(...scheduledNpcMoveActions(world, actions));
     return actions;
@@ -961,9 +987,30 @@ export function proposeNpcActions(world: World): Action[] {
       text: "Mira is angry about the missing tools; return them before asking for herbs.",
     });
   }
+  actions.push(...followingPlayerMoveActions(world, actions));
   actions.push(...hostileCombatActions(world, actions));
   actions.push(...scheduledNpcMoveActions(world, actions));
   return actions;
+}
+
+/** NPCs that agreed to follow the player walk toward the player's location. */
+function followingPlayerMoveActions(world: World, existingActions: Action[]): Action[] {
+  const busyActors = new Set(existingActions.map((action) => action.actorId));
+  const playerLoc = world.player.locationId;
+  if (!playerLoc) return [];
+  const moves: Action[] = [];
+  for (const npc of world.npcs) {
+    if (!npc.followingPlayer) continue;
+    if (npc.id === world.player.characterId || busyActors.has(npc.id)) continue;
+    // still locked mid-conversation — they are standing right here, no move needed
+    if (npc.talkingToPlayerUntilTick && npc.talkingToPlayerUntilTick > world.tick) continue;
+    if (npc.locationId === playerLoc) continue;
+    const nextStep = nextLocationStep(world, npc.locationId, playerLoc);
+    if (!nextStep || nextStep === npc.locationId) continue;
+    moves.push({ type: "move", actorId: npc.id, locationId: nextStep });
+    busyActors.add(npc.id);
+  }
+  return moves;
 }
 
 function hostileCombatActions(world: World, existingActions: Action[], limit = 1): Action[] {
@@ -978,6 +1025,7 @@ function hostileCombatActions(world: World, existingActions: Action[], limit = 1
   for (const npc of world.npcs) {
     if (actions.length >= limit) break;
     if (npc.id === world.player.characterId || busyActors.has(npc.id)) continue;
+    if (npc.talkingToPlayerUntilTick && npc.talkingToPlayerUntilTick > world.tick) continue;
     if (!shouldTrackCombat(npc) || npc.combat?.defeated) continue;
     if (npc.locationId !== world.player.locationId) continue;
     const moveId = hostileMoveId(world, npc);
@@ -1035,6 +1083,7 @@ function scheduledNpcMoveActions(world: World, existingActions: Action[], limit 
   for (const npc of world.npcs) {
     if (moves.length >= limit) break;
     if (npc.id === world.player.characterId || busyActors.has(npc.id)) continue;
+    if (npc.talkingToPlayerUntilTick && npc.talkingToPlayerUntilTick > world.tick) continue;
     if (isQuestCriticalNpc(world, npc.id)) continue;
     const scheduled = scheduledBlockFor(world, npc);
     if (!scheduled || scheduled.locationId === npc.locationId) continue;

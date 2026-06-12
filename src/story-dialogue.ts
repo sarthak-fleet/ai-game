@@ -83,6 +83,7 @@ export function storyDialogueRespond(world: World, npcId: string, optionId: stri
     npc.memories.push({ tick: world.tick, text: `I sparred with the player to test their resolve.`, meta: { importance: 2, visibility: "private" } });
     reply = `Very well — show me what you carry. No blades to the bone.`;
   } else if (optionId === "follow") {
+    npc.followingPlayer = true;
     action = { type: "follow", text: `${npc.name} starts following you.` };
     npc.memories.push({ tick: world.tick, text: `I agreed to walk with the player for a while.`, meta: { importance: 2, visibility: "private" } });
     reply = `Lead on, then. I could use the change of air.`;
