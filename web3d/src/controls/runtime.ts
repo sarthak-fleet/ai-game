@@ -36,6 +36,12 @@ export function knockback(npcId: string, direction: { x: number; z: number }, fo
 /** player gesture hook, filled by the controller once its rig mounts */
 export const playerGestureHook: { fire: ((kind: "pickup" | "interact") => void) | null } = { fire: null };
 
+/** player flash hook: triggers a brief red emissive on the player rig */
+export const playerFlashHook: { fire: (() => void) | null } = { fire: null };
+
+/** combat toast hook: fires a HUD toast for in-world combat events (defeat, etc.) */
+export const combatToastHook: { fire: ((text: string, kind: "defeat" | "info") => void) | null } = { fire: null };
+
 export function playerGesture(kind: "pickup" | "interact"): void {
   playerGestureHook.fire?.(kind);
 }

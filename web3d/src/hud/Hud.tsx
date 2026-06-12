@@ -7,7 +7,7 @@ import { isSfxEnabled, pickupChime, questChime, setSfxEnabled } from "../audio/s
 import { useBanterStore } from "../characters/banter.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { isTypingTarget } from "../controls/input.ts";
-import { playerGesture, requestTeleport } from "../controls/runtime.ts";
+import { combatToastHook, playerGesture, requestTeleport } from "../controls/runtime.ts";
 import { useDirectorStore } from "../director/store.ts";
 import { worldPressure } from "../mapping/mood.ts";
 import { useUiStore } from "../store/ui.ts";
@@ -40,15 +40,31 @@ export function Hud() {
   const [chronicleOpen, setChronicleOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(() => isSfxEnabled());
   const [pointerLocked, setPointerLocked] = useState(false);
+  const [combatToasts, setCombatToasts] = useState<Array<{ id: number; text: string; kind: "defeat" | "info" }>>([]);
+  const combatToastSeqRef = useRef(0);
 
   useEffect(() => {
     const onLockChange = () => setPointerLocked(Boolean(document.pointerLockElement));
     document.addEventListener("pointerlockchange", onLockChange);
     return () => document.removeEventListener("pointerlockchange", onLockChange);
   }, []);
+
+  // wire the combat toast hook so damageEnemy can push defeat/kill toasts
+  useEffect(() => {
+    combatToastHook.fire = (text, kind) => {
+      const id = ++combatToastSeqRef.current;
+      setCombatToasts((previous) => [...previous.slice(-3), { id, text, kind }]);
+      window.setTimeout(() => setCombatToasts((previous) => previous.filter((entry) => entry.id !== id)), 3500);
+    };
+    return () => {
+      combatToastHook.fire = null;
+    };
+  }, []);
+
   const playerHp = useCombatStore((state) => state.playerHp);
   const playerMaxHp = useCombatStore((state) => state.playerMaxHp);
   const playerDown = useCombatStore((state) => state.playerDown);
+  const playerDownAttacker = useCombatStore((state) => state.playerDownAttacker);
   const inCombat = useCombatStore((state) => Object.values(state.enemies).some((enemy) => enemy.hostile && !enemy.defeated));
 
   useEffect(() => {
@@ -241,10 +257,22 @@ export function Hud() {
         </div>
       </div>
 
+      {combatToasts.length > 0 ? (
+        <div className="combat-toasts">
+          {combatToasts.map((entry) => (
+            <div key={entry.id} className={`combat-toast ${entry.kind}`}>
+              {entry.text}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {playerDown ? (
         <div className="death-overlay">
           <div className="death-title">You are down</div>
-          <div className="death-sub">Getting back up…</div>
+          <div className="death-sub">
+            {playerDownAttacker ? `${playerDownAttacker} brought you down.` : "Getting back up…"}
+          </div>
         </div>
       ) : null}
 

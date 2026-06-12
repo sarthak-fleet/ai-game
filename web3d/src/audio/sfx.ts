@@ -136,3 +136,23 @@ export function followChime(): void {
   tone(392, 0.1, "triangle", 0.08);
   setTimeout(() => tone(523, 0.16, "triangle", 0.09), 100);
 }
+
+/** low rumble warning that an enemy attack is incoming */
+export function telegraphSting(): void {
+  tone(110, 0.28, "sawtooth", 0.07, 90);
+  noise(0.18, 0.08, 280, "lowpass");
+}
+
+/** punchy celebration riff on enemy defeat */
+export function victorySting(): void {
+  tone(523, 0.08, "triangle", 0.11);
+  setTimeout(() => tone(659, 0.08, "triangle", 0.11), 70);
+  setTimeout(() => tone(784, 0.14, "triangle", 0.13), 140);
+  setTimeout(() => tone(1047, 0.22, "triangle", 0.1), 210);
+}
+
+/** short whoosh when an enemy swing misses the dodging player */
+export function missSwoosh(): void {
+  noise(0.14, 0.09, 3200, "highpass");
+  tone(320, 0.1, "sine", 0.05, 180);
+}

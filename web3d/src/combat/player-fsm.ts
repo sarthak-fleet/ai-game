@@ -186,9 +186,15 @@ export function updatePlayerCombat({ state, nowMs, heading, moveDirection, movin
 }
 
 /** Player took a hit: enter hitstun unless dodging (i-frames) or dead. */
-export function applyIncomingHit(state: PlayerCombatState, nowMs: number, damage: number, at: { x: number; y: number; z: number }): boolean {
+export function applyIncomingHit(
+  state: PlayerCombatState,
+  nowMs: number,
+  damage: number,
+  at: { x: number; y: number; z: number },
+  attackerName?: string
+): boolean {
   if (state.kind === "dodge" || state.kind === "dead") return false;
-  useCombatStore.getState().damagePlayer(damage, at);
+  useCombatStore.getState().damagePlayer(damage, at, attackerName);
   if (state.kind !== "hitstun") {
     state.kind = "hitstun";
     state.stateStartedAt = nowMs;

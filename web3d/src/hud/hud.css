@@ -1050,6 +1050,35 @@
   background: linear-gradient(90deg, #e0524a, #ff8a6a);
 }
 
+.combat-toasts {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.combat-toast {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  animation: toast-in 250ms ease-out;
+  background: rgba(10, 14, 24, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.combat-toast.defeat {
+  color: #ffd84d;
+  border-color: rgba(255, 216, 77, 0.5);
+  text-shadow: 0 0 8px rgba(255, 200, 0, 0.4);
+}
+
 .death-overlay {
   position: absolute;
   inset: 0;

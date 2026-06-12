@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import type { Npc as NpcData, Quest } from "../../../src/types.ts";
+import { missSwoosh, telegraphSting } from "../audio/sfx.ts";
 import { applyIncomingHit, playerCombatState } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { npcRegistry, playerPosition, registerNpc, scaledDelta, unregisterNpc } from "../controls/runtime.ts";
@@ -87,6 +88,8 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     aiUntil: 0,
     struck: false,
     patrolAngle: 0,
+    wobbleOrigin: new THREE.Vector3(),
+    wobbleUntil: 0,
   });
 
   const ambientRole = useMemo(() => ambientRoleFor(npc), [npc]);
@@ -115,13 +118,19 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- register once per npc
   }, [npc.id]);
 
-  // hit feedback: flash + flinch when this NPC loses HP
+  // hit feedback: flash + flinch + wobble when this NPC loses HP
   const prevHp = useRef<number | null>(null);
   useEffect(() => {
     const hp = enemy?.hp ?? null;
     if (hp !== null && prevHp.current !== null && hp < prevHp.current && !enemy?.defeated) {
       animation.current?.trigger("hit");
       animation.current?.flash?.();
+      // schedule a brief wobble-back on the group node
+      const s = state.current;
+      if (group.current) {
+        s.wobbleOrigin.copy(group.current.position);
+        s.wobbleUntil = performance.now() + 100;
+      }
     }
     prevHp.current = hp;
   }, [enemy?.hp, enemy?.defeated]);
@@ -163,7 +172,7 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
 
     // hostile combat AI takes priority over ambient behavior
     if (enemy?.hostile && playerCombatState.kind !== "dead" && !inCutscene) {
-      updateEnemyAi(npc.id, s, node, time, delta, animation.current, visualHitPoint(node));
+      updateEnemyAi(npc.id, npc.name, s, node, time, delta, animation.current, visualHitPoint(node));
       syncRegistry(npc.id, node.position);
       return;
     }
@@ -356,6 +365,8 @@ interface EnemyAiContext {
   aiState: EnemyAiState;
   aiUntil: number;
   struck: boolean;
+  wobbleOrigin: THREE.Vector3;
+  wobbleUntil: number;
 }
 
 function visualHitPoint(node: THREE.Group): { x: number; y: number; z: number } {
@@ -364,6 +375,7 @@ function visualHitPoint(node: THREE.Group): { x: number; y: number; z: number } 
 
 function updateEnemyAi(
   npcId: string,
+  npcName: string,
   s: EnemyAiContext,
   node: THREE.Group,
   time: number,
@@ -379,22 +391,32 @@ function updateEnemyAi(
   const faceYaw = Math.atan2(toPlayer.x, toPlayer.z);
 
   const lowHp = enemy ? enemy.hp / enemy.maxHp < RETREAT_HP_FRACTION : false;
+  const nowMs = performance.now();
+
+  // wobble-back after being hit: drift returns to origin
+  if (nowMs < s.wobbleUntil) {
+    const t = 1 - (s.wobbleUntil - nowMs) / 100;
+    node.position.lerp(s.wobbleOrigin, t * delta * 12);
+  }
 
   if (s.aiState === "approach") {
     if (lowHp && distance < 6) {
       s.aiState = "retreat";
       s.aiUntil = time + 2.2;
+      animation?.setTelegraph?.(false);
     } else if (distance <= STRIKE_REACH * 0.85) {
       s.aiState = "telegraph";
       s.aiUntil = time + TELEGRAPH_S;
       s.struck = false;
       animation?.trigger("telegraph");
+      animation?.setTelegraph?.(true);
+      telegraphSting();
       store.addVfx({
         kind: "telegraph",
         ...hitPoint,
-        color: "#ff6a5a",
-        startedAt: performance.now(),
-        expiresAt: performance.now() + TELEGRAPH_S * 1000,
+        color: "#ff8830",
+        startedAt: nowMs,
+        expiresAt: nowMs + TELEGRAPH_S * 1000,
       });
     } else {
       const step = toPlayer.normalize().multiplyScalar(Math.min(CHASE_SPEED * delta, Math.max(0, distance - 1.2)));
@@ -414,6 +436,7 @@ function updateEnemyAi(
       s.aiState = "strike";
       s.aiUntil = time + 0.18;
       animation?.trigger("attack1");
+      animation?.setTelegraph?.(false);
     }
     return;
   }
@@ -422,11 +445,24 @@ function updateEnemyAi(
     animation?.setSpeed(0);
     if (!s.struck && distance <= STRIKE_REACH) {
       s.struck = true;
-      applyIncomingHit(playerCombatState, performance.now(), STRIKE_DAMAGE, {
+      const landed = applyIncomingHit(playerCombatState, nowMs, STRIKE_DAMAGE, {
         x: playerPosition.x,
         y: playerPosition.y + 1.2,
         z: playerPosition.z,
-      });
+      }, npcName);
+      if (!landed) {
+        // hit was absorbed by a dodge — show a near-miss whoosh
+        missSwoosh();
+        store.addVfx({
+          kind: "dust",
+          x: playerPosition.x,
+          y: playerPosition.y + 0.9,
+          z: playerPosition.z,
+          color: "#c0c8d8",
+          startedAt: nowMs,
+          expiresAt: nowMs + 320,
+        });
+      }
     }
     if (time >= s.aiUntil) {
       s.aiState = "recover";
@@ -452,6 +488,7 @@ function updateEnemyAi(
   node.rotation.y = s.heading;
   animation?.setSpeed(RETREAT_SPEED);
 }
+
 
 function dampAngle(current: number, target: number, lambda: number, delta: number): number {
   let diff = target - current;

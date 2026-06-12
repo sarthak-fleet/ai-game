@@ -291,6 +291,7 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
   }, [actions, mixer]);
 
   const flashUntil = useRef(0);
+  const telegraphUntil = useRef(0);
 
   const playOverlay = (clipName: string, fadeIn: number) => {
     const action = actions.get(clipName);
@@ -309,6 +310,9 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
     },
     flash: () => {
       flashUntil.current = performance.now() + 140;
+    },
+    setTelegraph: (active: boolean) => {
+      telegraphUntil.current = active ? performance.now() + 600 : 0;
     },
     setTalking: (talking: boolean) => {
       talkingRef.current = talking;
@@ -345,16 +349,24 @@ export const RiggedCharacter = forwardRef<CharacterAnimationHandle, RiggedCharac
     const delta = scaledDelta(rawDelta);
     mixer.update(delta);
 
-    // damage flash: pulse the body material red
+    // damage flash (red) and telegraph pulse (orange) on the body material
     const material = (scene.getObjectByProperty("isSkinnedMesh", true) as THREE.SkinnedMesh | undefined)?.material as
       | THREE.MeshToonMaterial
       | undefined;
     if (material) {
-      const flashing = performance.now() < flashUntil.current;
-      const target = flashing ? 0.85 : 0;
-      if (material.emissiveIntensity !== target) {
+      const now = performance.now();
+      const flashing = now < flashUntil.current;
+      const telegraphing = !flashing && now < telegraphUntil.current;
+      if (flashing) {
         material.emissive.set("#ff4030");
-        material.emissiveIntensity = target;
+        material.emissiveIntensity = 0.85;
+      } else if (telegraphing) {
+        // oscillate intensity to give a pulsing "winding up" look
+        const pulse = 0.28 + Math.sin(now * 0.018) * 0.18;
+        material.emissive.set("#ff8830");
+        material.emissiveIntensity = pulse;
+      } else {
+        if (material.emissiveIntensity !== 0) material.emissiveIntensity = 0;
       }
     }
 

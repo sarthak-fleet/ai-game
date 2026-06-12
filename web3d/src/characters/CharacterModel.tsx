@@ -39,6 +39,8 @@ export interface CharacterAnimationHandle {
   setDefeated: (defeated: boolean) => void;
   /** brief red damage flash (optional) */
   flash?: () => void;
+  /** orange emissive pulse for enemy wind-up telegraph (optional) */
+  setTelegraph?: (active: boolean) => void;
   /** conversational idle while a dialogue is open (optional) */
   setTalking?: (talking: boolean) => void;
   /** one-shot non-combat gesture (optional; rig only) */

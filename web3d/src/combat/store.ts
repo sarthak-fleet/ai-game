@@ -3,8 +3,8 @@ import { create } from "zustand";
 import { combatMovesFor } from "../../../src/combat.ts";
 import type { World } from "../../../src/types.ts";
 import { api } from "../api/client.ts";
-import { deathThud, hitImpact, hurt } from "../audio/sfx.ts";
-import { addCameraShake, hitstop } from "../controls/runtime.ts";
+import { deathThud, hitImpact, hurt, victorySting } from "../audio/sfx.ts";
+import { addCameraShake, combatToastHook, hitstop, playerFlashHook } from "../controls/runtime.ts";
 import { useWorldStore } from "../store/world.ts";
 
 export interface EnemyCombat {
@@ -38,6 +38,8 @@ interface CombatStore {
   playerMaxHp: number;
   playerLevel: number;
   playerDown: boolean;
+  /** name of the NPC that brought the player down, for the death overlay */
+  playerDownAttacker: string | null;
   lockTargetId: string | null;
   enemies: Record<string, EnemyCombat>;
   vfx: VfxEvent[];
@@ -45,7 +47,8 @@ interface CombatStore {
   engageSpar: (npcId: string) => void;
   setPlayerGrowth: (level: number) => void;
   damageEnemy: (npcId: string, amount: number, at: { x: number; y: number; z: number }) => void;
-  damagePlayer: (amount: number, at: { x: number; y: number; z: number }) => void;
+  /** attackerName is threaded through so the death overlay can name who finished the player */
+  damagePlayer: (amount: number, at: { x: number; y: number; z: number }, attackerName?: string) => void;
   setHostileFromSummaryActions: (actions: Array<{ type: string; actorId?: string; targetId?: string }>) => void;
   setLockTarget: (npcId: string | null) => void;
   addVfx: (event: Omit<VfxEvent, "id">) => void;
@@ -61,6 +64,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   playerMaxHp: PLAYER_MAX_HP,
   playerLevel: 1,
   playerDown: false,
+  playerDownAttacker: null,
   lockTargetId: null,
   enemies: {},
   vfx: [],
@@ -131,8 +135,14 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     });
     addCameraShake(defeated ? 0.3 : 0.12);
     hitstop(defeated ? 200 : 70, defeated ? 0.3 : 0.05);
-    if (defeated) deathThud();
-    else hitImpact(amount >= 35);
+    if (defeated) {
+      deathThud();
+      victorySting();
+      const npcName = useWorldStore.getState().world?.npcs.find((entry) => entry.id === npcId)?.name;
+      combatToastHook.fire?.(`Defeated ${npcName ?? "enemy"}.`, "defeat");
+    } else {
+      hitImpact(amount >= 35);
+    }
     get().addVfx({ kind: "spark", ...at, color: "#ffd84d", startedAt: performance.now(), expiresAt: performance.now() + 380 });
     get().addVfx({
       kind: "damage",
@@ -145,7 +155,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     if (defeated) void reportDefeatToSim(npcId);
   },
 
-  damagePlayer(amount, at) {
+  damagePlayer(amount, at, attackerName) {
     if (get().playerDown) return;
     const sparring = Object.values(get().enemies).some((enemy) => enemy.spar && enemy.hostile);
     if (sparring) {
@@ -168,8 +178,9 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       return;
     }
     const playerHp = Math.max(0, get().playerHp - amount);
-    set({ playerHp, playerDown: playerHp <= 0 });
+    set({ playerHp, playerDown: playerHp <= 0, ...(playerHp <= 0 && attackerName ? { playerDownAttacker: attackerName } : {}) });
     addCameraShake(playerHp <= 0 ? 0.45 : 0.22);
+    playerFlashHook.fire?.();
     if (playerHp <= 0) deathThud();
     else hurt();
     get().addVfx({ kind: "spark", ...at, color: "#ff6a5a", startedAt: performance.now(), expiresAt: performance.now() + 380 });
@@ -199,11 +210,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   },
 
   respawnPlayer() {
-    set({ playerHp: get().playerMaxHp, playerDown: false, lockTargetId: null });
+    set({ playerHp: get().playerMaxHp, playerDown: false, playerDownAttacker: null, lockTargetId: null });
   },
 
   resetForWorld() {
-    set({ playerHp: PLAYER_MAX_HP, playerMaxHp: PLAYER_MAX_HP, playerLevel: 1, playerDown: false, lockTargetId: null, enemies: {}, vfx: [] });
+    set({ playerHp: PLAYER_MAX_HP, playerMaxHp: PLAYER_MAX_HP, playerLevel: 1, playerDown: false, playerDownAttacker: null, lockTargetId: null, enemies: {}, vfx: [] });
   },
 }));
 
