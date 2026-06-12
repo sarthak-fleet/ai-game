@@ -48,6 +48,18 @@ describe("story mode dialogue", () => {
     expect(world.quests!.find((quest) => quest.id === "return_shears")!.status).toBe("done");
   });
 
+  it("follow choice sets followingPlayer on the NPC", () => {
+    const world = loadWorld();
+    const mira = world.npcs.find((npc) => npc.id === "mira")!;
+    // follow option only appears when relationship score >= 2
+    mira.relationships = { ...mira.relationships, player: 2 };
+    const options = storyDialogueOptions(world, "mira")!;
+    expect(options.some((option) => option.id === "follow")).toBe(true);
+    const reply = storyDialogueRespond(world, "mira", "follow")!;
+    expect(reply.action?.type).toBe("follow");
+    expect(mira.followingPlayer).toBe(true);
+  });
+
   it("lead options move the NPC for real", () => {
     const world = loadWorld();
     const options = storyDialogueOptions(world, "mira")!;

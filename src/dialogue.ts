@@ -127,7 +127,16 @@ export async function generateDialogueReply(
   const system = buildDialogueSystem(world, npc);
   const user = buildDialogueUser(world, npc, history, playerText);
 
-  const onToken = options.onToken ? heldBackTokenizer(options.onToken) : undefined;
+  // When streaming, buffer tokens internally so we can coherence-check before
+  // the player sees anything.  The heldBackTokenizer strips the @@ control tail
+  // as usual; we just accumulate into our own buffer instead of forwarding.
+  const userOnToken = options.onToken;
+  let streamBuffer = "";
+  const bufferingOnToken = userOnToken
+    ? heldBackTokenizer((delta: string) => { streamBuffer += delta; })
+    : undefined;
+
+  const onToken = bufferingOnToken ?? undefined;
   const result = await complete({ tier: npc.tier === "quest" ? "quest" : "normal", system, user, onToken });
   if ("skipped" in result && result.skipped) return { ok: false, reason: result.reason };
   if ("error" in result && result.error) return { ok: false, reason: result.error };
@@ -136,29 +145,36 @@ export async function generateDialogueReply(
   let parsed = parseDialogueJson(result.text, npc.name);
   if (!parsed.reply) return { ok: false, reason: "empty_reply" };
 
-  // Coherence pre-flight: skip on streaming paths (tokens already emitted).
+  // Coherence pre-flight — runs on both streaming and non-streaming paths.
+  // Streaming tokens are buffered above and only flushed after this check.
   let coherenceRetried = false;
-  if (!options.onToken) {
-    const coherence = checkCoherence(world, npc, parsed.reply, { playerText });
-    if (!coherence.ok) {
-      // One retry with the violation hint appended to the system prompt.
-      const correctedSystem = `${system}\n\n${coherence.hint}`;
-      const retry = await complete({ tier: npc.tier === "quest" ? "quest" : "normal", system: correctedSystem, user });
-      const retryParsed = "text" in retry && retry.text ? parseDialogueJson(retry.text, npc.name) : null;
-      const retryCoherence = retryParsed?.reply
-        ? checkCoherence(world, npc, retryParsed.reply, { playerText })
-        : null;
+  const coherence = checkCoherence(world, npc, parsed.reply, { playerText });
+  if (!coherence.ok) {
+    // One retry with the violation hint appended to the system prompt.
+    streamBuffer = "";
+    const correctedSystem = `${system}\n\n${coherence.hint}`;
+    const retryOnToken = bufferingOnToken
+      ? heldBackTokenizer((delta: string) => { streamBuffer += delta; })
+      : undefined;
+    const retry = await complete({ tier: npc.tier === "quest" ? "quest" : "normal", system: correctedSystem, user, onToken: retryOnToken });
+    const retryParsed = "text" in retry && retry.text ? parseDialogueJson(retry.text, npc.name) : null;
+    const retryCoherence = retryParsed?.reply
+      ? checkCoherence(world, npc, retryParsed.reply, { playerText })
+      : null;
 
-      if (retryParsed?.reply && retryCoherence?.ok !== false) {
-        // Retry succeeded — use the corrected reply.
-        parsed = retryParsed;
-      } else {
-        // Both attempts failed — fall back to scripted deflection.
-        parsed = { reply: DEFLECTION_LINE, action: null, disposition: 0 };
-      }
-      coherenceRetried = true;
+    if (retryParsed?.reply && retryCoherence?.ok !== false) {
+      // Retry succeeded — use the corrected reply.
+      parsed = retryParsed;
+    } else {
+      // Both attempts failed — fall back to scripted deflection.
+      parsed = { reply: DEFLECTION_LINE, action: null, disposition: 0 };
+      streamBuffer = DEFLECTION_LINE;
     }
+    coherenceRetried = true;
   }
+
+  // Flush buffered tokens to the client now that coherence has passed.
+  if (userOnToken && streamBuffer) userOnToken(streamBuffer);
 
   history.push({ speaker: "player", text: playerText }, { speaker: "npc", text: parsed.reply });
 

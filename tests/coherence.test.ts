@@ -296,21 +296,19 @@ describe("generateDialogueReply coherence integration", () => {
     expect(caught).toHaveLength(1);
   });
 
-  it("streaming path: skips coherence check, no retry, no chronicle event", async () => {
-    // On the streaming path (onToken provided), coherence is not applied.
+  it("streaming path, both attempts fail: client receives deflection as single chunk", async () => {
     const npc = makeNpc({ locationId: "loc_plaza" });
     const world = makeWorld(npc);
-    // Would fail coherence if checked, but streaming skips it
-    const incoherentReply = "I'm at the Market right now.@@{\"action\":null,\"disposition\":0}";
+    const incoherent = "I'm at the Market right now.@@{\"action\":null,\"disposition\":0}";
     const tokens: string[] = [];
 
     let llmCalls = 0;
     const complete: DialogueCompleter = (req) => {
       llmCalls++;
-      req.onToken?.("I'm at the Market right now.");
+      req.onToken?.(incoherent);
       return Promise.resolve({
-        text: incoherentReply,
-        raw: incoherentReply,
+        text: incoherent,
+        raw: incoherent,
         meta: { tier: req.tier, model: "test", latencyMs: 1, error: null, jsonOk: false },
       });
     };
@@ -320,9 +318,49 @@ describe("generateDialogueReply coherence integration", () => {
       onToken: (delta) => tokens.push(delta),
     });
     expect(result.ok).toBe(true);
-    // LLM called exactly once — no retry on streaming path
-    expect(llmCalls).toBe(1);
+    if (result.ok) expect(result.reply).toBe("I'd rather not talk about that right now.");
+    // Two LLM calls: attempt 1 + retry
+    expect(llmCalls).toBe(2);
+    // Deflection sent as a single chunk
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]).toBe("I'd rather not talk about that right now.");
     const caught = (world.chronicle ?? []).filter((e) => e.kind === "coherence_caught");
-    expect(caught).toHaveLength(0);
+    expect(caught).toHaveLength(1);
+  });
+
+  it("streaming path: coherence check fires; incoherent first pass does NOT emit tokens until retry", async () => {
+    // On the streaming path, tokens are buffered and only flushed after coherence.
+    const npc = makeNpc({ locationId: "loc_plaza" });
+    const world = makeWorld(npc);
+    const incoherentReply = "I'm at the Market right now.@@{\"action\":null,\"disposition\":0}";
+    const coherentRetry = "I am here at the plaza, happy to chat.@@{\"action\":null,\"disposition\":0}";
+    const tokens: string[] = [];
+
+    let llmCalls = 0;
+    const complete: DialogueCompleter = (req) => {
+      llmCalls++;
+      const text = llmCalls === 1 ? incoherentReply : coherentRetry;
+      req.onToken?.(text);
+      return Promise.resolve({
+        text,
+        raw: text,
+        meta: { tier: req.tier, model: "test", latencyMs: 1, error: null, jsonOk: false },
+      });
+    };
+
+    const result = await generateDialogueReply(world, npc.id, "Where are you?", {
+      complete,
+      onToken: (delta) => tokens.push(delta),
+    });
+    expect(result.ok).toBe(true);
+    // Retry fired: two LLM calls total
+    expect(llmCalls).toBe(2);
+    // Coherence_caught chronicle event recorded
+    const caught = (world.chronicle ?? []).filter((e) => e.kind === "coherence_caught");
+    expect(caught).toHaveLength(1);
+    // Tokens received by the client come from the retry (coherent reply), not attempt 1
+    const joined = tokens.join("");
+    expect(joined).toContain("plaza");
+    expect(joined).not.toContain("Market");
   });
 });
