@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import { knockback, npcRegistry, playerPosition } from "../controls/runtime.ts";
+import { chipDamageAllowed } from "./pacing.ts";
 import { useCombatStore } from "./store.ts";
 
 export type PlayerCombatStateKind = "free" | "attack" | "dodge" | "hitstun" | "dead";
@@ -185,16 +186,29 @@ export function updatePlayerCombat({ state, nowMs, heading, moveDirection, movin
   return frame;
 }
 
-/** Player took a hit: enter hitstun unless dodging (i-frames) or dead. */
+/**
+ * Player took a hit: enter hitstun unless dodging (i-frames) or dead.
+ *
+ * @param chip - When true this is a client-paced chip attack; damage is
+ *   clamped so the player cannot be brought below CHIP_HP_FLOOR_FRACTION.
+ *   Only server-authoritative hits (chip=false) can down the player.
+ */
 export function applyIncomingHit(
   state: PlayerCombatState,
   nowMs: number,
   damage: number,
   at: { x: number; y: number; z: number },
-  attackerName?: string
+  attackerName?: string,
+  chip = false
 ): boolean {
   if (state.kind === "dodge" || state.kind === "dead") return false;
-  useCombatStore.getState().damagePlayer(damage, at, attackerName);
+  const store = useCombatStore.getState();
+  let actualDamage = damage;
+  if (chip) {
+    actualDamage = chipDamageAllowed(store.playerHp, store.playerMaxHp, damage);
+    if (actualDamage <= 0) return false;
+  }
+  store.damagePlayer(actualDamage, at, attackerName);
   if (state.kind !== "hitstun") {
     state.kind = "hitstun";
     state.stateStartedAt = nowMs;

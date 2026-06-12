@@ -5,6 +5,15 @@ import * as THREE from "three";
 
 import type { Npc as NpcData, Quest } from "../../../src/types.ts";
 import { missSwoosh, telegraphSting } from "../audio/sfx.ts";
+import {
+  CHIP_DAMAGE,
+  MELEE_RANGE,
+  MELEE_STRIKE_RANGE,
+  nextChipDelay,
+  STANCE_EXIT_RANGE,
+  STANCE_RANGE,
+  STRAFE_SPEED,
+} from "../combat/pacing.ts";
 import { applyIncomingHit, playerCombatState } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { npcRegistry, playerPosition, registerNpc, scaledDelta, unregisterNpc } from "../controls/runtime.ts";
@@ -25,13 +34,13 @@ const WANDER_RADIUS = 3.2;
 
 const CHASE_SPEED = 3.0;
 const RETREAT_SPEED = 2.2;
-const STRIKE_REACH = 2.1;
-const STRIKE_DAMAGE = 11;
-const TELEGRAPH_S = 0.42;
-const RECOVER_S = 0.95;
 const RETREAT_HP_FRACTION = 0.25;
+/** Shortened telegraph for client chip attacks. */
+const CHIP_TELEGRAPH_S = 0.25;
+/** Post-strike recovery pause before the next chip cycle begins. */
+const CHIP_RECOVER_S = 0.22;
 
-type EnemyAiState = "approach" | "telegraph" | "strike" | "recover" | "retreat";
+type EnemyAiState = "approach" | "telegraph" | "strike" | "recover" | "strafe" | "retreat";
 
 interface NpcProps {
   npc: NpcData;
@@ -88,6 +97,15 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     aiUntil: 0,
     struck: false,
     patrolAngle: 0,
+    // strafe + chip cadence
+    /** Current lateral strafe sign: +1 or -1. */
+    strafeSign: (rngFor(worldId, npc.id, "strafe")() < 0.5 ? 1 : -1) as 1 | -1,
+    /** Time when strafe direction should flip (seconds). */
+    strafeFlipAt: 0,
+    /** Time when the next chip attack window opens (seconds). */
+    nextChipAt: 0,
+    /** Whether the NPC is in active combat stance (entered STANCE_RANGE). */
+    inStance: false,
   });
 
   const ambientRole = useMemo(() => ambientRoleFor(npc), [npc]);
@@ -357,6 +375,11 @@ interface EnemyAiContext {
   aiState: EnemyAiState;
   aiUntil: number;
   struck: boolean;
+  strafeSign: 1 | -1;
+  strafeFlipAt: number;
+  nextChipAt: number;
+  inStance: boolean;
+  rng: () => number;
 }
 
 function visualHitPoint(node: THREE.Group): { x: number; y: number; z: number } {
@@ -383,27 +406,45 @@ function updateEnemyAi(
   const lowHp = enemy ? enemy.hp / enemy.maxHp < RETREAT_HP_FRACTION : false;
   const nowMs = performance.now();
 
+  // Stance entry/exit hysteresis: only engage combat AI when player is close
+  if (!s.inStance) {
+    if (distance <= STANCE_RANGE) {
+      s.inStance = true;
+      // seed the first chip delay from this moment
+      s.nextChipAt = time + nextChipDelay(s.rng) / 1000;
+    } else {
+      // player too far — stand still, face them loosely
+      animation?.setSpeed(0);
+      s.heading = dampAngle(s.heading, faceYaw, 4, delta);
+      node.rotation.y = s.heading;
+      return;
+    }
+  } else if (distance > STANCE_EXIT_RANGE && s.aiState !== "telegraph" && s.aiState !== "strike") {
+    // dropped out of stance range — exit stance and stop
+    s.inStance = false;
+    s.aiState = "approach";
+    animation?.setSpeed(0);
+    return;
+  }
+
+  // ── approach ────────────────────────────────────────────────────────────────
   if (s.aiState === "approach") {
     if (lowHp && distance < 6) {
       s.aiState = "retreat";
       s.aiUntil = time + 2.2;
       animation?.setTelegraph?.(false);
-    } else if (distance <= STRIKE_REACH * 0.85) {
-      s.aiState = "telegraph";
-      s.aiUntil = time + TELEGRAPH_S;
-      s.struck = false;
-      animation?.trigger("telegraph");
-      animation?.setTelegraph?.(true);
-      telegraphSting();
-      store.addVfx({
-        kind: "telegraph",
-        ...hitPoint,
-        color: "#ff8830",
-        startedAt: nowMs,
-        expiresAt: nowMs + TELEGRAPH_S * 1000,
-      });
+    } else if (distance <= MELEE_RANGE) {
+      // Within melee range: start strafing and wait for chip timer
+      s.aiState = "strafe";
+      if (time > s.strafeFlipAt) {
+        s.strafeFlipAt = time + 3 + s.rng() * 2;
+      }
+    } else if (distance <= MELEE_STRIKE_RANGE && time >= s.nextChipAt) {
+      // Close enough and chip timer fired: telegraph
+      _startTelegraph(s, store, time, nowMs, animation, hitPoint);
     } else {
-      const step = toPlayer.normalize().multiplyScalar(Math.min(CHASE_SPEED * delta, Math.max(0, distance - 1.2)));
+      // Close in
+      const step = toPlayer.normalize().multiplyScalar(Math.min(CHASE_SPEED * delta, Math.max(0, distance - MELEE_RANGE)));
       node.position.add(step);
       animation?.setSpeed(CHASE_SPEED);
     }
@@ -412,6 +453,42 @@ function updateEnemyAi(
     if (s.aiState === "approach") return;
   }
 
+  // ── strafe ──────────────────────────────────────────────────────────────────
+  if (s.aiState === "strafe") {
+    // Flip direction every 3-5 s
+    if (time >= s.strafeFlipAt) {
+      s.strafeSign = s.strafeSign === 1 ? -1 : 1;
+      s.strafeFlipAt = time + 3 + s.rng() * 2;
+    }
+
+    // Exit strafe conditions
+    if (lowHp && distance < 6) {
+      s.aiState = "retreat";
+      s.aiUntil = time + 2.2;
+      animation?.setTelegraph?.(false);
+    } else if (distance > MELEE_STRIKE_RANGE + 0.5) {
+      // player backed away — close in
+      s.aiState = "approach";
+    } else if (time >= s.nextChipAt) {
+      // chip timer fired: start the attack sequence
+      _startTelegraph(s, store, time, nowMs, animation, hitPoint);
+    } else {
+      // lateral step: perpendicular to toPlayer in XZ plane
+      const right = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x).normalize();
+      const step = right.multiplyScalar(s.strafeSign * STRAFE_SPEED * delta);
+      node.position.add(step);
+      animation?.setSpeed(STRAFE_SPEED);
+      // keep facing the player
+      s.heading = dampAngle(s.heading, faceYaw, 10, delta);
+      node.rotation.y = s.heading;
+      return;
+    }
+    s.heading = dampAngle(s.heading, faceYaw, 10, delta);
+    node.rotation.y = s.heading;
+    if (s.aiState === "strafe") return;
+  }
+
+  // ── telegraph ───────────────────────────────────────────────────────────────
   if (s.aiState === "telegraph") {
     animation?.setSpeed(0);
     s.heading = dampAngle(s.heading, faceYaw, 6, delta);
@@ -425,17 +502,22 @@ function updateEnemyAi(
     return;
   }
 
+  // ── strike ───────────────────────────────────────────────────────────────────
   if (s.aiState === "strike") {
     animation?.setSpeed(0);
-    if (!s.struck && distance <= STRIKE_REACH) {
+    if (!s.struck && distance <= MELEE_STRIKE_RANGE) {
       s.struck = true;
-      const landed = applyIncomingHit(playerCombatState, nowMs, STRIKE_DAMAGE, {
-        x: playerPosition.x,
-        y: playerPosition.y + 1.2,
-        z: playerPosition.z,
-      }, npcName);
+      // chip=true: floor prevents player from being downed by client-side chips
+      const landed = applyIncomingHit(
+        playerCombatState,
+        nowMs,
+        CHIP_DAMAGE,
+        { x: playerPosition.x, y: playerPosition.y + 1.2, z: playerPosition.z },
+        npcName,
+        true
+      );
       if (!landed) {
-        // hit was absorbed by a dodge — show a near-miss whoosh
+        // dodged — near-miss whoosh
         missSwoosh();
         store.addVfx({
           kind: "dust",
@@ -450,18 +532,24 @@ function updateEnemyAi(
     }
     if (time >= s.aiUntil) {
       s.aiState = "recover";
-      s.aiUntil = time + RECOVER_S;
+      s.aiUntil = time + CHIP_RECOVER_S;
     }
     return;
   }
 
+  // ── recover ──────────────────────────────────────────────────────────────────
   if (s.aiState === "recover") {
     animation?.setSpeed(0);
-    if (time >= s.aiUntil) s.aiState = "approach";
+    if (time >= s.aiUntil) {
+      // Schedule next chip: jittered interval counted from NOW (post-recover)
+      s.nextChipAt = time + nextChipDelay(s.rng) / 1000;
+      // Resume strafing if still in melee range, otherwise approach
+      s.aiState = distance <= MELEE_STRIKE_RANGE + 0.5 ? "strafe" : "approach";
+    }
     return;
   }
 
-  // retreat
+  // ── retreat ──────────────────────────────────────────────────────────────────
   if (time >= s.aiUntil || distance > 9) {
     s.aiState = "approach";
     return;
@@ -471,6 +559,30 @@ function updateEnemyAi(
   s.heading = dampAngle(s.heading, faceYaw, 10, delta);
   node.rotation.y = s.heading;
   animation?.setSpeed(RETREAT_SPEED);
+}
+
+/** Start telegraph state and emit the VFX + audio cue. */
+function _startTelegraph(
+  s: EnemyAiContext,
+  store: ReturnType<typeof useCombatStore.getState>,
+  time: number,
+  nowMs: number,
+  animation: CharacterAnimationHandle | null,
+  hitPoint: { x: number; y: number; z: number }
+): void {
+  s.aiState = "telegraph";
+  s.aiUntil = time + CHIP_TELEGRAPH_S;
+  s.struck = false;
+  animation?.trigger("telegraph");
+  animation?.setTelegraph?.(true);
+  telegraphSting();
+  store.addVfx({
+    kind: "telegraph",
+    ...hitPoint,
+    color: "#ff8830",
+    startedAt: nowMs,
+    expiresAt: nowMs + CHIP_TELEGRAPH_S * 1000,
+  });
 }
 
 
