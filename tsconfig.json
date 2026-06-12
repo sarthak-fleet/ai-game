@@ -26,6 +26,6 @@
     "sourceMap": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*", "web/**/*", "web3d/**/*", "tests/**/*", "vite.config.ts", "vite.web3d.config.ts"],
+  "include": ["src/**/*", "web3d/**/*", "tests/**/*", "vite.web3d.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
