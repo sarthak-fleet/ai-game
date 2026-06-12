@@ -28,3 +28,4 @@ unreal/**/Saved/
 unreal/**/DerivedDataCache/
 unreal/**/.vs/
 .wrangler/
+.claude/
