@@ -2,6 +2,7 @@ import { memoryMetaFromText } from "./agents.ts";
 import { recordChronicle } from "./chronicle.ts";
 import { checkCoherence } from "./coherence.ts";
 import { completeText, type CompleteTextResult, isLlmEnabled, streamText } from "./llm/router.ts";
+import { divergenceNudges, rightNowFor, voiceFingerprint } from "./npc-voice.ts";
 import { questObjectiveBlockText, questObjectiveMet } from "./quest-objectives.ts";
 import { applyAction, locationName, retrieveMemories, validateAction } from "./simulation.ts";
 import type { Action, Npc, World } from "./types.ts";
@@ -308,7 +309,7 @@ export async function generateDialogueReply(
   return { ok: true, reply: parsed.reply, ...(appliedAction ? { action: appliedAction } : {}), relationship: relationshipFor(npc) };
 }
 
-function buildDialogueSystem(world: World, npc: Npc): string {
+export function buildDialogueSystem(world: World, npc: Npc): string {
   const traits = [
     ...(npc.traits?.personality ?? []),
     ...(npc.traits?.values ?? []).map((value) => `values ${value}`),
@@ -350,6 +351,11 @@ function buildDialogueSystem(world: World, npc: Npc): string {
     ? [`RUMORS ABOUT YOU`, playerRumors].join("\n")
     : "";
 
+  const voiceBlock = `VOICE:\n${voiceFingerprint(npc)}`;
+  const rightNowBlock = rightNowFor(world, npc);
+  const nudges = divergenceNudges(npc);
+  const divergeBlock = nudges.length > 0 ? `DIVERGE:\n${nudges.join("\n")}` : "";
+
   return [
     `You are ${npc.name}, a character in "${world.story?.title ?? world.name}".`,
     `World premise: ${world.story?.premise ?? "(unknown)"}`,
@@ -390,6 +396,10 @@ function buildDialogueSystem(world: World, npc: Npc): string {
     rumorBlock,
     ``,
     standingBeliefs,
+    ``,
+    voiceBlock,
+    rightNowBlock,
+    divergeBlock,
   ]
     .filter(Boolean)
     .join("\n");
