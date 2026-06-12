@@ -88,8 +88,6 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     aiUntil: 0,
     struck: false,
     patrolAngle: 0,
-    wobbleOrigin: new THREE.Vector3(),
-    wobbleUntil: 0,
   });
 
   const ambientRole = useMemo(() => ambientRoleFor(npc), [npc]);
@@ -118,19 +116,13 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- register once per npc
   }, [npc.id]);
 
-  // hit feedback: flash + flinch + wobble when this NPC loses HP
+  // hit feedback: flash + flinch when this NPC loses HP
   const prevHp = useRef<number | null>(null);
   useEffect(() => {
     const hp = enemy?.hp ?? null;
     if (hp !== null && prevHp.current !== null && hp < prevHp.current && !enemy?.defeated) {
       animation.current?.trigger("hit");
       animation.current?.flash?.();
-      // schedule a brief wobble-back on the group node
-      const s = state.current;
-      if (group.current) {
-        s.wobbleOrigin.copy(group.current.position);
-        s.wobbleUntil = performance.now() + 100;
-      }
     }
     prevHp.current = hp;
   }, [enemy?.hp, enemy?.defeated]);
@@ -365,8 +357,6 @@ interface EnemyAiContext {
   aiState: EnemyAiState;
   aiUntil: number;
   struck: boolean;
-  wobbleOrigin: THREE.Vector3;
-  wobbleUntil: number;
 }
 
 function visualHitPoint(node: THREE.Group): { x: number; y: number; z: number } {
@@ -392,12 +382,6 @@ function updateEnemyAi(
 
   const lowHp = enemy ? enemy.hp / enemy.maxHp < RETREAT_HP_FRACTION : false;
   const nowMs = performance.now();
-
-  // wobble-back after being hit: drift returns to origin
-  if (nowMs < s.wobbleUntil) {
-    const t = 1 - (s.wobbleUntil - nowMs) / 100;
-    node.position.lerp(s.wobbleOrigin, t * delta * 12);
-  }
 
   if (s.aiState === "approach") {
     if (lowHp && distance < 6) {
