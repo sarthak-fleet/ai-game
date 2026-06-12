@@ -1,3 +1,5 @@
+> Archived 2026-06-12: describes the retired 2D Agent Town client track.
+
 # Agent Town Handoff
 
 Last updated: 2026-05-26

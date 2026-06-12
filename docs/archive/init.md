@@ -1,3 +1,5 @@
+> Archived 2026-06-12: original product brief and research phase document; superseded by PROJECT_STATUS.md and docs/ live docs.
+
 # AI World Simulator — Concise Init Doc
 
 ## 1. Vision
