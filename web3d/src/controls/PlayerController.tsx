@@ -40,11 +40,25 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
   const body = useRef<RapierRigidBody>(null);
   const modelGroup = useRef<THREE.Group>(null);
   const animation = useRef<CharacterAnimationHandle>(null);
-  const { world: physicsWorld } = useRapier();
+  const { world: physicsWorld, rapier } = useRapier();
   const gl = useThree((state) => state.gl);
   const setInteractionTarget = useUiStore((state) => state.setInteractionTarget);
 
   const visual = useMemo(() => actorVisualFor(world.player.appearance, "#58a6ff"), [world.player.appearance]);
+
+  // Raycast straight down from above (x,z) to find the actual floor/ground Y.
+  // Without this the player can land mid-air on world transitions, building
+  // exits, or oddly-placed spawn coordinates. Falls back to 0 on miss/failure.
+  const groundedY = (x: number, z: number): number => {
+    try {
+      const ray = new rapier.Ray({ x, y: 50, z }, { x: 0, y: -1, z: 0 });
+      const hit = physicsWorld.castRay(ray, 100, true);
+      if (hit) return 50 - hit.timeOfImpact;
+    } catch {
+      // physics world / collider set not ready — fall back to default ground
+    }
+    return 0;
+  };
 
   useEffect(() => {
     playerGestureHook.fire = (kind) => animation.current?.gesture?.(kind);
@@ -74,16 +88,24 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     lastStep: 0,
   });
 
-  // initial spawn only — crossing districts must NOT re-apply the position prop
-  const [initialSpawn] = useState(() => ({ x: activeDistrict.playerSpawn.x, z: activeDistrict.playerSpawn.z }));
+  // initial spawn only — crossing districts must NOT re-apply the position prop.
+  // Anchor Y to the actual ground below the spawn point so the player never
+  // starts in mid-air.
+  const [initialSpawn] = useState(() => {
+    const x = activeDistrict.playerSpawn.x;
+    const z = activeDistrict.playerSpawn.z;
+    return { x, y: groundedY(x, z) + CAPSULE_CENTER_Y + 0.05, z };
+  });
 
   // teleport to the new spawn when a different world is loaded
   const worldIdRef = useRef(world.id);
   useEffect(() => {
     if (worldIdRef.current === world.id) return;
     worldIdRef.current = world.id;
+    const x = activeDistrict.playerSpawn.x;
+    const z = activeDistrict.playerSpawn.z;
     body.current?.setTranslation(
-      { x: activeDistrict.playerSpawn.x, y: CAPSULE_CENTER_Y + 0.2, z: activeDistrict.playerSpawn.z },
+      { x, y: groundedY(x, z) + CAPSULE_CENTER_Y + 0.05, z },
       true
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on world identity change
@@ -202,8 +224,12 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
       doorCreak();
       const { x, z } = teleportRequest.target;
       teleportRequest.target = null;
-      rigidBody.setNextKinematicTranslation({ x, y: CAPSULE_CENTER_Y + 0.2, z });
-      playerPosition.set(x, 0, z);
+      // anchor Y to whatever floor sits under (x,z) so building exits and
+      // interior staging never drop the player from the sky
+      const floorY = groundedY(x, z);
+      const bodyY = floorY + CAPSULE_CENTER_Y + 0.05;
+      rigidBody.setNextKinematicTranslation({ x, y: bodyY, z });
+      playerPosition.set(x, floorY, z);
       s.velocity.set(0, 0, 0);
       s.verticalVelocity = 0;
       // tight interior camera; restored on exit. without this the default
@@ -217,11 +243,11 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
       // looks like falling from the sky for ~half a second.
       const snapEye = new THREE.Vector3(
         x + Math.sin(s.yaw) * Math.cos(s.pitch) * s.distance,
-        (CAPSULE_CENTER_Y + 0.2 - CAPSULE_CENTER_Y) + 1.4 + Math.sin(s.pitch) * s.distance,
+        floorY + 1.4 + Math.sin(s.pitch) * s.distance,
         z + Math.cos(s.yaw) * Math.cos(s.pitch) * s.distance
       );
       frame.camera.position.copy(snapEye);
-      s.lookTarget.set(x, 0.2 + 1.4, z);
+      s.lookTarget.set(x, floorY + 1.4, z);
       frame.camera.lookAt(s.lookTarget);
       s.lookInitialized = true;
       return;
@@ -281,10 +307,12 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
 
     // death → respawn at the active courtyard
     if (playerCombatState.kind === "dead" && performance.now() - playerCombatState.diedAt > 3200) {
+      const rx = activeDistrict.playerSpawn.x;
+      const rz = activeDistrict.playerSpawn.z;
       rigidBody.setNextKinematicTranslation({
-        x: activeDistrict.playerSpawn.x,
-        y: CAPSULE_CENTER_Y + 0.2,
-        z: activeDistrict.playerSpawn.z,
+        x: rx,
+        y: groundedY(rx, rz) + CAPSULE_CENTER_Y + 0.05,
+        z: rz,
       });
       playerCombatState.kind = "free";
       useCombatStore.getState().respawnPlayer();
@@ -434,7 +462,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
       ref={body}
       type="kinematicPosition"
       colliders={false}
-      position={[initialSpawn.x, CAPSULE_CENTER_Y + 0.2, initialSpawn.z]}
+      position={[initialSpawn.x, initialSpawn.y, initialSpawn.z]}
       enabledRotations={[false, false, false]}
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
