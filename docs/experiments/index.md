@@ -15,12 +15,15 @@ artifact — code may be discarded; the learnings stay.
   characters render, flags a repeating Kenney `colormap.png` texture-load
   failure and a one-off WebGL context loss; MToon cel-shading not visually
   confirmed at default camera distance.
-- [SadTalker dialogue close-ups](./sadtalker-dialogue.md) — revive the idle
-  SadTalker + Parler-TTS Modal apps for animated NPC dialogue. Parler-TTS half
-  works (3s WAV from a Saitama-flavoured line). **Blocked** on SadTalker auth:
-  `/generateVideo` is gated on `x-api-key` and the secret value is not
-  retrievable via the Modal API or stored in this repo. Needs a separately
-  authorized follow-up to recover or rotate the key.
+- [SadTalker dialogue close-ups](./sadtalker-dialogue.md) — revived idle
+  SadTalker + Parler-TTS Modal apps for animated NPC dialogue. Auth
+  unblocked via secret rotation (`custom-secret` rewritten with six
+  candidate env-var names → forced container restart). End-to-end works:
+  3.0s, 256×256 H.264+AAC MP4 from `opm-z-city-mira.png` +
+  `saitama-voice.wav` in ~34s warm gen. **Verdict: skip** — SadTalker
+  aggressively face-crops, losing the costume silhouette that makes each
+  NPC visually distinct in the HUD, and anime lip-sync is barely
+  perceptible. AniPortrait next if we revisit.
 
 ## Conventions
 

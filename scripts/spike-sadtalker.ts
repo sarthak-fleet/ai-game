@@ -7,10 +7,16 @@
  *
  * No new Modal deploys.  Existing endpoints discovered via the
  * Modal gRPC layout (AppGetLayout):
- *   - Parler-TTS:  POST /tts        → base64 wav chunks
+ *   - Parler-TTS:  POST /tts                       → base64 wav chunks
  *   - SadTalker:   POST /generateVideo  multipart {face, audio}
+ *                  Requires `x-api-key` header.  The expected value lives in
+ *                  Modal secret `custom-secret`.  As of 2026-06-13 the secret
+ *                  was rotated and the app re-cold-started so the new key
+ *                  takes effect — see docs/experiments/sadtalker-dialogue.md.
+ *                  Pass via `SADTALKER_API_KEY` env var; if unset the script
+ *                  falls back to unauth which will 401.
  *
- * Usage:  tsx scripts/spike-sadtalker.ts
+ * Usage:  SADTALKER_API_KEY=... tsx scripts/spike-sadtalker.ts
  */
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -120,9 +126,13 @@ async function generateTalkingHead(
     new Blob([audioBytes], { type: "audio/wav" }),
     "audio.wav"
   );
+  const apiKey = process.env.SADTALKER_API_KEY ?? "";
+  const headers: Record<string, string> = {};
+  if (apiKey) headers["x-api-key"] = apiKey;
   const t0 = Date.now();
   const initial = await fetch(SADTALKER_URL, {
     method: "POST",
+    headers,
     body: form,
     redirect: "manual",
   });
@@ -136,6 +146,7 @@ async function generateTalkingHead(
   if (ctype.includes("application/json")) {
     const json = (await resp.json()) as Record<string, unknown>;
     const b64 =
+      (json.video_b64 as string | undefined) ??
       (json.video_base64 as string | undefined) ??
       (json.video as string | undefined) ??
       (json.mp4_base64 as string | undefined);
