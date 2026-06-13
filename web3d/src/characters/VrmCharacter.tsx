@@ -32,11 +32,6 @@ import {
   type VRM,
   VRMLoaderPlugin,
 } from "@pixiv/three-vrm";
-import {
-  createVRMAnimationClip,
-  type VRMAnimation,
-  VRMAnimationLoaderPlugin,
-} from "@pixiv/three-vrm-animation";
 import { Outlines, useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
@@ -44,11 +39,7 @@ import * as THREE from "three";
 import type { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { scaledDelta } from "../controls/runtime.ts";
-import type {
-  CharacterAnimationHandle,
-  CombatAnimKind,
-  ReactionKind,
-} from "./CharacterModel.tsx";
+import type { CharacterAnimationHandle, CombatAnimKind } from "./CharacterModel.tsx";
 import { type VrmKey,VRMS } from "./vrm.ts";
 
 interface VRMUtilsLike {
@@ -62,32 +53,6 @@ const VRMHumanBoneName: Record<string, string> = (
 
 const TARGET_HEIGHT = 1.7;
 
-/**
- * Baked one-shot reaction clips authored as `.vrma` files (humanoid + expression
- * tracks targeting the VRM standard skeleton). Played on social events
- * (dialogue open) via `AnimationMixer`. Procedural locomotion writes to the
- * same normalized humanoid bones are GATED while a reaction is active — see
- * `reactionUntilRef` in `useFrame` — otherwise they overwrite the clip every
- * frame and you see nothing.
- *
- * License + source per file are tracked in `docs/third-party-assets.md`.
- * Visual content has NOT been verified frame-by-frame; mapping from semantic
- * name → file is best-guess based on filenames in the upstream repos.
- */
-const REACTION_VRMA: Record<ReactionKind, string> = {
-  greet: "/assets/vrma/greet.vrma",
-  surprised: "/assets/vrma/surprised.vrma",
-  angry: "/assets/vrma/angry.vrma",
-  nod: "/assets/vrma/nod.vrma",
-  idle_variant: "/assets/vrma/idle_variant.vrma",
-};
-
-/** Ordered list used for blanket preload + per-instance mixer wiring. */
-const REACTION_KINDS: ReactionKind[] = ["greet", "surprised", "angry", "nod", "idle_variant"];
-
-const REACTION_FADE_IN_S = 0.18;
-const REACTION_FADE_OUT_S = 0.22;
-
 interface VrmCharacterProps {
   vrmKey: VrmKey;
   protagonist?: boolean;
@@ -98,14 +63,9 @@ interface VrmCharacterProps {
  * `useGLTF` caches the *parsed gltf* by url and accepts an `extendLoader`
  * callback (4th arg) where we register the plugin against the underlying
  * GLTFLoader.
- *
- * We register BOTH the VRM and VRM-Animation plugins on the same loader so
- * `useGLTF` can resolve `.vrm` and `.vrma` URLs through one cache key. The
- * plugins discriminate by file content — registering both is safe.
  */
 function extendWithVrm(loader: GLTFLoader): void {
   loader.register((parser) => new VRMLoaderPlugin(parser));
-  loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
 }
 
 interface CombatPose {
@@ -205,37 +165,6 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
     const talkingRef = useRef(false);
     const phaseRef = useRef(Math.random() * Math.PI * 2);
     const combatAnim = useRef<{ kind: CombatAnimKind; startedAt: number } | null>(null);
-    // Active VRMA reaction: gate procedural bone writes until this elapses so
-    // the AnimationMixer can actually drive the humanoid joints.
-    const reactionUntilRef = useRef(0);
-    const activeReactionRef = useRef<THREE.AnimationAction | null>(null);
-
-    // Load each reaction .vrma. `VRMAnimationLoaderPlugin` (registered above)
-    // attaches the parsed `VRMAnimation[]` to `gltf.userData.vrmAnimations`.
-    // Calling useGLTF unconditionally per kind keeps the hook order stable
-    // across re-renders; drei caches the parsed result by URL.
-    const greetGltf = useGLTF(REACTION_VRMA.greet, true, true, extendWithVrm) as unknown as {
-      userData?: { vrmAnimations?: VRMAnimation[] };
-    };
-    const surprisedGltf = useGLTF(REACTION_VRMA.surprised, true, true, extendWithVrm) as unknown as {
-      userData?: { vrmAnimations?: VRMAnimation[] };
-    };
-    const angryGltf = useGLTF(REACTION_VRMA.angry, true, true, extendWithVrm) as unknown as {
-      userData?: { vrmAnimations?: VRMAnimation[] };
-    };
-    const nodGltf = useGLTF(REACTION_VRMA.nod, true, true, extendWithVrm) as unknown as {
-      userData?: { vrmAnimations?: VRMAnimation[] };
-    };
-    const idleVariantGltf = useGLTF(REACTION_VRMA.idle_variant, true, true, extendWithVrm) as unknown as {
-      userData?: { vrmAnimations?: VRMAnimation[] };
-    };
-    const vrmAnimationsByKind = useMemo<Record<ReactionKind, VRMAnimation | null>>(() => ({
-      greet: greetGltf.userData?.vrmAnimations?.[0] ?? null,
-      surprised: surprisedGltf.userData?.vrmAnimations?.[0] ?? null,
-      angry: angryGltf.userData?.vrmAnimations?.[0] ?? null,
-      nod: nodGltf.userData?.vrmAnimations?.[0] ?? null,
-      idle_variant: idleVariantGltf.userData?.vrmAnimations?.[0] ?? null,
-    }), [greetGltf, surprisedGltf, angryGltf, nodGltf, idleVariantGltf]);
 
     const { vrm, root, bones, mtoonMaterials, normalizeScale, isVrm0 } = useMemo(() => {
       // `useGLTF` returns the parsed gltf object. With our extendLoader the
@@ -329,29 +258,6 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
       };
     }, [gltf, url]);
 
-    // Build the AnimationMixer + per-kind clip map. Clips are retargeted to
-    // THIS vrm instance via `createVRMAnimationClip` — VRMA tracks reference
-    // the standard humanoid bone names, the converter wires them to the
-    // actual `Object3D` UUIDs on `vrm.scene`.
-    const { mixer, actions } = useMemo(() => {
-      const m = new THREE.AnimationMixer(vrm.scene);
-      const a: Partial<Record<ReactionKind, THREE.AnimationAction>> = {};
-      for (const kind of REACTION_KINDS) {
-        const vrmAnim = vrmAnimationsByKind[kind];
-        if (!vrmAnim) continue;
-        try {
-          const clip = createVRMAnimationClip(vrmAnim, vrm);
-          const action = m.clipAction(clip);
-          action.loop = THREE.LoopOnce;
-          action.clampWhenFinished = true;
-          a[kind] = action;
-        } catch {
-          // VRMA targets unknown bones for this VRM — skip silently.
-        }
-      }
-      return { mixer: m, actions: a };
-    }, [vrm, vrmAnimationsByKind]);
-
     // Cache original emissive values so we can restore between pulses.
     const originalEmissive = useMemo(() => {
       return mtoonMaterials.map((mat) => ({
@@ -371,16 +277,6 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
         });
       };
     }, [root]);
-
-    // Stop the mixer + clear cached actions when the mixer instance changes
-    // (vrm swap). Prevents stale actions referencing a disposed scene.
-    useEffect(() => {
-      return () => {
-        mixer.stopAllAction();
-        activeReactionRef.current = null;
-        reactionUntilRef.current = 0;
-      };
-    }, [mixer]);
 
     useImperativeHandle(ref, () => ({
       setSpeed: (speed: number) => {
@@ -405,35 +301,10 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
       setDefeated: (defeated: boolean) => {
         defeatedRef.current = defeated;
       },
-      playReaction: (kind: ReactionKind) => {
-        const action = actions[kind];
-        if (!action) return; // VRMA missing for this kind — silently no-op
-        const now = performance.now();
-        // If another reaction is mid-fade-out, cut it cleanly.
-        const previous = activeReactionRef.current;
-        if (previous && previous !== action) {
-          previous.fadeOut(REACTION_FADE_OUT_S);
-        }
-        // Each play restarts from time=0 with a fresh fade-in.
-        action.reset();
-        action.setEffectiveWeight(1);
-        action.fadeIn(REACTION_FADE_IN_S);
-        action.play();
-        activeReactionRef.current = action;
-        const durationMs = action.getClip().duration * 1000;
-        // Hold the gate slightly past clip duration so the fade-out tail
-        // doesn't get overwritten by procedural locomotion.
-        reactionUntilRef.current = now + durationMs + REACTION_FADE_OUT_S * 1000;
-      },
     }));
 
     useFrame((_, rawDelta) => {
       const delta = scaledDelta(rawDelta);
-
-      // Advance the reaction mixer BEFORE vrm.update so the humanoid pose is
-      // current when spring-bones and look-at consume it. Then vrm.update
-      // does its own pass to drive secondary motion.
-      mixer.update(delta);
 
       // CRITICAL: vrm.update is what drives spring-bone physics (hair, skirt,
       // accessories), look-at, and expression manager updates. Skipping this
@@ -450,23 +321,8 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
       const walking = speed > 0.05;
       const running = speed > 2.4;
 
-      // Is a baked .vrma reaction currently driving the humanoid bones? If so,
-      // skip procedural arm/spine/head writes — they would overwrite the clip
-      // on the same frame and the reaction would be invisible. Locomotion legs
-      // also pause; characters playing reactions usually stand still anyway.
-      const reactionActive = now < reactionUntilRef.current;
-      if (!reactionActive && activeReactionRef.current) {
-        // Clip + fade-out window finished. Stop the action so it can be reset
-        // cleanly on next playReaction call.
-        activeReactionRef.current.stop();
-        activeReactionRef.current = null;
-      }
-
       // ── locomotion: procedural idle bob + walk swing ──────────────────────
-      // Reaction overlay takes priority over locomotion (the AnimationMixer
-      // owns the humanoid bones for the duration). Defeated still wins over
-      // reaction so we don't keep someone "alive" mid-greet if they die.
-      if (!defeatedRef.current && !reactionActive) {
+      if (!defeatedRef.current) {
         const cadence = walking ? Math.max(2.5, Math.min(6.5, 1.5 + speed * 1.1)) : 1.5;
         phaseRef.current += delta * cadence;
         const phase = phaseRef.current;
@@ -498,7 +354,7 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
           bones.spine.rotation.y = walking ? sinP * 0.05 : 0;
           bones.spine.rotation.x = 0;
         }
-      } else if (defeatedRef.current) {
+      } else {
         // defeated: tween hips toward floor + forward rotation. Don't touch
         // limbs — the pose collapse from gravity is enough for v1.
         if (bones.hips) {
@@ -507,13 +363,9 @@ export const VrmCharacter = forwardRef<CharacterAnimationHandle, VrmCharacterPro
           bones.hips.rotation.x += (Math.PI * 0.45 - bones.hips.rotation.x) * Math.min(1, delta * 5);
         }
       }
-      // else: reaction is active and we deliberately skip all bone overrides
-      // so the AnimationMixer's humanoid track output reaches the renderer.
 
       // ── combat overlay pose ──────────────────────────────────────────────
-      // Skip the combat overlay while a reaction is playing — combat hits
-      // shouldn't visually overwrite a greet wave mid-clip.
-      const anim = reactionActive ? null : combatAnim.current;
+      const anim = combatAnim.current;
       if (anim) {
         const elapsed = now - anim.startedAt;
         const pose = COMBAT_POSES[anim.kind];

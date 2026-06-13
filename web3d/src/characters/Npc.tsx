@@ -23,7 +23,6 @@ import { useUiStore } from "../store/ui.ts";
 import { findDistrictPath, type WorldModel } from "../worldgen/index.ts";
 import type { PlacedNpcSpawn } from "../worldgen/placements.ts";
 import { rngFor } from "../worldgen/rng.ts";
-import { registerNpcAnimation, unregisterNpcAnimation } from "./animation-registry.ts";
 import { useBanterStore } from "./banter.ts";
 import type { CharacterAnimationHandle } from "./CharacterModel.tsx";
 import { followersStore } from "./followers.ts";
@@ -146,17 +145,6 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
     return () => unregisterNpc(npc.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- register once per npc
   }, [npc.id]);
-
-  // Register the animation handle in a sibling map so non-rendering callers
-  // (dialogue open → greet reaction) can drive this NPC's rig. The ref is
-  // populated by `useImperativeHandle` in the child rig before this effect
-  // runs on the same commit (refs assign before passive effects).
-  useEffect(() => {
-    const handle = animation.current;
-    if (!handle) return;
-    registerNpcAnimation(npc.id, handle);
-    return () => unregisterNpcAnimation(npc.id);
-  }, [npc.id, vrmKey]);
 
   // hit feedback: flash + flinch when this NPC loses HP
   const prevHp = useRef<number | null>(null);

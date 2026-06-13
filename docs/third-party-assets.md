@@ -149,28 +149,3 @@ Required attribution string (include in credits / about screen):
 | `menu.mp3` | "Meditation Impromptu 03" | CC BY 4.0 | https://incompetech.com/music/royalty-free/mp3-royaltyfree/Meditation%20Impromptu%2003.mp3 |
 
 Pixabay and FreePD were tried first; FreePD has permanently shut down (2025) and Pixabay CDN URLs require session cookies that fail under `curl`. Incompetech serves direct MP3 URLs, so the entire pack is sourced there with attribution.
-
-## VRM Reaction Animations (`.vrma`)
-
-- Loader: [`@pixiv/three-vrm-animation`](https://github.com/pixiv/three-vrm/tree/dev/packages/three-vrm-animation) `v3.5.3` (MIT). Adds VRMA parsing to `three.js`'s `GLTFLoader` via `VRMAnimationLoaderPlugin`; `createVRMAnimationClip(vrmAnim, vrm)` retargets the clip's humanoid + expression tracks onto a specific VRM instance.
-- Status: **pulled 2026-06-13** into `web3d/public/assets/vrma/` (5 `.vrma` files, ~840 KB total).
-- Renderer: `web3d/src/characters/VrmCharacter.tsx` registers `VRMAnimationLoaderPlugin` next to `VRMLoaderPlugin`, loads each `.vrma` via `useGLTF`, builds an `AnimationMixer` per VRM instance, and exposes `playReaction(kind)` on the imperative handle. While a reaction is active, procedural locomotion bone writes are gated so the mixer-driven humanoid pose reaches the renderer; the reaction fades back into the procedural idle on clip completion.
-- Trigger: `web3d/src/hud/Dialogue.tsx` calls `getNpcAnimation(dialogueNpcId)?.playReaction?.("greet")` when the dialogue panel opens for an NPC. Handles are stored in `web3d/src/characters/animation-registry.ts` (a sibling to `controls/runtime.ts`'s `npcRegistry` — kept separate so non-React systems don't pull in React refs).
-
-**Visual content of each clip is unverified frame-by-frame** (no rendering verification was done at pull time). The semantic name → file mapping is best-guess based on the upstream filenames. Re-map if a clip turns out to mismatch its intended emotion.
-
-| Slot | File (in `vrma/`) | Source URL | License | Attribution required? |
-|---|---|---|---|---|
-| `greet` | `greet.vrma` (← `test.vrma`) | https://github.com/pixiv/three-vrm/raw/dev/packages/three-vrm-animation/examples/models/test.vrma | MIT (repo LICENSE covers contents; © 2019-2026 pixiv Inc.) | Unnecessary |
-| `surprised` | `surprised.vrma` (← `grabbed.vrma`) | https://github.com/not-elm/desktop-homunculus/raw/main/mods/assets/vrma/grabbed.vrma | CC-BY-4.0 (repo declares creative assets as CC-BY-4.0) | **Required** — credit "not-elm / desktop-homunculus" |
-| `idle_variant` | `idle_variant.vrma` (← `idle-maid.vrma`) | https://github.com/not-elm/desktop-homunculus/raw/main/mods/assets/vrma/idle-maid.vrma | CC-BY-4.0 (same repo) | **Required** — credit "not-elm / desktop-homunculus" |
-| `nod` | `nod.vrma` (← `VRMA_01.vrma`) | https://github.com/not-elm/bevy_vrm1/raw/main/assets/vrma/VRMA_01.vrma | MIT OR Apache-2.0 (dual-licensed; repo LICENSE-MIT + LICENSE-APACHE2 cover contents) | Unnecessary |
-| `angry` | `angry.vrma` (← `VRMA_02.vrma`) | https://github.com/not-elm/bevy_vrm1/raw/main/assets/vrma/VRMA_02.vrma | MIT OR Apache-2.0 (same repo) | Unnecessary |
-
-Required attribution string (include in credits / about screen):
-
-> VRM reaction animations include works by [not-elm](https://github.com/not-elm) (`desktop-homunculus`), used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-
-Sources skipped on license-ambiguity grounds:
-- `tk256ailab/vrm-viewer` — repo LICENSE is MIT but README states "ensure you have appropriate rights for any VRM models and animations you use", which suggests the author is not confident the bundled VRMA files are licensed under the repo MIT. Per project rules, ambiguous = skip even if nicer-looking.
-- VRoid Hub / BOOTH community uploads — varied per-file licenses, no bulk redistribution guarantee.
