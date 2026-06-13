@@ -324,7 +324,7 @@
       "factionId": "challengers",
       "description": "A flashy ninja rival trying to manufacture a dramatic duel while the heroes handle practical patrol work.",
       "appearance": {
-        "sourceLook": "Speed-o'-Sound Sonic / black-haired ninja rival",
+        "sourceLook": "Speed-o'-Sound Sonic from the One Punch Man anime, human male ninja assassin (NOT a hedgehog), long black hair, purple scarf, dark ninja outfit",
         "bodyType": "lean, fast, sharp posture",
         "hair": "long black hair swept back",
         "outfit": "dark ninja outfit with purple scarf and weapon straps",
@@ -450,7 +450,7 @@
       "factionId": "heroes",
       "description": "A blunt hero ready to handle trouble with a bat if the alert stops being paperwork.",
       "appearance": {
-        "sourceLook": "Metal Bat / pompadour hero with a bat",
+        "sourceLook": "Metal Bat from the One Punch Man anime, hot-blooded delinquent hero (NOT Batman), black pompadour hairstyle, black gakuran school uniform, holding a metal baseball bat",
         "bodyType": "lean tough stance",
         "hair": "black pompadour",
         "outfit": "black school uniform and metal bat",

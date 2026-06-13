@@ -143,17 +143,27 @@ export async function generatePortrait(
   const prompt = portraitPrompt(subject);
   const seed = portraitSeed(npcId, worldId);
 
-  // Cold container start can run ~60s; warm gens ~3s. 5 min total guard.
+  // Cold container start + first weight cache fill can run several minutes;
+  // warm gens after that are ~3s. 15 min total guard.
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 300_000);
+  const timer = setTimeout(() => controller.abort(), 900_000);
 
   try {
-    const response = await fetch(url, {
+    // Modal hands off a long-running call to a polling URL via a 303 redirect.
+    // We handle that manually because Node's default fetch keeps the POST
+    // method when following 303, which Modal's polling endpoint rejects.
+    let response = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ prompt, seed, width: 512, height: 512, steps: 9 }),
       signal: controller.signal,
+      redirect: "manual",
     });
+    while (response.status === 303 || response.status === 302) {
+      const location = response.headers.get("location");
+      if (!location) return { ok: false, reason: `redirect_no_location` };
+      response = await fetch(location, { method: "GET", signal: controller.signal, redirect: "manual" });
+    }
     if (!response.ok) {
       return { ok: false, reason: `http_${response.status}` };
     }

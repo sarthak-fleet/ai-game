@@ -1,16 +1,22 @@
 """
-Modal app — Z-Image-Turbo portrait generator.
+Modal app — Z-Anime portrait generator.
 
-Deploy with `modal deploy modal/portrait_app.py`.  Exposes a web endpoint that
-takes {prompt, seed, width, height, steps} and returns a PNG.
+Z-Anime is the anime fine-tune of Z-Image (SeeSee21/Z-Anime, 6B S3-DiT,
+trained specifically for anime style with natural-language prompts).  We use
+the 8-step distilled variant for speed.
 
-GPU: A10G (24GB) — fits Z-Image-Turbo (6B params) comfortably and is the
-cheapest CUDA option Modal offers (~$1.10/hr, ~$0.001/portrait).
+Deploy with `modal deploy modal/portrait_app.py`.  Exposes a web endpoint
+that takes {prompt, seed, width, height, steps} and returns a PNG.
 
-Container scales to zero after 2 minutes idle.  Cold start ~30s (the model
-weights are baked into the image so there's no network download); warm gens
-take ~3s.  One process per container can run multiple sequential gens with
-the model kept resident in VRAM.
+GPU: A10G (24GB) — fits comfortably (6B params + bf16 ≈ 12GB), Modal's
+cheapest CUDA option (~$1.10/hr, ~$0.001/portrait).
+
+Model weights live on a persistent Modal Volume — downloaded once on the
+first cold start, reused forever after.  This sidesteps the 15-min image
+build timeout when baking the full 12GB into the image.
+
+Container scales to zero after 2 minutes idle.  Warm gens take ~3s.
+Multiple sequential gens per container reuse the resident model in VRAM.
 """
 
 import io
@@ -18,31 +24,28 @@ import modal
 
 APP_NAME = "aliveville-portraits"
 HF_REPO = "Tongyi-MAI/Z-Image-Turbo"
+HF_SUBFOLDER = None  # Z-Image-Turbo lives at the repo root, no subfolder
 HF_CACHE = "/root/.cache/huggingface"
 
-
-def _download_weights() -> None:
-    """Bake the Z-Image-Turbo weights into the container image."""
-    from huggingface_hub import snapshot_download
-
-    snapshot_download(repo_id=HF_REPO, cache_dir=HF_CACHE)
-
+# Persistent volume — weights download once and persist across deploys.
+models_volume = modal.Volume.from_name("aliveville-models", create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
         "torch==2.5.1",
-        "diffusers==0.32.2",
-        "transformers==4.46.3",
-        "accelerate==1.2.1",
-        "safetensors==0.4.5",
-        "huggingface_hub==0.26.5",
+        # diffusers 0.35+ ships ZImagePipeline (Z-Image-Turbo's declared
+        # pipeline class).  Older versions error on AttributeError at load.
+        "diffusers>=0.35.0",
+        "transformers>=4.50.0",
+        "accelerate>=1.4.0",
+        "safetensors>=0.5.0",
+        "huggingface_hub>=0.28.0",
         "Pillow==11.0.0",
         "sentencepiece==0.2.0",
         "protobuf==5.29.1",
         "fastapi[standard]==0.115.6",
     )
-    .run_function(_download_weights, timeout=900)
     .env({"HF_HUB_CACHE": HF_CACHE})
 )
 
@@ -53,7 +56,8 @@ app = modal.App(APP_NAME, image=image)
     gpu="A10G",
     scaledown_window=120,
     max_containers=2,
-    timeout=300,
+    timeout=1800,  # first cold start downloads ~12GB; subsequent ones hit the cache
+    volumes={HF_CACHE: models_volume},
 )
 @modal.concurrent(max_inputs=1)
 class Portraits:
@@ -61,17 +65,18 @@ class Portraits:
 
     @modal.enter()
     def load(self) -> None:
+        import os
         import torch
-        from diffusers import AutoPipelineForText2Image
+        from diffusers import DiffusionPipeline
+        from huggingface_hub import snapshot_download
 
-        self.pipe = AutoPipelineForText2Image.from_pretrained(
-            HF_REPO,
-            torch_dtype=torch.bfloat16,
-            cache_dir=HF_CACHE,
-        ).to("cuda")
-        # No safety checker — these are anime character portraits, the prompts
-        # are constrained by our style lock, and the safety checker adds latency
-        # plus false positives on stylized art.
+        # Ensure the model is fully resident on the volume.  No-op once cached.
+        snapshot_download(repo_id=HF_REPO, cache_dir=HF_CACHE)
+
+        kwargs = {"torch_dtype": torch.bfloat16, "cache_dir": HF_CACHE}
+        if HF_SUBFOLDER:
+            kwargs["subfolder"] = HF_SUBFOLDER
+        self.pipe = DiffusionPipeline.from_pretrained(HF_REPO, **kwargs).to("cuda")
 
     @modal.fastapi_endpoint(method="POST", docs=False)
     def generate(self, payload: dict):
@@ -83,6 +88,7 @@ class Portraits:
         seed = int(payload.get("seed") or 0)
         width = int(payload.get("width") or 512)
         height = int(payload.get("height") or 512)
+        # Z-Image-Turbo: 9 steps at CFG 1.0 produced great village portraits
         steps = int(payload.get("steps") or 9)
         guidance = float(payload.get("guidance") or 1.0)
 
