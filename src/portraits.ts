@@ -1,5 +1,5 @@
-import { spawn } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,13 +12,11 @@ import type { Npc, World } from "./types.ts";
 const STYLE_LOCK =
   "anime character portrait, bust shot, clean cel shading, soft toon lighting, plain dark background, single character, facing viewer";
 
-// Default: Z-Image-Turbo — Apache-2.0 and ungated on HuggingFace (FLUX-schnell
-// is gated and needs an HF login, so it's opt-in via PORTRAIT_CLI=mflux-generate)
-const PORTRAIT_CLI = process.env["PORTRAIT_CLI"] ?? "mflux-generate-z-image-turbo";
-
-/** Model-selection flags differ per mflux entrypoint; size/seed/prompt flags are shared. */
-export function portraitCliArgs(cli: string): string[] {
-  return cli.endsWith("mflux-generate") ? ["--model", "schnell", "--quantize", "4", "--steps", "2"] : ["--steps", "6"];
+// Modal deployment URL — read per-call so tests can stub the env. The
+// Z-Image-Turbo container loads the model once and stays warm for ~2 min
+// between calls; cold start ~30s.
+function portraitUrl(): string {
+  return process.env["PORTRAIT_URL"] ?? "";
 }
 
 // Portraits directory relative to project root (web3d/public so vite copies it)
@@ -122,73 +120,53 @@ export type GenerateResult =
   | { ok: false; reason: string };
 
 /**
- * Shells out to PORTRAIT_CLI to generate a portrait PNG.
- * Never throws — missing binary returns generator_unavailable.
+ * Calls the Modal portrait endpoint and writes the returned PNG to disk.
+ * Never throws — missing PORTRAIT_URL returns generator_unavailable.
  */
-export function generatePortrait(
+export async function generatePortrait(
   npcId: string,
   worldId: string,
   subject: PortraitSubject
 ): Promise<GenerateResult> {
-  return new Promise((resolve) => {
-    try {
-      mkdirSync(PORTRAITS_DIR, { recursive: true });
-    } catch {
-      // ignore; if the dir can't be created we'll fail on write anyway
-    }
+  const url = portraitUrl();
+  if (!url) {
+    return { ok: false, reason: "generator_unavailable" };
+  }
 
-    const file = portraitPath(npcId, worldId);
-    const prompt = portraitPrompt(subject);
-    const seed = String(portraitSeed(npcId, worldId));
+  try {
+    mkdirSync(PORTRAITS_DIR, { recursive: true });
+  } catch {
+    // ignore; if the dir can't be created we'll fail on write anyway
+  }
 
-    const args = [
-      ...portraitCliArgs(PORTRAIT_CLI),
-      "--width", "512",
-      "--height", "512",
-      "--seed", seed,
-      "--prompt", prompt,
-      "--output", file,
-    ];
+  const file = portraitPath(npcId, worldId);
+  const prompt = portraitPrompt(subject);
+  const seed = portraitSeed(npcId, worldId);
 
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      proc?.kill();
-      resolve({ ok: false, reason: "timeout" });
-    }, 120_000);
+  // Cold container start can run ~60s; warm gens ~3s. 5 min total guard.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 300_000);
 
-    let proc: ReturnType<typeof spawn>;
-    try {
-      proc = spawn(PORTRAIT_CLI, args, { stdio: "ignore" });
-    } catch (err) {
-      clearTimeout(timer);
-      resolve({ ok: false, reason: (err as Error).message });
-      return;
-    }
-
-    proc.on("error", (err: NodeJS.ErrnoException) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (err.code === "ENOENT") {
-        resolve({ ok: false, reason: "generator_unavailable" });
-      } else {
-        resolve({ ok: false, reason: err.message });
-      }
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt, seed, width: 512, height: 512, steps: 9 }),
+      signal: controller.signal,
     });
-
-    proc.on("close", (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (code === 0) {
-        resolve({ ok: true, file });
-      } else {
-        resolve({ ok: false, reason: `exit_${code ?? "null"}` });
-      }
-    });
-  });
+    if (!response.ok) {
+      return { ok: false, reason: `http_${response.status}` };
+    }
+    const buf = Buffer.from(await response.arrayBuffer());
+    await writeFile(file, buf);
+    return { ok: true, file };
+  } catch (err) {
+    const error = err as NodeJS.ErrnoException & { name?: string };
+    if (error.name === "AbortError") return { ok: false, reason: "timeout" };
+    return { ok: false, reason: error.message };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ---------------------------------------------------------------------------

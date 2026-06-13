@@ -1,6 +1,3 @@
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -16,11 +13,11 @@ import {
 } from "../src/portraits.ts";
 
 // ---------------------------------------------------------------------------
-// Hoist vi.mock so child_process.spawn and fs.existsSync are stubs.
-// vitest hoists vi.mock() calls automatically regardless of placement.
+// vi.mock hoisted by vitest. We mock the filesystem so generatePortrait can
+// run without touching disk, and replace global.fetch per test.
 
-vi.mock("node:child_process", () => ({
-  spawn: vi.fn(),
+vi.mock("node:fs/promises", () => ({
+  writeFile: vi.fn(async () => undefined),
 }));
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -32,24 +29,7 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-// ---------------------------------------------------------------------------
-// Shared mock proc used by default spawn implementation.
-
-function makeMockProc(closeCode: number | null, errorCode?: string, delayMs = 0) {
-  return {
-    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-      if (event === "error" && errorCode) {
-        const err = Object.assign(new Error(`mock error: ${errorCode}`), { code: errorCode });
-        if (delayMs > 0) setTimeout(() => handler(err), delayMs);
-        else setImmediate(() => handler(err));
-      } else if (event === "close" && errorCode === undefined) {
-        if (delayMs > 0) setTimeout(() => handler(closeCode), delayMs);
-        else setImmediate(() => handler(closeCode));
-      }
-    }),
-    kill: vi.fn(),
-  };
-}
+const fetchMock = vi.fn<typeof fetch>();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,6 +47,26 @@ function makeSubject(overrides: Partial<PortraitSubject> = {}): PortraitSubject 
     ...overrides,
   };
 }
+
+function pngResponse(): Response {
+  // 1×1 transparent PNG — enough for tests that only check ok-path
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "base64",
+  );
+  return new Response(png, { status: 200, headers: { "content-type": "image/png" } });
+}
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", fetchMock);
+  vi.stubEnv("PORTRAIT_URL", "https://example-modal-test.modal.run/generate");
+  fetchMock.mockReset();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 // ---------------------------------------------------------------------------
 // portraitPrompt
@@ -149,36 +149,40 @@ describe("portraitFileName", () => {
 // generatePortrait
 
 describe("generatePortrait", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
-  });
-
-  it("returns ok:false reason:generator_unavailable when binary is missing (ENOENT)", async () => {
-    (spawn as ReturnType<typeof vi.fn>).mockReturnValueOnce(makeMockProc(null, "ENOENT"));
+  it("returns ok:false reason:generator_unavailable when PORTRAIT_URL is unset", async () => {
+    vi.stubEnv("PORTRAIT_URL", "");
     const result = await generatePortrait("npc_mira", "ashment", makeSubject());
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe("generator_unavailable");
   });
 
-  it("returns ok:false with exit code reason on non-zero exit", async () => {
-    (spawn as ReturnType<typeof vi.fn>).mockReturnValueOnce(makeMockProc(1));
+  it("returns ok:false with http_<status> reason on non-2xx response", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("oops", { status: 500 }));
     const result = await generatePortrait("npc_mira", "ashment", makeSubject());
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toMatch(/exit/);
+    if (!result.ok) expect(result.reason).toBe("http_500");
   });
 
-  it("returns ok:true with the file path on exit 0", async () => {
-    (spawn as ReturnType<typeof vi.fn>).mockReturnValueOnce(makeMockProc(0));
+  it("returns ok:true with the file path on 200", async () => {
+    fetchMock.mockResolvedValueOnce(pngResponse());
     const result = await generatePortrait("npc_mira", "ashment", makeSubject());
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.file).toContain("ashment-npc-mira.png");
   });
 
-  it("never throws even if spawn throws synchronously", async () => {
-    (spawn as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
-      throw new Error("spawn exploded");
-    });
+  it("posts the prompt, seed, and dimensions in the JSON body", async () => {
+    fetchMock.mockResolvedValueOnce(pngResponse());
+    await generatePortrait("npc_mira", "ashment", makeSubject());
+    const [, init] = fetchMock.mock.calls[0]!;
+    const body = JSON.parse(String(init?.body));
+    expect(body.prompt).toContain("anime character portrait");
+    expect(body.seed).toBe(portraitSeed("npc_mira", "ashment"));
+    expect(body.width).toBe(512);
+    expect(body.height).toBe(512);
+  });
+
+  it("never throws even if fetch rejects", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("network down"));
     await expect(generatePortrait("npc_mira", "ashment", makeSubject())).resolves.toMatchObject({
       ok: false,
     });
@@ -189,34 +193,20 @@ describe("generatePortrait", () => {
 // queue
 
 describe("portrait queue", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(false);
-  });
-
   afterEach(async () => {
     await flushPortraitQueue();
   });
 
   it("serialises: max 1 generatePortrait call at a time", async () => {
-    let concurrentCount = 0;
+    let concurrent = 0;
     let maxConcurrent = 0;
 
-    (spawn as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      concurrentCount++;
-      maxConcurrent = Math.max(maxConcurrent, concurrentCount);
-      const proc = {
-        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-          if (event === "close") {
-            setTimeout(() => {
-              concurrentCount--;
-              handler(0);
-            }, 5);
-          }
-        }),
-        kill: vi.fn(),
-      };
-      return proc;
+    fetchMock.mockImplementation(async () => {
+      concurrent++;
+      maxConcurrent = Math.max(maxConcurrent, concurrent);
+      await new Promise((r) => setTimeout(r, 5));
+      concurrent--;
+      return pngResponse();
     });
 
     const p1 = queuePortrait("npc_a", "world1", makeSubject({ name: "A" }));
@@ -227,25 +217,15 @@ describe("portrait queue", () => {
     expect(maxConcurrent).toBe(1);
   });
 
-  it("deduplicates: same npc queued twice does not run generation twice", async () => {
-    let spawnCount = 0;
-    (spawn as ReturnType<typeof vi.fn>).mockImplementation(() => {
-      spawnCount++;
-      const proc = {
-        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-          if (event === "close") setTimeout(() => handler(0), 5);
-        }),
-        kill: vi.fn(),
-      };
-      return proc;
-    });
+  it("deduplicates: same npc queued twice runs generation once", async () => {
+    fetchMock.mockResolvedValue(pngResponse());
 
     const p1 = queuePortrait("npc_mira", "ashment", makeSubject());
     const p2 = queuePortrait("npc_mira", "ashment", makeSubject());
     await flushPortraitQueue();
     await Promise.all([p1, p2]);
 
-    expect(spawnCount).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("portraitQueueDepth returns 0 when idle", async () => {
