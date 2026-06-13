@@ -53,7 +53,15 @@ export const useUiStore = create<UiStore>((set, get) => ({
   },
 
   openDialogue(npcId, opener) {
-    if (get().dialogueNpcId === npcId) return;
+    const current = get();
+    if (current.dialogueNpcId === npcId) {
+      set({
+        dialogueOpener: opener ?? current.dialogueOpener,
+        dialogueLines: opener ? [] : current.dialogueLines,
+        dialogueBusy: false,
+      });
+      return;
+    }
     set({ dialogueNpcId: npcId, dialogueOpener: opener ?? null, dialogueLines: [], dialogueBusy: false });
   },
   setDialogueLines(lines) {
