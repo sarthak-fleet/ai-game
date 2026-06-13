@@ -1621,3 +1621,107 @@
   color: #888;
   border-color: rgba(255, 255, 255, 0.12);
 }
+
+/* ── Local AI (WebGPU in-browser LLM) demo panel ─────────────────────────── */
+.local-brain-panel {
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  width: 320px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(8, 12, 22, 0.92);
+  border: 1px solid rgba(127, 208, 255, 0.35);
+  backdrop-filter: blur(8px);
+  color: #f1f5fb;
+  font-size: 13px;
+  z-index: 40;
+  pointer-events: auto;
+}
+
+.local-brain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #cfe6ff;
+}
+
+.local-brain-close {
+  background: none;
+  border: none;
+  color: #f1f5fb;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.local-brain-close:hover { opacity: 1; }
+
+.cap-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.cap-pill {
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.cap-pill.on { color: #9be3ff; border-color: rgba(127, 208, 255, 0.4); background: rgba(127, 208, 255, 0.1); }
+.cap-pill.off { color: #7a8190; }
+
+.local-brain-action {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 208, 255, 0.4);
+  background: rgba(127, 208, 255, 0.16);
+  color: #f1f5fb;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.local-brain-action:hover { background: rgba(127, 208, 255, 0.26); }
+.local-brain-action:disabled { opacity: 0.6; cursor: default; }
+
+.local-brain-progress-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.local-brain-progress-fill {
+  height: 100%;
+  background: #7fd0ff;
+  transition: width 0.2s ease;
+}
+
+.local-brain-msg { font-size: 11px; margin: 6px 0; opacity: 0.85; }
+.local-brain-msg.ok { color: #9be3ff; }
+.local-brain-msg.warn { color: #f8d44e; }
+
+.local-brain-input {
+  width: 100%;
+  margin: 8px 0;
+  padding: 7px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f1f5fb;
+  font-family: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.local-brain-reply {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid #7fd0ff;
+  background: rgba(127, 208, 255, 0.08);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}

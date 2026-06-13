@@ -19,6 +19,7 @@ import { Chronicle } from "./Chronicle.tsx";
 import { Dialogue } from "./Dialogue.tsx";
 import { ImportScreen } from "./ImportScreen.tsx";
 import { Letterbox } from "./Letterbox.tsx";
+import { LocalBrain } from "./LocalBrain.tsx";
 import { Minimap } from "./Minimap.tsx";
 import { QuestTracker } from "./QuestTracker.tsx";
 import { Recap } from "./Recap.tsx";
@@ -173,6 +174,7 @@ export function Hud() {
           <button type="button" className={`chip ${chronicleOpen ? "on" : ""}`} onClick={() => setChronicleOpen((open) => !open)}>
             Journal (J)
           </button>
+          <LocalBrain />
           <button type="button" className={`chip ${soundOn ? "on" : ""}`} onClick={() => { setSfxEnabled(!soundOn); setSoundOn(!soundOn); }}>
             {soundOn ? "🔊" : "🔇"}
           </button>

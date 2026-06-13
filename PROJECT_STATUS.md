@@ -27,8 +27,17 @@ Aliveville is a browser-playable AI world simulator deployed at **aliveville.com
 
 See the living north-star document: `docs/future-prd.md` (2026–2028 vision covering asset fidelity pipeline, lifelikeness upgrades (Chronicle + reflection + coherence), combat/interior polish, creator tools, and phased roadmap).
 
+Two new planning docs (2026-06-14), gated in this order:
+1. `docs/core-gameplay-fix.md` — **playability prerequisite**. Make the core loop
+   fun (goals/onboarding/macro-loop + tuning) via one vertical slice ("The
+   Rival"). NOTE: combat is already complete/animated/client-authoritative — the
+   gap is the macro loop + presentation, pending a playtest to confirm.
+2. `docs/web-frontier-prd.md` — web-platform capability showcase (WebGPU
+   render+compute, local LLM inference, etc.), much sourced from `../tinygpt`.
+   **Gated**: do not start until core-gameplay-fix §5 acceptance bar is met.
+
 Immediate next (pre-PRD execution):
-1. Combat polish: rigged CC0 characters, posture/stagger, character-specific movesets.
+1. Playtest to locate the real "very bad" feel (diagnosis from code alone proved unreliable).
 2. Interior depth: quest NPC inside anchor building, interior interactables/clues.
 3. Enable LLM mode: add `LLM_API_KEY` to `.env`.
 

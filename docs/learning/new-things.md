@@ -73,3 +73,70 @@ Technologies and patterns that were genuinely new during this build, with one-li
 - Why here: TBD
 - Gotcha (from code): Phaser dependency remains in `package.json` and `PROJECT_RECOMMENDATION_CONTEXT.md` as an audit snapshot artifact — it is not used in the active build.
 - Source: See retros/2026-05-21-phaser-to-r3f.md
+
+---
+
+# Frontier web platform — planned (see ../web-frontier-prd.md)
+
+Not in this repo's code yet. Reference implementations live in the sibling repo
+`../../tinygpt` (a from-scratch in-browser ML engine); gotchas below are cited
+from *its* code where verified. Add a real gotcha here once the tech lands in
+ai-game.
+
+## WebGPU compute shaders (WGSL)
+- What: General-purpose parallel compute on the GPU from the browser via compute pipelines written in WGSL.
+- Why here: TBD
+- Gotcha (from code): naive matmul is memory-bound — tinygpt ships many variants (tiled / blocked / vec4 / cooperative-matrix) because the kernel shape, not the math, sets the speed.
+- Source: https://www.w3.org/TR/webgpu/ | ../../tinygpt/webgpu/matmul_*.wgsl, ops.ts, tensor.ts
+
+## WebGPU rendering — Three.js WebGPURenderer + TSL
+- What: Three.js renderer backed by WebGPU; materials authored as TSL (a node/shader graph) instead of GLSL strings.
+- Why here: TBD
+- Gotcha (from code): not in tinygpt (compute-only) — this is the one frontier piece with no reference impl to vendor; build fresh.
+- Source: https://threejs.org/docs/#manual/en/introduction/How-to-use-WebGPU
+
+## Flash-Attention 2 (WGSL)
+- What: Tiled attention kernel that never materializes the full N×N score matrix, trading recompute for memory.
+- Why here: TBD
+- Gotcha (from code): tinygpt implements this directly in WGSL — the tiling + streaming-softmax is the whole trick.
+- Source: https://arxiv.org/abs/2307.08691 | ../../tinygpt/webgpu/attention_fa2.wgsl
+
+## WASM compute — SIMD + pthreads + SharedArrayBuffer
+- What: C++ compiled to WebAssembly with `-msimd128` vectorization and `-pthread` worker threads sharing a `SharedArrayBuffer` heap; CPU fallback when WebGPU is absent.
+- Why here: TBD
+- Gotcha (from code): `SharedArrayBuffer` needs cross-origin isolation (COOP+COEP response headers) or threads won't start; tinygpt also ships a wasm64 (`-sMEMORY64`) build where pointer args/returns surface in JS as `BigInt`.
+- Source: https://emscripten.org/docs/porting/pthreads.html | ../../tinygpt/wasm/build_wasm.sh, browser/src/backend.ts
+
+## In-browser LLM inference (WebLLM / transformers.js)
+- What: Run a pre-trained chat/embedding model fully client-side on the WebGPU backend — no server round-trip.
+- Why here: TBD
+- Gotcha (from code): tinygpt is a tiny char-level GPT, NOT a chat model — reuse its plumbing (device/feature detect, OPFS weight cache, WASM fallback), but the chat model itself comes from WebLLM/transformers.js.
+- Source: https://github.com/mlc-ai/web-llm | https://huggingface.co/docs/transformers.js
+
+## OPFS — Origin Private File System
+- What: Fast, origin-scoped local file storage; backs save games, asset caches, and model weights.
+- Why here: TBD
+- Gotcha (from code): subject to storage quota and wiped by "clear site data" — tinygpt requests durable/persistent storage up front (`storage.ts`).
+- Source: https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system | ../../tinygpt/browser/src/storage.ts
+
+## WebNN — Web Neural Network API
+- What: Browser API routing inference to OS ML backends (CoreML / DirectML / NPU).
+- Why here: TBD
+- Gotcha (from code): `navigator.ml` can exist while the backend is non-functional — tinygpt ships a numerics-gated probe (one-matmul graph vs hand-computed ref) before trusting it.
+- Source: https://www.w3.org/TR/webnn/ | ../../tinygpt/browser/src/webnn_probe.ts
+
+## WebTransport (HTTP/3 / QUIC)
+- What: Low-latency client↔server transport over QUIC; both reliable streams and unreliable/unordered datagrams. PRD replacement for SSE.
+- Why here: TBD
+- Source: https://developer.mozilla.org/en-US/docs/Web/API/WebTransport
+
+## WebCodecs
+- What: Low-level access to the browser's video/audio encoders and decoders for cutscene decode and gameplay clip export.
+- Why here: TBD
+- Gotcha (from code): TBD — `VideoFrame` holds native/GPU memory and must be `.close()`'d to avoid leaks (verify when implemented).
+- Source: https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API
+
+## Gaussian splatting
+- What: Render captured 3D scenes as millions of anisotropic 3D gaussians instead of meshes — photoreal environments. Optional PRD flex.
+- Why here: TBD
+- Source: https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
