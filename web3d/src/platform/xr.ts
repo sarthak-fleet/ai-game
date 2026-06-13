@@ -9,7 +9,10 @@
 
 import { createXRStore } from "@react-three/xr";
 
-export const xrStore = createXRStore();
+// emulate:false suppresses @iwer/devui's global "Enter XR" emulator button that
+// otherwise injects itself on every screen on localhost. Real headsets still
+// work via the 🥽 VR chip; flip this to test XR on desktop without hardware.
+export const xrStore = createXRStore({ emulate: false });
 
 export async function vrSupported(): Promise<boolean> {
   const xr = (navigator as { xr?: { isSessionSupported(mode: string): Promise<boolean> } }).xr;
