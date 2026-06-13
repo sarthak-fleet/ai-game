@@ -205,7 +205,25 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
       rigidBody.setNextKinematicTranslation({ x, y: CAPSULE_CENTER_Y + 0.2, z });
       playerPosition.set(x, 0, z);
       s.velocity.set(0, 0, 0);
-      s.lookInitialized = false;
+      s.verticalVelocity = 0;
+      // tight interior camera; restored on exit. without this the default
+      // 7.5-unit follow distance places the camera outside the back wall and
+      // the player only sees the opaque inside-face of the south wall (the
+      // "brown board" bug).
+      const insideInterior = Boolean(useUiStore.getState().interiorBuildingId);
+      s.distance = insideInterior ? Math.min(s.distance, 3.8) : Math.max(s.distance, 7.5);
+      // snap the camera + look target to the new spot. without this they lerp
+      // over the 120+ unit gap between the city and the staged interior, which
+      // looks like falling from the sky for ~half a second.
+      const snapEye = new THREE.Vector3(
+        x + Math.sin(s.yaw) * Math.cos(s.pitch) * s.distance,
+        (CAPSULE_CENTER_Y + 0.2 - CAPSULE_CENTER_Y) + 1.4 + Math.sin(s.pitch) * s.distance,
+        z + Math.cos(s.yaw) * Math.cos(s.pitch) * s.distance
+      );
+      frame.camera.position.copy(snapEye);
+      s.lookTarget.set(x, 0.2 + 1.4, z);
+      frame.camera.lookAt(s.lookTarget);
+      s.lookInitialized = true;
       return;
     }
 
