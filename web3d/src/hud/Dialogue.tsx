@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { type DialogueResponse, fetchDialogueHistory, postDialogue, postDialogueChoose, postDialogueStream, type StoryOption } from "../api/client.ts";
 import { followChime, questChime, talkBlip, uiBlip } from "../audio/sfx.ts";
+import { getNpcAnimation } from "../characters/animation-registry.ts";
 import { setFollowing } from "../characters/followers.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { useUiStore } from "../store/ui.ts";
@@ -49,6 +50,11 @@ export function Dialogue() {
     // are keyed by npc above, so stale data is never shown during the load.
     if (!dialogueNpcId) return;
     inputRef.current?.focus();
+    // Fire a one-shot greet reaction on the NPC's rig. This effect runs once
+    // per NPC-open (not per keystroke) because its dep is `dialogueNpcId`.
+    // The animation handle is null for off-screen / non-VRM characters —
+    // playReaction is optional and gated inside `VrmCharacter`.
+    getNpcAnimation(dialogueNpcId)?.playReaction?.("greet");
     let cancelled = false;
     void (async () => {
       try {

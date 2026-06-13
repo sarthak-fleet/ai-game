@@ -32,6 +32,12 @@ const PROPORTIONS: Record<ActorVisual["bodyShape"], Proportions> = {
 
 export type CombatAnimKind = "attack1" | "attack2" | "attack3" | "dodge" | "hit" | "telegraph";
 
+/**
+ * Reaction overlays played in response to social events (dialogue open, etc.).
+ * VRM rigs play a baked `.vrma` clip via `AnimationMixer`; non-VRM rigs ignore.
+ */
+export type ReactionKind = "greet" | "surprised" | "angry" | "nod" | "idle_variant";
+
 export interface CharacterAnimationHandle {
   /** speed in m/s; 0 = idle */
   setSpeed: (speed: number) => void;
@@ -47,6 +53,13 @@ export interface CharacterAnimationHandle {
   setTalking?: (talking: boolean) => void;
   /** one-shot non-combat gesture (optional; rig only) */
   gesture?: (kind: "pickup" | "interact") => void;
+  /**
+   * Play a baked one-shot reaction clip (e.g. greet on dialogue open).
+   * VRM characters play the corresponding `.vrma` via AnimationMixer with
+   * fade-in/fade-out and gate the procedural locomotion writes for the
+   * duration so the clip is visible. Non-VRM rigs no-op.
+   */
+  playReaction?: (kind: ReactionKind) => void;
 }
 
 const COMBAT_ANIM_MS: Record<CombatAnimKind, number> = {
