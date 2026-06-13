@@ -1,5 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
+import { useLocalBrain } from "../ai/local-llm.ts";
+import { buildNpcSystemPrompt, buildNpcUserPrompt } from "../ai/npc-prompt.ts";
 import { type DialogueResponse, fetchDialogueHistory, postDialogue, postDialogueChoose, postDialogueStream, type StoryOption } from "../api/client.ts";
 import { followChime, questChime, talkBlip, uiBlip } from "../audio/sfx.ts";
 import { setFollowing } from "../characters/followers.ts";
@@ -175,6 +177,29 @@ export function Dialogue() {
     setDraft("");
     pushLine({ speaker: "player", speakerName: world?.player.name ?? "You", text });
     setBusy(true);
+
+    // Local brain first: if a model is resident on the GPU, generate the reply
+    // fully in-browser (zero server round-trip). Falls through to the server LLM
+    // path on any miss/error so behaviour is never worse than before.
+    {
+      const brain = useLocalBrain.getState();
+      if (brain.status === "ready" && world) {
+        try {
+          const system = buildNpcSystemPrompt(npc, world);
+          const user = buildNpcUserPrompt(lines, text, world.player.name ?? "You");
+          const reply = await brain.generate(system, user);
+          if (reply) {
+            talkBlip();
+            pushLine({ speaker: "npc", speakerName: npc.name, text: reply });
+            setBusy(false);
+            inputRef.current?.focus();
+            return;
+          }
+        } catch {
+          // local generation failed — fall through to the server path below
+        }
+      }
+    }
 
     // LLM conversation first: streamed in-character reply, no sim tick consumed
     {

@@ -1,5 +1,5 @@
 import { Stars } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, FXAA, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { Physics } from "@react-three/rapier";
 import { ToneMappingMode } from "postprocessing";
@@ -11,6 +11,7 @@ import { Npc } from "../characters/Npc.tsx";
 import { useCombatStore } from "../combat/store.ts";
 import { CombatVfx } from "../combat/Vfx.tsx";
 import { PlayerController } from "../controls/PlayerController.tsx";
+import { setCaptureCanvas } from "../platform/clip.ts";
 import { useUiStore } from "../store/ui.ts";
 import { cityModelFor } from "../worldgen/cache.ts";
 import { interiorForBuilding } from "../worldgen/interiors.ts";
@@ -23,6 +24,16 @@ import { Skyline } from "./Skyline.tsx";
 
 // low-end escape hatch + debugging: ?nofx disables the post-processing chain
 const POST_FX_ENABLED = typeof window === "undefined" || !new URLSearchParams(window.location.search).has("nofx");
+
+/** Registers the renderer's canvas for clip capture (must live inside <Canvas>). */
+function CaptureRegistrar(): null {
+  const canvas = useThree((state) => state.gl.domElement);
+  useEffect(() => {
+    setCaptureCanvas(canvas);
+    return () => setCaptureCanvas(null);
+  }, [canvas]);
+  return null;
+}
 
 export function GameWorld({ world }: { world: World }) {
   const model = cityModelFor(world);
@@ -73,6 +84,7 @@ export function GameWorld({ world }: { world: World }) {
       }}
       style={{ position: "absolute", inset: 0 }}
     >
+      <CaptureRegistrar />
       <Suspense fallback={null}>
         <Physics gravity={[0, -22, 0]}>
           <Lighting world={world} target={{ x: activeDistrict.courtyard.x, z: activeDistrict.courtyard.z }} />

@@ -74,12 +74,18 @@ The instrumentation that makes the whole project read as a flex.
 - Later: **Whisper** (talk to NPCs by voice) + local **TTS** for NPC voices.
 - Extend `docs/local-llm.md`; keep router as the cloud fallback.
 
-**Spike landed (2026-06-14)** — `@mlc-ai/web-llm` added; `web3d/src/ai/capabilities.ts`
-(WebGPU/WASM/WebNN/OPFS detection) + `web3d/src/ai/local-llm.ts` (capability-gated,
-lazy-loaded, code-split engine) + a self-contained HUD demo (`hud/LocalBrain.tsx`,
-"🧠 Local AI" chip) prove in-browser generation with zero server calls. NOT yet
-wired into the live NPC dialogue path — that's the next step. Verified: typecheck +
-3D build green; in-browser run still needs a real-device check.
+**Landed (2026-06-14)** — `@mlc-ai/web-llm` added. Implemented:
+- `web3d/src/ai/capabilities.ts` — WebGPU/shader-f16/timestamp-query, WASM SIMD/threads, WebNN, OPFS, COI detection.
+- `web3d/src/ai/local-llm.ts` — capability-gated, lazy-loaded, code-split engine (zustand store).
+- `web3d/src/ai/npc-prompt.ts` + `hud/Dialogue.tsx` — **NPC dialogue now generates in-browser** when a model is resident; falls through to the server `/api/dialogue` path otherwise (Phase 1 keystone, wired into the live flow).
+- `hud/LocalBrain.tsx` — "🧠 Local AI" panel: capability readout, one-click model load, on-device generation demo.
+- `hud/FrontierHud.tsx` — Phase-0 legibility overlay: FPS, NPC count, active backend pill, "no server" badge.
+- `platform/opfs-save.ts` + `platform/clip.ts` + `hud/PlatformControls.tsx` — OPFS local save (Phase 0) and canvas clip recording (Phase 4).
+
+Verified: typecheck + 3D build green; my files lint clean. **In-browser behavior
+(model load, generation, capability pills, clip download) still needs a real-device
+check** — can't be verified headlessly. Remaining Phase 2 (WebGPU renderer/compute),
+Phase 3 (WebTransport/WebRTC) not started.
 
 ### Phase 2 — WebGPU render + compute *(visual flex; higher effort, mostly fresh)*
 - Swap Three.js `WebGLRenderer` → **`WebGPURenderer` + TSL** node materials.

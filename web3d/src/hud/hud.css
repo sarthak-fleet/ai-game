@@ -1725,3 +1725,38 @@
   border-radius: 0 8px 8px 0;
   font-style: italic;
 }
+
+/* ── Frontier legibility HUD ─────────────────────────────────────────────── */
+.frontier-hud {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(8, 12, 22, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #cfe6ff;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.frontier-hud .fh-sep { opacity: 0.4; }
+.frontier-hud .fh-backend { color: #9fb2c8; }
+.frontier-hud .fh-backend.local { color: #9be3ff; }
+
+.frontier-hud .fh-badge {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(127, 208, 255, 0.18);
+  border: 1px solid rgba(127, 208, 255, 0.45);
+  color: #9be3ff;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}

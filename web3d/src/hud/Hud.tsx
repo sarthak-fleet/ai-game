@@ -17,10 +17,12 @@ import { interiorForBuilding } from "../worldgen/interiors.ts";
 import { ArcPanel } from "./ArcPanel.tsx";
 import { Chronicle } from "./Chronicle.tsx";
 import { Dialogue } from "./Dialogue.tsx";
+import { FrontierHud } from "./FrontierHud.tsx";
 import { ImportScreen } from "./ImportScreen.tsx";
 import { Letterbox } from "./Letterbox.tsx";
 import { LocalBrain } from "./LocalBrain.tsx";
 import { Minimap } from "./Minimap.tsx";
+import { PlatformControls } from "./PlatformControls.tsx";
 import { QuestTracker } from "./QuestTracker.tsx";
 import { Recap } from "./Recap.tsx";
 
@@ -174,6 +176,7 @@ export function Hud() {
           <button type="button" className={`chip ${chronicleOpen ? "on" : ""}`} onClick={() => setChronicleOpen((open) => !open)}>
             Journal (J)
           </button>
+          <PlatformControls />
           <LocalBrain />
           <button type="button" className={`chip ${soundOn ? "on" : ""}`} onClick={() => { setSfxEnabled(!soundOn); setSoundOn(!soundOn); }}>
             {soundOn ? "🔊" : "🔇"}
@@ -190,6 +193,8 @@ export function Hud() {
       <ArcPanel />
 
       <Minimap />
+
+      <FrontierHud />
 
       {world.story?.currentObjective ? (
         <div className="objective">
