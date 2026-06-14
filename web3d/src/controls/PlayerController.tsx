@@ -5,12 +5,12 @@ import * as THREE from "three";
 
 import type { World } from "../../../src/types.ts";
 import { attackSwing, dodgeWhoosh, doorCreak, ensureAudio, footstep } from "../audio/sfx.ts";
+import { ArchetypeCharacter } from "../characters/ArchetypeCharacter.tsx";
+import { archetypeFor } from "../characters/archetypes.ts";
 import type { CharacterAnimationHandle } from "../characters/CharacterModel.tsx";
-import { RiggedCharacter } from "../characters/RiggedCharacter.tsx";
 import { combatInput, playerCombatState, updatePlayerCombat } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { useDirectorStore } from "../director/store.ts";
-import { actorVisualFor } from "../mapping/visuals.ts";
 import { updateOcclusion } from "../scene/occlusion.ts";
 import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
@@ -46,7 +46,13 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
   const gl = useThree((state) => state.gl);
   const setInteractionTarget = useUiStore((state) => state.setInteractionTarget);
 
-  const visual = useMemo(() => actorVisualFor(world.player.appearance, "#58a6ff"), [world.player.appearance]);
+  // The player renders as a stylized archetype model (Wanderer → adventurer);
+  // when playing AS a character, match that character's persona.
+  const playerArchetype = useMemo(() => {
+    const character = world.player.characterId ? world.npcs.find((npc) => npc.id === world.player.characterId) : null;
+    const persona = `${world.player.name ?? "Wanderer"} ${character?.role ?? ""} ${character?.description ?? ""}`;
+    return archetypeFor(persona, character?.role ?? "", character?.appearance?.visualTags ?? [], world.player.characterId ?? "player");
+  }, [world.player.name, world.player.characterId, world.npcs]);
 
   // Raycast straight down from above (x,z) to find the actual floor/ground Y.
   // Without this the player can land mid-air on world transitions, building
@@ -469,7 +475,7 @@ export function PlayerController({ world, model, placements, activeDistrict }: P
     >
       <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} />
       <group ref={modelGroup} position={[0, -CAPSULE_CENTER_Y, 0]}>
-        <RiggedCharacter ref={animation} visual={visual} appearance={world.player.appearance} seedId="player" personaText={world.player.name ?? ""} protagonist={!world.player.characterId} />
+        <ArchetypeCharacter ref={animation} archetype={playerArchetype} protagonist={!world.player.characterId} />
       </group>
     </RigidBody>
   );

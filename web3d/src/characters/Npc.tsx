@@ -18,17 +18,15 @@ import { applyIncomingHit, playerCombatState } from "../combat/player-fsm.ts";
 import { useCombatStore } from "../combat/store.ts";
 import { npcRegistry, playerPosition, registerNpc, scaledDelta, unregisterNpc } from "../controls/runtime.ts";
 import { useDirectorStore } from "../director/store.ts";
-import { actorVisualFor, clothingColorsFor } from "../mapping/visuals.ts";
 import { useUiStore } from "../store/ui.ts";
 import { findDistrictPath, type WorldModel } from "../worldgen/index.ts";
 import type { PlacedNpcSpawn } from "../worldgen/placements.ts";
 import { rngFor } from "../worldgen/rng.ts";
 import { ArchetypeCharacter } from "./ArchetypeCharacter.tsx";
-import { pickArchetype } from "./archetypes.ts";
+import { archetypeFor } from "./archetypes.ts";
 import { useBanterStore } from "./banter.ts";
 import type { CharacterAnimationHandle } from "./CharacterModel.tsx";
 import { followersStore } from "./followers.ts";
-import { RiggedCharacter } from "./RiggedCharacter.tsx";
 
 const WALK_SPEED = 1.15;
 const TRAVEL_SPEED = 3.4;
@@ -76,11 +74,6 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
   // position prop must stay constant: movement is imperative, and a reactive
   // position would teleport the node whenever the sim relocates the NPC
   const [initialSpawn] = useState(() => ({ x: spawn.x, z: spawn.z, heading: spawn.heading }));
-  const visual = useMemo(() => {
-    const fallback = clothingColorsFor(npc.id);
-    const base = actorVisualFor(npc.appearance, fallback.color);
-    return base.accentColor === base.color ? { ...base, accentColor: fallback.accent } : base;
-  }, [npc.appearance, npc.id]);
   const personaText = `${npc.name} ${npc.role ?? ""} ${npc.description ?? ""}`;
   // Quaternius archetype rigs (CC0, fully animated, per-instance cloned) are the
   // primary models — far higher quality + variety than the procedural mannequin,
@@ -88,8 +81,8 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
   // path (VrmCharacter.tsx + vrm.ts) is shelved as beta while we lean on the
   // stronger stylized asset libraries.
   const archetypeKey = useMemo(
-    () => pickArchetype(personaText, npc.role ?? "", npc.appearance?.visualTags ?? []),
-    [personaText, npc.role, npc.appearance?.visualTags]
+    () => archetypeFor(personaText, npc.role ?? "", npc.appearance?.visualTags ?? [], npc.id),
+    [personaText, npc.role, npc.appearance?.visualTags, npc.id]
   );
   const inDialogue = useUiStore((state) => state.dialogueNpcId === npc.id);
   const banter = useBanterStore((state) => state.byNpc[npc.id]);
@@ -334,11 +327,7 @@ export function Npc({ npc, worldId, spawn, model, quests }: NpcProps) {
 
   return (
     <group ref={group} position={[initialSpawn.x, 0, initialSpawn.z]} rotation={[0, initialSpawn.heading, 0]}>
-      {archetypeKey ? (
-        <ArchetypeCharacter ref={animation} archetype={archetypeKey} />
-      ) : (
-        <RiggedCharacter ref={animation} visual={visual} appearance={npc.appearance} seedId={npc.id} personaText={personaText} />
-      )}
+      <ArchetypeCharacter ref={animation} archetype={archetypeKey} />
       {banter ? (
         <Billboard position={[0, 2.75, 0]}>
           <mesh position={[0, 0, -0.01]}>

@@ -4,8 +4,9 @@ import { memo, Suspense, useMemo } from "react";
 import * as THREE from "three";
 
 import type { CharacterAppearance } from "../../../src/types.ts";
-import { RiggedCharacter } from "../characters/RiggedCharacter.tsx";
-import { actorVisualFor, clothingColorsFor, stableHash } from "../mapping/visuals.ts";
+import { ArchetypeCharacter } from "../characters/ArchetypeCharacter.tsx";
+import { archetypeFor } from "../characters/archetypes.ts";
+import { stableHash } from "../mapping/visuals.ts";
 import type { FurnitureKind, FurnitureModel, InteriorModel } from "../worldgen/interiors.ts";
 import { FURNITURE_ASSETS, pickAsset } from "./asset-registry.ts";
 import { ToonGlb } from "./kenneyGlb.tsx";
@@ -68,13 +69,16 @@ export const Interior = memo(function Interior({
   const leftWidth = Math.max(0.1, gapCenter - DOOR_GAP / 2 - origin.x);
   const rightWidth = Math.max(0.1, origin.x + width - (gapCenter + DOOR_GAP / 2));
 
-  // inhabitant npc visual
+  // inhabitant npc — rendered as a stylized archetype model
   const inhabitant = interior.inhabitantId ? npcs.find((n) => n.id === interior.inhabitantId) : null;
-  const inhabitantVisual = useMemo(() => {
+  const inhabitantArchetype = useMemo(() => {
     if (!inhabitant) return null;
-    const fallback = clothingColorsFor(inhabitant.id);
-    const base = actorVisualFor(inhabitant.appearance, fallback.color);
-    return base.accentColor === base.color ? { ...base, accentColor: fallback.accent } : base;
+    return archetypeFor(
+      `${inhabitant.role ?? ""} ${inhabitant.description ?? ""}`,
+      inhabitant.role ?? "",
+      inhabitant.appearance?.visualTags ?? [],
+      inhabitant.id
+    );
   }, [inhabitant]);
 
   return (
@@ -176,17 +180,12 @@ export const Interior = memo(function Interior({
       </Billboard>
 
       {/* inhabitant NPC rendered as a decorative character at their anchor */}
-      {inhabitantVisual && interior.inhabitantAnchor ? (
+      {inhabitantArchetype && interior.inhabitantAnchor ? (
         <group
           position={[interior.inhabitantAnchor.x, 0, interior.inhabitantAnchor.z]}
           rotation={[0, interior.inhabitantAnchor.rotationY, 0]}
         >
-          <RiggedCharacter
-            visual={inhabitantVisual}
-            appearance={inhabitant?.appearance}
-            seedId={interior.inhabitantId ?? ""}
-            personaText={`${inhabitant?.role ?? ""} ${inhabitant?.description ?? ""}`}
-          />
+          <ArchetypeCharacter archetype={inhabitantArchetype} />
         </group>
       ) : null}
     </group>

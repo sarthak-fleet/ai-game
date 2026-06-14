@@ -68,13 +68,36 @@ export function pickArchetype(
   if (/soldier|guard|warrior|knight|slayer|patrol|watch|officer/.test(text)) return "soldier";
   if (/sci.?fi|cyber|android|robot|drone|cyborg|hacker|net/.test(text)) return "scifi";
   if (/punk|delinquent|rebel|thug|gang|street|biker/.test(text)) return "punk";
-  if (/farmer|peasant|villager|miller|herder|shepherd|fisher/.test(text)) return "farmer";
-  if (/worker|builder|laborer|construction|miner|engineer|smith|forge|mechanic/.test(text)) return "worker";
-  if (/business|suit|executive|banker|noble|gentleman|merchant|trader|baron|aristocrat/.test(text))
+  if (/farmer|peasant|villager|miller|herder|shepherd|fisher|gardener|garden|grower|botanist|cook|baker/.test(text))
+    return "farmer";
+  if (/worker|builder|laborer|construction|miner|engineer|smith|forge|mechanic|tinker|craft/.test(text))
+    return "worker";
+  if (/business|suit|executive|banker|noble|gentleman|merchant|trader|baron|aristocrat|innkeep|inn\b|host|bartend|barkeep|tavern|keeper|broker|vendor|shopkeep|clerk|elder/.test(text))
     return "businessman";
-  if (/adventurer|hero|explorer|wanderer|ranger|hunter|scout|traveler/.test(text)) return "adventurer";
+  if (/adventurer|hero|explorer|wanderer|ranger|hunter|scout|traveler|child|kid|young|student|analyst|witness|bystander/.test(text))
+    return "adventurer";
 
   return null;
+}
+
+const CIVILIAN_POOL: ArchetypeKey[] = ["adventurer", "farmer", "worker", "woman", "businessman"];
+
+function hashRotate(seed: string): ArchetypeKey {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return CIVILIAN_POOL[Math.abs(hash) % CIVILIAN_POOL.length]!;
+}
+
+/**
+ * Like `pickArchetype` but never null — unmatched personas get a deterministic
+ * civilian archetype (hash-rotated by seed) so EVERY character renders as a real
+ * model instead of the cheap procedural mannequin.
+ */
+export function archetypeFor(personaText: string, role: string, visualTags: string[], seedId: string): ArchetypeKey {
+  return pickArchetype(personaText, role, visualTags) ?? hashRotate(seedId);
 }
 
 /** Animation clip names baked into the Quaternius modular characters. */
