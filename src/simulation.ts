@@ -1055,6 +1055,10 @@ const MAX_MEMORIES_TO_EMBED = 40;
  * when embeddings are unavailable (no endpoint/error) — zero regression.
  */
 export async function retrieveMemoriesSemantic(world: World, npcId: string, query: string, limit = 3) {
+  // Embeddings are strictly opt-in: the default is the pure lexical+structured
+  // (zero-server, browser-capable) path. Set MEMORY_SEMANTIC_RECALL=1 to layer on
+  // semantic recall via the gateway.
+  if (process.env["MEMORY_SEMANTIC_RECALL"] !== "1") return retrieveMemories(world, npcId, query, limit);
   const queryEmbedding = await embed(query);
   if (!queryEmbedding) return retrieveMemories(world, npcId, query, limit);
   const npc = world.npcs.find((candidate) => candidate.id === npcId);

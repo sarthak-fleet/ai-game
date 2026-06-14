@@ -191,7 +191,7 @@ export function Dialogue() {
       if (brain.status === "ready" && world) {
         try {
           const system = buildNpcSystemPrompt(npc, world);
-          const user = buildNpcUserPrompt(lines, text, world.player.name ?? "You");
+          const user = buildNpcUserPrompt(npc, world, lines, text, world.player.name ?? "You");
           const reply = await brain.generate(system, user);
           if (reply) {
             talkBlip();

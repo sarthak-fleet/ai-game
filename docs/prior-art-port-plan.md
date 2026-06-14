@@ -47,9 +47,13 @@ below are permissively licensed (copyable WITH attribution).
    the gateway exposes `/embeddings` (set `LLM_MODEL_EMBED` if needed).** Pattern from
    AI Town `embeddingsCache.ts` (MIT). **Confirmed: the `free-ai` gateway DOES serve
    `/v1/embeddings`** (Workers AI `@cf/baai/bge-*`, Voyage, Gemini `text-embedding-004`);
-   `embed()` now defaults to `@cf/baai/bge-base-en-v1.5` + sends `project_id`, so it
-   activates against the live gateway. Next refinement: a *local* WebGPU embedder
-   (transformers.js, reuse `capabilities.ts`) so recall works with no server.
+   `embed()` now defaults to `@cf/baai/bge-base-en-v1.5` + sends `project_id`.
+   **Now strictly opt-in (`MEMORY_SEMANTIC_RECALL=1`); the default is pure
+   lexical+structured recall — zero server/network.** The scorer lives in a pure
+   browser-safe module (`src/memory-score.ts`), and the **in-browser local-LLM
+   dialogue now ranks NPC memories client-side** (`web3d/src/ai/npc-prompt.ts`) with
+   no server. Optional next: a *local* WebGPU embedder (transformers.js, reuse
+   `capabilities.ts`) for semantic recall with no server.
 2. ~~**Sleep-time consolidation (Letta)**~~ **SHIPPED (2026-06-14).** `src/consolidation.ts`
    distils each NPC's player-related memories + reflections into a standing
    `npc.playerImpression`, injected into the dialogue "STANDING BELIEFS" block. Runs

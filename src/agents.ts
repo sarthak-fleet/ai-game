@@ -1,4 +1,4 @@
-import { cosineSimilarity } from "./llm/cosine.ts";
+import { rankMemories, tokenize } from "./memory-score.ts";
 import { phasePressureRevealText, planRevealText, quietWorldRevealText } from "./story-context.ts";
 import type { AgentGoalKind, AgentIntent, AppliedAction, Memory, Npc, RelationshipAxes, ScheduleBlock, World } from "./types.ts";
 
@@ -160,12 +160,7 @@ export function counterplayForTension(worldId: string, tensionId: string): strin
 export function retrieveRelevantMemories(world: World, npcId: string, query: string, limit = 5, queryEmbedding?: number[]): RetrievedMemory[] {
   const npc = world.npcs.find((candidate) => candidate.id === npcId);
   if (!npc) return [];
-  const terms = tokenize(query);
-  return [...npc.memories]
-    .map((memory) => ({ ...memory, score: scoreMemory(world.tick, memory, terms, queryEmbedding) }))
-    .filter((memory) => memory.score > 0)
-    .sort((a, b) => b.score - a.score || b.tick - a.tick)
-    .slice(0, limit);
+  return rankMemories(npc.memories, world.tick, query, limit, queryEmbedding);
 }
 
 export function planAgentIntent(world: World, npc: Npc): AgentIntent {
@@ -340,48 +335,6 @@ function axesFromScore(score: number): Required<RelationshipAxes> {
     respect: Math.max(0, Math.floor(score / 2)),
     suspicion: Math.max(0, -score),
   };
-}
-
-function tokenize(text: string): string[] {
-  return text.toLowerCase().split(/\W+/).filter(Boolean);
-}
-
-// Memory retrieval score, ported from Generative Agents / "Smallville"
-// (joonspk-research/generative_agents, Apache-2.0) and AI Town
-// (a16z-infra/ai-town, MIT): combine normalized recency × importance × relevance
-// instead of raw additive scores. recency uses exponential decay over ticks;
-// each axis is normalized to ~[0,1] and weighted, so a salient/recent memory
-// still surfaces even without a keyword hit (closer to true GA retrieval).
-const MEMORY_RECENCY_DECAY = 0.97; // per tick; lower = forgets faster
-const MEMORY_W_RELEVANCE = 1.0;
-const MEMORY_W_IMPORTANCE = 1.0;
-const MEMORY_W_RECENCY = 1.0;
-const MEMORY_W_EMOTION = 0.3;
-
-function scoreMemory(currentTick: number, memory: Memory, terms: string[], queryEmbedding?: number[]): number {
-  const text = memory.text.toLowerCase();
-  const tags = (memory.meta?.tags ?? []).map((tag) => tag.toLowerCase());
-  // relevance: semantic cosine when both vectors exist (AI Town pattern),
-  // else fraction of query terms hit by text or tags, both in [0,1].
-  let relevance: number;
-  if (queryEmbedding && memory.meta?.embedding) {
-    relevance = (cosineSimilarity(queryEmbedding, memory.meta.embedding) + 1) / 2;
-  } else {
-    const hits = terms.length === 0 ? 0 : terms.filter((term) => text.includes(term) || tags.includes(term)).length;
-    relevance = terms.length === 0 ? 0 : hits / terms.length;
-  }
-  // importance: poignancy ~1–10 → [0,1]
-  const importance = Math.min(1, Math.max(0, (memory.meta?.importance ?? 1) / 10));
-  // recency: exponential decay since the memory was formed, in (0,1]
-  const recency = MEMORY_RECENCY_DECAY ** Math.max(0, currentTick - memory.tick);
-  // emotion: small bonus for emotionally charged memories, in [0,1]
-  const emotion = Math.min(1, Math.abs(memory.meta?.emotionalWeight ?? 0) / 10);
-  return (
-    MEMORY_W_RELEVANCE * relevance +
-    MEMORY_W_IMPORTANCE * importance +
-    MEMORY_W_RECENCY * recency +
-    MEMORY_W_EMOTION * emotion
-  );
 }
 
 function averageSuspicion(npc: Npc): number {
