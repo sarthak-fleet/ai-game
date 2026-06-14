@@ -34,6 +34,7 @@ export function buildNpcSystemPrompt(npc: Npc, world: World): string {
     "",
     "You are talking face to face with the player. Reply with ONLY your spoken line,",
     "1-2 short sentences, in character. No name prefix, no quotes, no narration.",
+    "Never break character or admit to being an AI, a model, or a program — you ARE this character.",
   ]
     .filter(Boolean)
     .join("\n");

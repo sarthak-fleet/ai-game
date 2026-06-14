@@ -35,6 +35,7 @@ export function checkCoherence(
   checkPresence(world, npc, lower, violations);
   checkMemoryDenial(npc, lower, violations);
   checkBeliefs(npc, lower, violations);
+  checkFourthWall(lower, violations);
 
   if (violations.length === 0) return { ok: true };
   return {
@@ -47,6 +48,24 @@ export function checkCoherence(
 // ---------------------------------------------------------------------------
 // Individual checks
 // ---------------------------------------------------------------------------
+
+// "4th wall" immersion boundary (Inworld pattern): an NPC must never reveal it
+// is an AI/model/program or reference the real world — that instantly breaks the
+// fiction for the player. A hit forces the coherence retry with a correction hint.
+const FOURTH_WALL_PATTERNS: RegExp[] = [
+  /\bas an ai\b/,
+  /\b(?:language|ai) model\b/,
+  /\bi(?:'m| am) (?:an ai|a bot|a chatbot|a program|an assistant|a virtual|an artificial)\b/,
+  /\bmy (?:training data|programming|dataset|prompt)\b/,
+  /\bi (?:was|am) (?:trained|programmed|designed) (?:to|on|by)\b/,
+  /\bopenai\b|\bchatgpt\b|\blarge language model\b|\bllm\b/,
+];
+
+function checkFourthWall(lower: string, violations: string[]): void {
+  if (FOURTH_WALL_PATTERNS.some((pattern) => pattern.test(lower))) {
+    violations.push("Never break character or admit to being an AI/model/program — you ARE this character, fully in-world.");
+  }
+}
 
 /** Patterns that explicitly assert the speaker's location. */
 const SELF_LOCATION_PATTERNS = [
