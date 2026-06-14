@@ -28,6 +28,9 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # the action auto-detects the repo's packageManager (pnpm) which isn't
+          # installed in this npm-based job; pin to npm so wrangler installs cleanly
+          packageManager: npm
           command: pages deploy astro-landing/dist --project-name=aliveville --branch=main
       - name: Smoke production
         run: curl --fail --silent --show-error --location https://aliveville.com/ --output /dev/null
