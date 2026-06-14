@@ -5,6 +5,7 @@ import {
   fetchAgentLoopStatus,
   fetchState,
   importWorldSource,
+  loadSnapshot,
   postTick,
   setAgentLoopRunning,
   subscribeEvents,
@@ -37,6 +38,7 @@ interface WorldStore {
   send: (action: PlayerAction) => Promise<TickSummary | null>;
   toggleAgentLoop: () => Promise<void>;
   importWorldFromJson: (text: string) => Promise<void>;
+  loadFromSnapshot: (world: World) => Promise<void>;
   pruneEvents: (now: number) => void;
   clearError: () => void;
 }
@@ -238,6 +240,27 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       const result = await importWorldSource(source as never);
       set({
         world: result.state,
+        events: [],
+        lastSummary: null,
+        importing: false,
+        error: null,
+        agentLoopRunning: false,
+        lastNpcInitiationAt: Number.NEGATIVE_INFINITY,
+      });
+      resetTransientWorldUiState();
+      await resetCombatForWorld();
+    } catch (error) {
+      set({ importing: false });
+      throw error;
+    }
+  },
+
+  async loadFromSnapshot(world) {
+    set({ importing: true });
+    try {
+      const state = await loadSnapshot(world);
+      set({
+        world: state,
         events: [],
         lastSummary: null,
         importing: false,

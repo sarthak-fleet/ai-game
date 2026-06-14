@@ -6,9 +6,22 @@ import type { Npc, World } from "../../../src/types.ts";
 import { api } from "../api/client.ts";
 import { ensureAudio, uiBlip } from "../audio/sfx.ts";
 import { actorVisualFor, clothingColorsFor } from "../mapping/visuals.ts";
+import { deleteSave, listSaves, opfsSupported, readSave, type SaveMeta } from "../platform/opfs-save.ts";
 import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
 import { CharacterPortrait } from "./CharacterPortrait.tsx";
+
+function relativeTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diff = Date.now() - then;
+  if (Number.isNaN(then)) return "";
+  const mins = Math.round(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
 
 // showcase mode hides world-import UI; flip on with VITE_ENABLE_IMPORT=1
 const IMPORT_ENABLED = import.meta.env["VITE_ENABLE_IMPORT"] === "1";
@@ -27,6 +40,7 @@ export function StartFlow() {
   const world = useWorldStore((state) => state.world);
   const send = useWorldStore((state) => state.send);
   const [worlds, setWorlds] = useState<BundledWorld[]>([]);
+  const [saves, setSaves] = useState<SaveMeta[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +55,31 @@ export function StartFlow() {
         setWorlds([]);
       }
     })();
+    if (opfsSupported()) void listSaves().then(setSaves).catch(() => setSaves([]));
   }, [phase]);
+
+  const loadSlot = async (meta: SaveMeta) => {
+    ensureAudio();
+    uiBlip();
+    setError(null);
+    setBusy(meta.id);
+    try {
+      const record = await readSave(meta.id);
+      if (!record) throw new Error("This save could not be read.");
+      await useWorldStore.getState().loadFromSnapshot(record.world);
+      setPhase("playing");
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeSlot = async (id: string) => {
+    uiBlip();
+    await deleteSave(id);
+    setSaves((current) => current.filter((save) => save.id !== id));
+  };
 
   if (phase === "playing") return null;
 
@@ -95,6 +133,43 @@ export function StartFlow() {
         <div className="start-brand">ALIVEVILLE</div>
         {phase === "title" ? (
           <>
+            {saves.length > 0 ? (
+              <div className="start-section">
+                <div className="start-heading">Continue your story</div>
+                <div className="saves-list">
+                  {saves.map((save) => (
+                    <div key={save.id} className={`save-card ${busy === save.id ? "busy" : ""}`}>
+                      <button
+                        type="button"
+                        className="save-card-main"
+                        disabled={busy !== null}
+                        onClick={() => void loadSlot(save)}
+                      >
+                        <div className="save-card-name">{busy === save.id ? "Loading…" : save.name}</div>
+                        <div className="save-card-meta">
+                          <span>{save.playerName}</span>
+                          <span className="save-dot">·</span>
+                          <span>day {save.day}, {String(save.hour).padStart(2, "0")}:00</span>
+                          <span className="save-dot">·</span>
+                          <span>Lv {save.level}</span>
+                        </div>
+                        <div className="save-card-time">{relativeTime(save.savedAt)}</div>
+                      </button>
+                      <button
+                        type="button"
+                        className="save-card-delete"
+                        title="Delete this save"
+                        aria-label={`Delete save ${save.name}`}
+                        disabled={busy !== null}
+                        onClick={() => void removeSlot(save.id)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="start-heading">Choose a world</div>
             <div className="start-grid">
               {world ? (

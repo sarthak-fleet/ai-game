@@ -1,24 +1,16 @@
 import { useEffect, useState } from "react";
 
 import { clipSupported, isRecording, startClip, stopClip } from "../platform/clip.ts";
-import { loadSession, opfsSupported, saveSession } from "../platform/opfs-save.ts";
+import { defaultSaveName, opfsSupported, writeSave } from "../platform/opfs-save.ts";
 import { vrSupported, xrStore } from "../platform/xr.ts";
 import { useWorldStore } from "../store/world.ts";
 
 /** Frontier utility chips: OPFS local save + canvas clip recording. */
 export function PlatformControls(): React.ReactElement | null {
   const world = useWorldStore((state) => state.world);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [recording, setRecording] = useState(false);
   const [vrOk, setVrOk] = useState(false);
-
-  useEffect(() => {
-    if (!opfsSupported()) return;
-    void (async () => {
-      const snapshot = await loadSession();
-      if (snapshot) setSavedAt(snapshot.savedAt);
-    })();
-  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -29,16 +21,11 @@ export function PlatformControls(): React.ReactElement | null {
   if (!world) return null;
 
   const save = async (): Promise<void> => {
-    if (!opfsSupported()) return;
-    const now = new Date().toISOString();
-    await saveSession({
-      worldId: world.id,
-      savedAt: now,
-      playerName: world.player.name ?? "Wanderer",
-      locationId: world.player.locationId,
-      level: world.player.growth?.level ?? 1,
-    });
-    setSavedAt(now);
+    if (!opfsSupported() || saveState === "saving") return;
+    setSaveState("saving");
+    const meta = await writeSave(world, defaultSaveName(world)).catch(() => null);
+    setSaveState(meta ? "saved" : "idle");
+    if (meta) window.setTimeout(() => setSaveState("idle"), 2200);
   };
 
   const toggleRecord = (): void => {
@@ -50,12 +37,18 @@ export function PlatformControls(): React.ReactElement | null {
     }
   };
 
-  const savedLabel = savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString()}` : "Save (OPFS)";
+  const savedLabel = saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved ✓" : "Save game";
 
   return (
     <>
       {opfsSupported() ? (
-        <button type="button" className="chip" title="Persist a local session snapshot to OPFS" onClick={() => void save()}>
+        <button
+          type="button"
+          className={`chip ${saveState === "saved" ? "on" : ""}`}
+          title="Save the full world to your browser — resume it from the start screen"
+          disabled={saveState === "saving"}
+          onClick={() => void save()}
+        >
           💾 {savedLabel}
         </button>
       ) : null}

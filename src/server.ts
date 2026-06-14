@@ -461,6 +461,24 @@ const server = createServer(async (req, res) => {
       return json(res, 400, { error: (error as Error).message });
     }
   }
+  if (url.pathname === "/api/load" && req.method === "POST") {
+    // Load a client-held save snapshot into this session. Non-admin (it only
+    // touches the caller's own cookie-scoped session) but rate-limited, same as
+    // /api/reset. Powers the OPFS multi-slot save/load on the start screen.
+    if (rateLimited(session, "replace_world")) return json(res, 429, { error: "rate_limited" });
+    const body = await readJson(req).catch(() => null);
+    try {
+      const snapshot = body && typeof body === "object" ? (body as { world?: World }) : null;
+      const incoming = snapshot?.world ?? (body as World | null);
+      if (!incoming || typeof incoming !== "object" || !("npcs" in incoming)) {
+        return json(res, 400, { error: "invalid_snapshot" });
+      }
+      const agentLoopStatus = await replaceEngineState(session, incoming);
+      return json(res, 200, { ok: true, state: engine.state, agentLoopStatus });
+    } catch (error) {
+      return json(res, 400, { error: (error as Error).message });
+    }
+  }
   if (url.pathname === "/api/agent-loop/status" && req.method === "GET") {
     return json(res, 200, agentLoop.status());
   }

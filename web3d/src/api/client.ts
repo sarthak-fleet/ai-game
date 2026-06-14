@@ -179,6 +179,18 @@ export async function importWorldSource(source: WorldIngestSource): Promise<Worl
   return data;
 }
 
+/** Push a saved world snapshot back into the live session (OPFS save → load). */
+export async function loadSnapshot(world: World): Promise<World> {
+  const res = await fetch(api("/api/load"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ world }),
+  });
+  const data = await readApiJson<WorldMutationResponse | { error: string }>(res, "loadSnapshot");
+  if ("error" in data) throw new Error(data.error);
+  return data.state;
+}
+
 export interface LiveEventHandlers {
   onTick: (summary: TickSummary) => void;
   onWorldReplaced: () => void;
