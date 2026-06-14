@@ -1,6 +1,5 @@
 ---
 import ThreeBackground from '../components/ThreeBackground.astro';
-import ThreePortal from '../components/ThreePortal.astro';
 import '../styles/global.css';
 ---
 <!doctype html>
@@ -172,6 +171,33 @@ import '../styles/global.css';
 
         .btn-pro:hover::after {
             left: 100%;
+        }
+
+        /* --- LARGE PRIMARY PLAY CTA --- */
+        .play-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6em;
+            padding: 1.15rem 3.5rem;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.15rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #1a1206;
+            background: linear-gradient(180deg, #ffd766, #f5a30b);
+            border-radius: 4px;
+            box-shadow: 0 0 0 1px rgba(248, 212, 78, 0.5), 0 18px 50px rgba(245, 158, 11, 0.35);
+            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s, letter-spacing 0.25s;
+            cursor: none;
+        }
+        .play-cta:hover {
+            transform: translateY(-3px) scale(1.03);
+            letter-spacing: 0.24em;
+            box-shadow: 0 0 0 1px rgba(248, 212, 78, 0.8), 0 26px 70px rgba(245, 158, 11, 0.55);
+        }
+        @media (max-width: 640px) {
+            .play-cta { padding: 1rem 2.4rem; font-size: 1rem; }
         }
 
         .tag {
@@ -414,11 +440,9 @@ import '../styles/global.css';
         <div class="nav-links">
             <a href="#about" class="glitch-hover">World</a>
             <a href="#features" class="glitch-hover">Protocols</a>
-            <a href="#portal" class="glitch-hover">Access</a>
+            <a href="#play" class="glitch-hover">Play</a>
         </div>
-        <button class="btn-pro magnetic-target" onclick="document.getElementById('portal-section').scrollIntoView({behavior: 'smooth'})">
-            PLAY IN BROWSER
-        </button>
+        <a href="/game/" class="btn-pro magnetic-target">PLAY IN BROWSER</a>
     </nav>
 
     <!-- HERO -->
@@ -440,10 +464,8 @@ import '../styles/global.css';
             <p class="max-w-3xl mx-auto text-xl text-white/40 font-light leading-relaxed animate-reveal" style="animation-delay: 0.2s">
                 Walk a 3D town where 5 AI agents live their own day — remembering people, holding grudges, and gossiping while you explore.
             </p>
-            <div class="flex justify-center gap-10 pt-8 animate-reveal" style="animation-delay: 0.4s">
-                <button class="btn-pro magnetic-target" onclick="document.getElementById('portal-section').scrollIntoView({behavior: 'smooth'})">
-                    PLAY IN BROWSER
-                </button>
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-8 pt-8 animate-reveal" style="animation-delay: 0.4s">
+                <a href="/game/" class="play-cta magnetic-target">▶ Play Now</a>
                 <button class="font-mono text-[0.6rem] uppercase tracking-[0.3em] text-white/30 hover:text-white transition-all border-b border-white/0 hover:border-white/20 pb-1 magnetic-target" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})">
                     SEE HOW IT WORKS
                 </button>
@@ -532,128 +554,31 @@ import '../styles/global.css';
         </div>
     </section>
 
-    <!-- THE PORTAL SECTION -->
-    <section id="portal-section" class="relative w-full h-[260vh] bg-[#010102] z-30">
-        <div class="sticky top-0 w-full h-screen overflow-hidden flex items-center justify-center px-6">
+    <!-- PLAY CTA -->
+    <section id="play" class="relative min-h-screen bg-[#010102] z-30">
+        <div class="w-full min-h-screen overflow-hidden flex items-center justify-center px-6 py-32">
 
-            <ThreePortal />
-
-            <div id="portal-frame" class="absolute inset-0 w-full h-full transform-gpu flex items-center justify-center overflow-hidden">
-                <video autoplay loop muted playsinline class="w-full h-full object-cover filter brightness-[0.35] contrast-150" id="portal-video">
+            <div class="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden">
+                <video autoplay loop muted playsinline class="w-full h-full object-cover filter brightness-[0.3] contrast-125">
                     <source src="/assets/garden_morning.mp4" type="video/mp4" />
                 </video>
-                <div class="absolute inset-0 bg-gradient-to-t from-[#010102] via-transparent to-[#010102]"></div>
+                <div class="absolute inset-0 bg-gradient-to-b from-[#010102] via-[#010102]/55 to-[#010102]"></div>
             </div>
 
-            <div id="portal-content" class="relative z-20 text-center space-y-8">
-                <span class="tag">Quantum Interface Ready</span>
-                <h2 class="font-display text-6xl md:text-[10rem] font-black uppercase tracking-tighter text-white">
-                    ACCESS ASHMENT
+            <div class="relative z-20 text-center max-w-4xl mx-auto space-y-10">
+                <span class="tag border-[#f8d44e]/30 text-[#f8d44e]">Runs in your browser — no install</span>
+                <h2 class="font-display text-5xl md:text-8xl font-black uppercase tracking-tighter text-white">
+                    Step into Ashment
                 </h2>
-                <p class="text-white/30 text-xl max-w-2xl mx-auto font-light leading-relaxed">
-                    The bridge is active. Deep-scroll to stabilize the connection and inhabit the world.
+                <p class="text-white/50 text-lg md:text-xl max-w-2xl mx-auto font-light leading-relaxed">
+                    A living 3D town of autonomous villagers who remember you, hold grudges, and gossip while you explore. Pick a hero and walk in.
                 </p>
-            </div>
-
-            <!-- CONTROL CENTER INTERFACE -->
-            <div id="game-overlay" class="absolute inset-0 z-50 opacity-0 pointer-events-none transition-opacity duration-1000 flex flex-col p-12">
-                <div class="control-center">
-                    <div class="control-header">
-                        <div class="flex items-center gap-8">
-                            <div class="flex items-center gap-4">
-                                <div class="status-dot"></div>
-                                <span class="font-mono text-[0.65rem] text-white/90 uppercase tracking-[0.3em]">World_Online</span>
-                            </div>
-                            <div class="w-px h-5 bg-white/10"></div>
-                            <span class="font-display text-sm text-white tracking-[0.3em] font-black">ASHMENT_CORE_v1.0</span>
-                        </div>
-                        <div class="flex gap-6 items-center">
-                            <button id="audio-toggle" class="text-[0.65rem] font-mono text-white/40 hover:text-white uppercase tracking-[0.2em] transition-colors border border-white/5 px-4 py-1.5 rounded-full">Audio: Off</button>
-                            <div class="w-px h-5 bg-white/10"></div>
-                            <span class="text-[0.65rem] font-mono text-white/40 uppercase tracking-[0.2em]">Region: Village_01</span>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 relative flex">
-                        <!-- LEFT HUD -->
-                        <div class="w-80 border-r border-white/5 bg-[#0a0a0c]/60 backdrop-blur-3xl p-10 flex flex-col gap-12">
-                            <div class="space-y-6">
-                                <h4 class="font-mono text-[0.6rem] text-white/20 uppercase tracking-[0.4em]">Social_Graph</h4>
-                                <div class="space-y-6">
-                                    <div class="flex items-center gap-4">
-                                        <div class="w-8 h-8 rounded-sm bg-[#ff8a65] flex items-center justify-center font-display text-xs text-black font-black">M</div>
-                                        <div class="flex-1">
-                                            <div class="flex justify-between text-[0.55rem] font-mono uppercase text-white/60 mb-2">
-                                                <span>Mira</span>
-                                                <span class="text-[#f8d44e]">Trusted</span>
-                                            </div>
-                                            <div class="h-[1px] w-full bg-white/5 overflow-hidden">
-                                                <div class="h-full bg-[#f8d44e] w-3/4 shadow-[0_0_10px_#f8d44e]"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-4 opacity-40">
-                                        <div class="w-8 h-8 rounded-sm bg-blue-500 flex items-center justify-center font-display text-xs text-black font-black">A</div>
-                                        <div class="flex-1">
-                                            <div class="flex justify-between text-[0.55rem] font-mono uppercase text-white/60 mb-2">
-                                                <span>Arin</span>
-                                                <span>Neutral</span>
-                                            </div>
-                                            <div class="h-[1px] w-full bg-white/5 overflow-hidden">
-                                                <div class="h-full bg-white/20 w-1/2"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mt-auto space-y-6">
-                                <h4 class="font-mono text-[0.6rem] text-white/20 uppercase tracking-[0.4em]">Activity_Log</h4>
-                                <div class="space-y-4">
-                                    <p class="ticker-line font-light">» Tending Garden [84%]</p>
-                                    <p class="ticker-line font-light">» Forging Guard Blade</p>
-                                    <p class="ticker-line text-[#f8d44e]">» Gossip Node Detected</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- MAIN GAME -->
-                        <div class="flex-1 relative cursor-none bg-black overflow-hidden group">
-                            <canvas class="bento-canvas absolute inset-0 z-0 opacity-20 pointer-events-none" data-type="cycles"></canvas>
-                            <canvas id="game-surface" class="relative z-10 w-full h-full"></canvas>
-                            <div class="absolute inset-0 pointer-events-none opacity-20 z-20" style="background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px);"></div>
-                        </div>
-
-                        <!-- CINEMATIC DIALOGUE OVERLAY -->
-                        <div id="cinematic-dialogue" class="absolute inset-0 z-40 opacity-0 pointer-events-none transition-all duration-1000 flex flex-col justify-end p-24">
-                            <div class="absolute inset-0 bg-black/85 backdrop-blur-2xl"></div>
-                            <div class="relative z-10 max-w-4xl mx-auto w-full flex flex-col items-center">
-                                <div id="dialogue-portrait" class="w-24 h-24 rounded-full border-2 border-[#f8d44e] mb-12 overflow-hidden bg-[#050507] shadow-[0_0_60px_rgba(248,212,78,0.2)] transition-transform duration-1000 scale-75">
-                                    <img src="" id="dialogue-img" class="w-full h-full object-cover" />
-                                </div>
-                                <h5 id="dialogue-name" class="font-display text-[#f8d44e] text-2xl uppercase tracking-[0.5em] mb-8 font-black">MIRA</h5>
-                                <p id="dialogue-text" class="font-garamond italic text-4xl md:text-6xl text-white/90 text-center leading-tight mb-16"></p>
-                                <button id="close-dialogue" class="text-[0.7rem] font-mono uppercase tracking-[0.4em] text-white/40 hover:text-white transition-all py-5 px-12 border border-white/10 rounded-full hover:border-white/30 hover:bg-white/5">
-                                    RESYNC_TERMINAL
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FOOTER CONTROLS -->
-                    <div class="px-10 py-5 bg-[#0a0a0c] border-t border-white/5 flex justify-between items-center">
-                        <p class="font-mono text-[0.6rem] text-white/30 uppercase tracking-[0.4em]">
-                            Nav: <span class="text-white/60">W_A_S_D</span> · Action: <span class="text-white/60">CLICK_NODE</span>
-                        </p>
-                        <div class="flex items-center gap-10">
-                            <span class="font-mono text-[0.6rem] text-white/30 uppercase tracking-[0.4em]">Sync-rate: 12ms</span>
-                            <div class="w-32 h-1 bg-white/5 rounded-full overflow-hidden">
-                                <div class="h-full bg-white/20 w-3/4"></div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="flex flex-col items-center gap-5 pt-4">
+                    <a href="/game/" class="play-cta magnetic-target">▶ Play Now</a>
+                    <span class="font-mono text-[0.6rem] uppercase tracking-[0.3em] text-white/30">WASD to move · click to talk</span>
                 </div>
             </div>
+
         </div>
     </section>
 
