@@ -31,6 +31,7 @@ import type {
   ActorId,
   AgentMood,
   AppliedAction,
+  CharacterAppearance,
   CombatState,
   Director,
   Item,
@@ -91,6 +92,23 @@ export function cloneWorld(world: World): World {
 
 function clonePlain<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/** Whitelist + bound a client-supplied player appearance (untrusted input). */
+function sanitizeAppearance(input: unknown): CharacterAppearance {
+  const raw = (input ?? {}) as Record<string, unknown>;
+  const out: CharacterAppearance = {};
+  if (Array.isArray(raw["palette"])) {
+    out.palette = raw["palette"].filter((c): c is string => typeof c === "string").slice(0, 4);
+  }
+  if (Array.isArray(raw["visualTags"])) {
+    out.visualTags = raw["visualTags"].filter((t): t is string => typeof t === "string").slice(0, 12);
+  }
+  for (const key of ["bodyType", "sourceLook", "hair", "outfit", "silhouette"] as const) {
+    const value = raw[key];
+    if (typeof value === "string") out[key] = value.slice(0, 200);
+  }
+  return out;
 }
 
 export interface EngineOptions {
@@ -396,7 +414,7 @@ export function applyAction(world: World, action: Action): ActionResult {
           ...world.player,
           characterId: undefined,
           name: "Wanderer",
-          appearance: undefined,
+          appearance: action.appearance ? sanitizeAppearance(action.appearance) : undefined,
           coins: world.player.coins ?? STARTING_COINS,
         };
         reassignArcRoles(world);
@@ -405,11 +423,14 @@ export function applyAction(world: World, action: Action): ActionResult {
       const chosen = mustNpc(world, action.targetId);
       const playerLocation = world.player?.locationId ?? chosen.locationId;
       chosen.locationId = playerLocation;
+      const baseAppearance = chosen.appearance ? clonePlain(chosen.appearance) : undefined;
       world.player = {
         ...world.player,
         characterId: chosen.id,
         name: chosen.name,
-        appearance: chosen.appearance ? clonePlain(chosen.appearance) : undefined,
+        appearance: action.appearance
+          ? { ...(baseAppearance ?? {}), ...sanitizeAppearance(action.appearance) }
+          : baseAppearance,
         locationId: playerLocation,
         coins: world.player.coins ?? STARTING_COINS,
       };
@@ -425,6 +446,7 @@ export function applyAction(world: World, action: Action): ActionResult {
       const cleaned = sanitizePlayerName(action.name);
       if (!cleaned) return { applied: false, action: action as Action, reason: "Invalid name." };
       world.player.name = cleaned;
+      if (action.appearance) world.player.appearance = sanitizeAppearance(action.appearance);
       return applied(action, `Player renamed to ${cleaned}.`);
     }
     case "inspect": {

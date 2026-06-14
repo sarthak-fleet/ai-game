@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 
 import { combatMovesFor } from "../../../src/combat.ts";
 import { DEFAULT_HERO_NAME, sanitizePlayerName } from "../../../src/player-defaults.ts";
-import type { Npc, World } from "../../../src/types.ts";
+import type { CharacterAppearance, Npc, World } from "../../../src/types.ts";
 import { api } from "../api/client.ts";
 import { ensureAudio, uiBlip } from "../audio/sfx.ts";
-import { actorVisualFor, clothingColorsFor } from "../mapping/visuals.ts";
+import { type ActorVisual, actorVisualFor, type BodyShape, clothingColorsFor } from "../mapping/visuals.ts";
 import { deleteSave, listSaves, opfsSupported, readSave, type SaveMeta } from "../platform/opfs-save.ts";
 import { useUiStore } from "../store/ui.ts";
 import { useWorldStore } from "../store/world.ts";
@@ -109,20 +109,17 @@ export function StartFlow() {
     }
   };
 
-  const selectCharacter = async (npcId: string | null, heroName?: string) => {
+  const selectCharacter = async (npcId: string | null, heroName?: string, appearance?: CharacterAppearance) => {
     ensureAudio();
     uiBlip();
     if (npcId) {
       setBusy(npcId);
-      await send({ type: "choose_character", targetId: npcId });
-      setBusy(null);
-    } else if (heroName) {
-      setBusy("name");
-      await send({ type: "set_name", name: heroName });
+      await send({ type: "choose_character", targetId: npcId, ...(appearance ? { appearance } : {}) });
       setBusy(null);
     } else {
-      await send({ type: "choose_character" });
-
+      setBusy("name");
+      await send({ type: "set_name", name: heroName || "Wanderer", ...(appearance ? { appearance } : {}) });
+      setBusy(null);
     }
     setPhase("playing");
   };
@@ -269,6 +266,53 @@ const WANDERER = {
   color: "#c8382a",
 };
 
+const SKIN_TONES = ["#f6d2b0", "#e8b894", "#cf9a6c", "#a86b3c", "#7a4a28", "#4e3018"];
+const OUTFIT_COLORS = ["#3c5a78", "#4a7a6a", "#7a4a52", "#56648a", "#6a5a3c", "#5d4a73", "#b23b3b", "#2f6f6f"];
+const ACCENT_COLORS = ["#e8c95a", "#7fd0ff", "#ff9a6a", "#b5e48c", "#e88aa8", "#9fe8dd", "#f2e2b0", "#c9b8ff"];
+const BUILDS: Array<{ key: BodyShape; label: string }> = [
+  { key: "slim", label: "Slim" },
+  { key: "average", label: "Average" },
+  { key: "broad", label: "Broad" },
+  { key: "small", label: "Small" },
+  { key: "caped", label: "Caped" },
+  { key: "mechanical", label: "Mech" },
+];
+
+interface LookState {
+  skin: string;
+  outfit: string;
+  accent: string;
+  build: BodyShape;
+}
+
+function initialLook(npc: Npc | null): LookState {
+  if (npc) {
+    const visual = actorVisualFor(npc.appearance, clothingColorsFor(npc.id).color);
+    return { skin: visual.skinColor, outfit: visual.color, accent: visual.accentColor, build: visual.bodyShape };
+  }
+  return { skin: "#e8b894", outfit: "#3c5a78", accent: "#e8c95a", build: "average" };
+}
+
+function SwatchRow({ label, colors, value, onChange }: { label: string; colors: string[]; value: string; onChange: (color: string) => void }) {
+  return (
+    <div className="look-row">
+      <span className="look-label">{label}</span>
+      <div className="look-swatches">
+        {colors.map((color) => (
+          <button
+            key={color}
+            type="button"
+            className={`look-swatch ${value.toLowerCase() === color.toLowerCase() ? "selected" : ""}`}
+            style={{ background: color }}
+            aria-label={`${label}: ${color}`}
+            onClick={() => onChange(color)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CharacterSelect({
   world,
   busy,
@@ -277,7 +321,7 @@ function CharacterSelect({
 }: {
   world: World | null;
   busy: string | null;
-  onPick: (npcId: string | null, heroName?: string) => void;
+  onPick: (npcId: string | null, heroName?: string, appearance?: CharacterAppearance) => void;
   onBack: () => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -337,21 +381,34 @@ function CharacterDetail({
   busy: string | null;
   heroName: string;
   onHeroNameChange: (name: string) => void;
-  onPick: (npcId: string | null, heroName?: string) => void;
+  onPick: (npcId: string | null, heroName?: string, appearance?: CharacterAppearance) => void;
 }) {
-  const visual = npc ? actorVisualFor(npc.appearance, clothingColorsFor(npc.id).color) : null;
   const hp = npc?.combat?.maxHp ?? 120;
   const moves = combatMovesFor({ ...world, player: { ...world.player, characterId: npc?.id ?? undefined } } as World).slice(0, 4);
   const locationName = npc ? world.locations.find((entry) => entry.id === npc.locationId)?.name : "the city gates";
   const personality = [...(npc?.traits?.personality ?? []), ...(npc?.traits?.values ?? [])].slice(0, 5);
   const goal = npc?.goals?.[0] ?? npc?.ambitions?.[0]?.title;
 
-  const portraitVisual = visual ?? { color: "#1c2540", accentColor: "#c8382a", skinColor: "#e8c39e", bodyShape: "average" as const };
+  // look state, reset whenever the selected character changes (render-time keyed reset)
+  const [lookNpcId, setLookNpcId] = useState<string | null>(npc?.id ?? null);
+  const [look, setLook] = useState<LookState>(() => initialLook(npc));
+  if (lookNpcId !== (npc?.id ?? null)) {
+    setLookNpcId(npc?.id ?? null);
+    setLook(initialLook(npc));
+  }
+
+  // drives the live turntable preview AND what we persist on pick
+  const previewVisual: ActorVisual = { color: look.outfit, accentColor: look.accent, skinColor: look.skin, bodyShape: look.build };
+  const chosenAppearance: CharacterAppearance = {
+    ...(npc?.appearance ?? {}),
+    palette: [look.outfit, look.skin, look.accent],
+    bodyType: look.build,
+  };
 
   return (
     <div className="char-detail">
       <div className="char-detail-main">
-        <CharacterPortrait visual={portraitVisual} npc={npc} />
+        <CharacterPortrait visual={previewVisual} npc={npc} />
         <div className="char-detail-body">
           <div className="char-detail-head">
             <div>
@@ -412,7 +469,33 @@ function CharacterDetail({
           />
         </div>
       ) : null}
-      <button type="button" className="char-pick" disabled={busy !== null} onClick={() => onPick(npc?.id ?? null, npc ? undefined : heroName)}>
+      <div className="char-look">
+        <div className="char-look-title">Appearance</div>
+        <SwatchRow label="Skin" colors={SKIN_TONES} value={look.skin} onChange={(skin) => setLook((current) => ({ ...current, skin }))} />
+        <SwatchRow label="Outfit" colors={OUTFIT_COLORS} value={look.outfit} onChange={(outfit) => setLook((current) => ({ ...current, outfit }))} />
+        <SwatchRow label="Accent" colors={ACCENT_COLORS} value={look.accent} onChange={(accent) => setLook((current) => ({ ...current, accent }))} />
+        <div className="look-row">
+          <span className="look-label">Build</span>
+          <div className="look-builds">
+            {BUILDS.map((build) => (
+              <button
+                key={build.key}
+                type="button"
+                className={`look-build ${look.build === build.key ? "selected" : ""}`}
+                onClick={() => setLook((current) => ({ ...current, build: build.key }))}
+              >
+                {build.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="char-pick"
+        disabled={busy !== null}
+        onClick={() => onPick(npc?.id ?? null, npc ? undefined : heroName, chosenAppearance)}
+      >
         {busy ? "Becoming…" : npc ? `Become ${npc.name}` : "Begin as the Wanderer"}
       </button>
     </div>
