@@ -18,6 +18,7 @@ import { interiorForBuilding } from "../worldgen/interiors.ts";
 import { ArcPanel } from "./ArcPanel.tsx";
 import { Chronicle } from "./Chronicle.tsx";
 import { Dialogue } from "./Dialogue.tsx";
+import { FpsCounter } from "./FpsCounter.tsx";
 import { FrontierHud } from "./FrontierHud.tsx";
 import { ImportScreen } from "./ImportScreen.tsx";
 import { Letterbox } from "./Letterbox.tsx";
@@ -194,6 +195,8 @@ export function Hud() {
       <ArcPanel />
 
       <Minimap />
+
+      <FpsCounter />
 
       <FrontierHud />
 

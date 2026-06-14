@@ -61,6 +61,14 @@ function authHeaders(): Record<string, string> {
   return key ? { authorization: `Bearer ${key}` } : {};
 }
 
+// Force-pinning a single model defeats the gateway's health-aware fallback: when
+// that model is rate-limited/exhausted the call returns empty → NPCs go "lost in
+// thought". Default to advisory (body.model is a hint; the gateway routes to a
+// healthy model). Opt back into strict pinning with LLM_FORCE_MODEL=1.
+function forceModelHeader(model: string): Record<string, string> {
+  return process.env["LLM_FORCE_MODEL"] === "1" ? { "x-gateway-force-model": model } : {};
+}
+
 
 export interface CompleteTextRequest {
   tier?: Tier;
@@ -134,10 +142,7 @@ export async function proposeAction({ tier = "normal", system, user, signal }: P
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...authHeaders(),
-        // free-ai gateway treats body.model as advisory; this header pins it.
-        // Other OpenAI-compatible backends ignore the extra header.
-        "x-gateway-force-model": model,
+        ...authHeaders(),        ...forceModelHeader(model),
       },
       body: JSON.stringify(body),
       signal: ac.signal,
@@ -194,10 +199,7 @@ export async function streamText({ tier = "quest", system, user, signal, onToken
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...authHeaders(),
-        // free-ai gateway treats body.model as advisory; this header pins it.
-        // Other OpenAI-compatible backends ignore the extra header.
-        "x-gateway-force-model": model,
+        ...authHeaders(),        ...forceModelHeader(model),
       },
       body: JSON.stringify({
         model,
@@ -279,10 +281,7 @@ export async function completeText({ tier = "quest", system, user, signal, timeo
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...authHeaders(),
-        // free-ai gateway treats body.model as advisory; this header pins it.
-        // Other OpenAI-compatible backends ignore the extra header.
-        "x-gateway-force-model": model,
+        ...authHeaders(),        ...forceModelHeader(model),
       },
       body: JSON.stringify({
         model,
