@@ -56,8 +56,8 @@ recorded; require one before resuming feature expansion. See
 | Kokoro TTS + Web Speech | shipped | see `web3d/src/platform/` |
 | OPFS multi-slot saves | shipped | |
 | PWA | shipped | manifest + service worker (prod-only) |
-| Director Console (operator rail) | shipped | see `openspec/specs/director-console/spec.md` |
-| Rival guided onboarding | shipped (capped) | see `openspec/specs/rival-guided-onboarding/spec.md` |
+| Director Console (operator rail) | shipped | see [`PROJECT_STATUS.md`](../../PROJECT_STATUS.md) |
+| Rival guided onboarding | shipped (capped) | see [`core-gameplay-fix.md`](../current/core-gameplay-fix.md) |
 | Human fun verdict | deferred | gate for north-star work |
 | Vendor/shop UI | planned | economy actions exist, UI not wired |
 | Interior depth + interactables | planned | |

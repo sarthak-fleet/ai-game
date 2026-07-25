@@ -152,8 +152,8 @@ What's **built + tested** (the safely-buildable spine):
   through world/character selection and the guide, then resume when the player
   acknowledges completion. Other worlds keep normal autostart.
 - **Local readiness evidence** — `pnpm verify:readiness` passes (62 files / 463
-  tests, lint/typecheck, production 3D build); strict OpenSpec validation passes;
-  headless desktop and 390×844 Rival runs advance the guide, verify loop
+  tests, lint/typecheck, production 3D build); headless desktop and 390×844
+  Rival runs advance the guide, verify loop
   pause/resume, and finish with zero browser errors.
 
 What's **deferred — needs a playtest before expansion resumes (your verdict, per §5), not more code**:

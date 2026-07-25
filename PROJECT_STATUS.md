@@ -1,8 +1,9 @@
 # ai-game — PROJECT STATUS
 
-**Portfolio state (2026-07-13): Support / capped experiment.** The Rival-readiness milestone is closed for now under an explicit product-owner deferment. No human fun/not-fun verdict was recorded; require one before resuming feature expansion.
+**Portfolio state (2026-07-25): Ignored / inactive.** No routine work or
+planning remains. Explicit reactivation is required before feature work.
 
-Last updated: 2026-07-13
+Last updated: 2026-07-25
 
 ## Why / What
 
@@ -58,8 +59,10 @@ Last updated: 2026-07-13
 
 ## Timeline
 
-- **2026-07-13** — Rival local acceptance completed on `agent/rival-readiness`: a non-modal, persisted move → talk → fight → consequence guide replaces the static controls dump for `rival_duel`; Rival pressure now waits until guide acknowledgement; malformed `score` fields in authored tensions were corrected to finite `pressure`; local RUM no longer sends production beacons. `pnpm verify:readiness` passes (62 files / 463 tests plus production 3D build), strict OpenSpec validation passes, and the Rival headless flow completes at desktop and 390×844 with zero browser errors. The product owner closed this capped milestone for now and deferred the human playtest; no fun/not-fun verdict is claimed.
-- **2026-07-05** — GOD-inspired Director Console shipped: optional in-game right rail for operators to pause/resume/step the live agent loop, inspect tick/pressure/objective, scan residents, and read the latest trace/Chronicle events while keeping normal play HUD closed by default. Archived OpenSpec change: `openspec/changes/archive/2026-07-05-add-director-console/`; durable spec: `openspec/specs/director-console/spec.md`.
+- **2026-07-25** — Moved to the ignored/inactive Fleet tier. Historical planning
+  artifacts were removed; shipped outcomes remain recorded here and in Git.
+- **2026-07-13** — Rival local acceptance completed on `agent/rival-readiness`: a non-modal, persisted move → talk → fight → consequence guide replaces the static controls dump for `rival_duel`; Rival pressure now waits until guide acknowledgement; malformed `score` fields in authored tensions were corrected to finite `pressure`; local RUM no longer sends production beacons. `pnpm verify:readiness` passes (62 files / 463 tests plus production 3D build), and the Rival headless flow completes at desktop and 390×844 with zero browser errors. The product owner closed this capped milestone for now and deferred the human playtest; no fun/not-fun verdict is claimed.
+- **2026-07-05** — GOD-inspired Director Console shipped: optional in-game right rail for operators to pause/resume/step the live agent loop, inspect tick/pressure/objective, scan residents, and read the latest trace/Chronicle events while keeping normal play HUD closed by default.
 - **2026-07-03** — "The Rival" vertical slice authored: `worlds/rival-duel.json` — a self-contained scenario with one named rival NPC (Kael) whose goal conflicts with the player's, a 3-NPC camp (Kael, Marta, Claim Boss Verna), 5 locations, 3 quests (clear shaft, expose theft, showdown), combat stats for the rival, villain plan with rising pressure, and a clear win/lose condition. 7 tests in `tests/rival-duel.test.ts` verify world structure, arc creation, quest loops, and reachability. The spine from `docs/core-gameplay-fix.md` §6 is now wired to a concrete playable scenario — fun-tuning and the human playtest verdict remain.
 - **2026-07-02** — Added React `<ErrorBoundary>` to web3d app (wrapping `App` in `main.tsx`); removed unused `posthog-js` dependency.
 - **2026-06-20** — Headless smoke re-verified: `pnpm playtest:game` exit 0, zero console/page errors.
