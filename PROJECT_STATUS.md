@@ -7,9 +7,9 @@ Last updated: 2026-08-05
 
 ## Why / What
 
-**Aliveville** is a browser-playable AI world simulator at **aliveville.com/game**. The product thesis: a living town where autonomous NPC agents, quests, combat, and LLM dialogue make a small district feel alive — not a tech demo of frontier APIs.
+**AliveVille** is a browser-playable AI world simulator at **aliveville.com/game**. The product thesis: a living town where autonomous NPC agents, quests, combat, and LLM dialogue make a small district feel alive — not a tech demo of frontier APIs.
 
-**Repository naming:** local checkout is `ai-game`; GitHub repository is `sarthakagrawal927/aliveville`; public product name is Aliveville.
+**Repository naming:** local checkout is `ai-game`; GitHub repository is `sarthakagrawal927/aliveville`; public product name is AliveVille.
 
 **Users:** Players exploring a 3D anime-chibi town; fleet operators deploying the sim edge stack; future creators importing fandom/original worlds.
 
@@ -59,6 +59,9 @@ Last updated: 2026-08-05
 
 ## Timeline
 
+- **2026-08-05** — Aligned the repository's public identity with the canonical
+  **AliveVille** spelling and documented the verified human and agent discovery
+  entrypoints without changing the separately deployed marketing site.
 - **2026-08-05** — Added path-scoped IndexNow ownership verification for the
   playable `/game/` Worker surface, allowing changed game URLs to be submitted
   without modifying the separately deployed landing site.
@@ -66,7 +69,7 @@ Last updated: 2026-08-05
   search identity, VideoGame structured data, no-JavaScript product context,
   and its own sitemap entry. The root site now publishes a structured agent
   catalog, an expanded `llms-full.txt`, and Markdown mirrors for every public
-  sitemap route. The canonical public name is now consistently Aliveville in
+  sitemap route. The canonical public name is now consistently AliveVille in
   repository and status surfaces; deployment and indexing remain separate
   manual steps.
 - **2026-07-25** — Moved to the ignored/inactive Fleet tier. Historical planning
@@ -202,6 +205,6 @@ Last updated: 2026-08-05
 
 ### Blocked
 
-- **Closure decision (updated 2026-07-13):** keep Aliveville as a support / capped experiment. The Rival-readiness milestone is administratively closed for now; the human verdict is deferred, not passed, and remains the first gate before any deferred north-star expansion.
+- **Closure decision (updated 2026-07-13):** keep AliveVille as a support / capped experiment. The Rival-readiness milestone is administratively closed for now; the human verdict is deferred, not passed, and remains the first gate before any deferred north-star expansion.
 - Worker DO missing 5 local-server endpoints (story-package, import-story-package, load, restore-checkpoint, portrait) — prod parity blocked until ported.
 - Game worker deploy is manual (`pnpm build:3d && npx wrangler deploy`); CI does not deploy game.

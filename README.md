@@ -1,12 +1,22 @@
-# Aliveville — AI World Simulator
-
-Play: https://aliveville.com/game/
+# AliveVille — AI World Simulator
 
 Homepage: https://aliveville.com/
 
+Play AliveVille: https://aliveville.com/game/
+
 Live marketing site: `ai-game/astro-landing` (Astro + Three.js). Deploys to Cloudflare Pages.
 
-Aliveville is a browser-playable AI world simulator deployed at **aliveville.com/game**. The active client is the 3D browser game (`web3d/`). The simulation server, world ingest, autonomous agent loop, quests, saves, and LLM routing live in `src/`.
+AliveVille is a browser-playable AI world simulator deployed at **aliveville.com/game**. The active client is the 3D browser game (`web3d/`). The simulation server, world ingest, autonomous agent loop, quests, saves, and LLM routing live in `src/`.
+
+## Agent-Readable Entrypoints
+
+- [Concise product guide](https://aliveville.com/llms.txt)
+- [Complete public product guide](https://aliveville.com/llms-full.txt)
+- [Structured agent catalog](https://aliveville.com/api/ai)
+- [Homepage as Markdown](https://aliveville.com/index.md)
+- [Playable game as Markdown](https://aliveville.com/game/index.md)
+- [Crawler rules](https://aliveville.com/robots.txt)
+- [Sitemap index](https://aliveville.com/sitemap-index.xml)
 
 ## Current Shape
 
