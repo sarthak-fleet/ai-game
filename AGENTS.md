@@ -4,9 +4,9 @@ Also read and follow the shared fleet-level agent standard at `../AGENTS.md`. Tr
 
 ## Purpose
 
-**Aliveville** is a browser-playable AI world simulator at aliveville.com/game. The active client is the 3D browser game (`web3d/`). The simulation server, world ingest, autonomous agent loop, quests, saves, and LLM routing live in `src/`. The Cloudflare Worker edge deploy (`worker/`) hosts one `GameSessionDO` per visitor session. The Astro marketing site (`astro-landing/`) is live — do not modify.
+**AliveVille** is a browser-playable AI world simulator at aliveville.com/game. The active client is the 3D browser game (`web3d/`). The simulation server, world ingest, autonomous agent loop, quests, saves, and LLM routing live in `src/`. The Cloudflare Worker edge deploy (`worker/`) hosts one `GameSessionDO` per visitor session. The Astro marketing site (`astro-landing/`) is live — do not modify.
 
-**Naming**: local checkout `ai-game`; GitHub repo `sarthakagrawal927/aliveville`; public product name Aliveville.
+**Naming**: local checkout `ai-game`; GitHub repo `sarthakagrawal927/aliveville`; public product name AliveVille.
 
 ## Essential commands
 
