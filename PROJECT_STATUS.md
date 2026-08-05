@@ -3,7 +3,7 @@
 **Portfolio state (2026-07-25): Ignored / inactive.** No routine work or
 planning remains. Explicit reactivation is required before feature work.
 
-Last updated: 2026-07-25
+Last updated: 2026-08-05
 
 ## Why / What
 
@@ -59,6 +59,9 @@ Last updated: 2026-07-25
 
 ## Timeline
 
+- **2026-08-05** — Added path-scoped IndexNow ownership verification for the
+  playable `/game/` Worker surface, allowing changed game URLs to be submitted
+  without modifying the separately deployed landing site.
 - **2026-08-05** — The playable `/game/` route gained a complete canonical
   search identity, VideoGame structured data, no-JavaScript product context,
   and its own sitemap entry. The root site now publishes a structured agent
@@ -170,6 +173,7 @@ Last updated: 2026-07-25
 ### Edge & infra
 
 - Cloudflare Worker `aliveville` on route `aliveville.com/game*`; `GameSessionDO` migration v1.
+- Path-scoped IndexNow ownership key at `/game/fa7259e2e0d942f1a1267b344a75a143.txt`.
 - Astro landing live at aliveville.com (CI: `deploy-aliveville.yml` → Pages project `aliveville`).
 - Lifelikeness regression harness (`src/probes/`, `pnpm probe:lifelikeness`).
 - Retired: 2D Phaser client, Unreal bridge, one-off bench scripts (superseded by probes).
