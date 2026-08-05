@@ -1,5 +1,7 @@
 export { GameSessionDO } from './session-do.ts';
 
+import { serveIndexNowKey } from './indexnow.ts';
+
 interface Env {
   SESSIONS: DurableObjectNamespace;
   ASSETS: Fetcher;
@@ -11,6 +13,9 @@ const MAX_BODY_BYTES = 1_500_000;
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    const indexNowKey = serveIndexNowKey(url.pathname);
+    if (indexNowKey) return indexNowKey;
 
     // the game lives under /game (aliveville.com root is the landing site)
     if (url.pathname === '/' || url.pathname === '/game') {
