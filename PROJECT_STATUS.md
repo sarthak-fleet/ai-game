@@ -9,7 +9,7 @@ Last updated: 2026-07-25
 
 **Aliveville** is a browser-playable AI world simulator at **aliveville.com/game**. The product thesis: a living town where autonomous NPC agents, quests, combat, and LLM dialogue make a small district feel alive — not a tech demo of frontier APIs.
 
-**Repository naming:** local checkout is `ai-game`; GitHub repository is `sarthakagrawal927/aliveville`; public product name is AliveVille.
+**Repository naming:** local checkout is `ai-game`; GitHub repository is `sarthakagrawal927/aliveville`; public product name is Aliveville.
 
 **Users:** Players exploring a 3D anime-chibi town; fleet operators deploying the sim edge stack; future creators importing fandom/original worlds.
 
@@ -59,6 +59,13 @@ Last updated: 2026-07-25
 
 ## Timeline
 
+- **2026-08-05** — The playable `/game/` route gained a complete canonical
+  search identity, VideoGame structured data, no-JavaScript product context,
+  and its own sitemap entry. The root site now publishes a structured agent
+  catalog, an expanded `llms-full.txt`, and Markdown mirrors for every public
+  sitemap route. The canonical public name is now consistently Aliveville in
+  repository and status surfaces; deployment and indexing remain separate
+  manual steps.
 - **2026-07-25** — Moved to the ignored/inactive Fleet tier. Historical planning
   artifacts were removed; shipped outcomes remain recorded here and in Git.
 - **2026-07-13** — Rival local acceptance completed on `agent/rival-readiness`: a non-modal, persisted move → talk → fight → consequence guide replaces the static controls dump for `rival_duel`; Rival pressure now waits until guide acknowledgement; malformed `score` fields in authored tensions were corrected to finite `pressure`; local RUM no longer sends production beacons. `pnpm verify:readiness` passes (62 files / 463 tests plus production 3D build), and the Rival headless flow completes at desktop and 390×844 with zero browser errors. The product owner closed this capped milestone for now and deferred the human playtest; no fun/not-fun verdict is claimed.
@@ -191,6 +198,6 @@ Last updated: 2026-07-25
 
 ### Blocked
 
-- **Closure decision (updated 2026-07-13):** keep AliveVille as a support / capped experiment. The Rival-readiness milestone is administratively closed for now; the human verdict is deferred, not passed, and remains the first gate before any deferred north-star expansion.
+- **Closure decision (updated 2026-07-13):** keep Aliveville as a support / capped experiment. The Rival-readiness milestone is administratively closed for now; the human verdict is deferred, not passed, and remains the first gate before any deferred north-star expansion.
 - Worker DO missing 5 local-server endpoints (story-package, import-story-package, load, restore-checkpoint, portrait) — prod parity blocked until ported.
 - Game worker deploy is manual (`pnpm build:3d && npx wrangler deploy`); CI does not deploy game.

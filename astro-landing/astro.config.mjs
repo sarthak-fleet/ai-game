@@ -8,7 +8,11 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'never',
   build: { format: 'file', inlineStylesheets: 'always' },
-  integrations: [sitemap()],
+  integrations: [
+    sitemap({
+      customPages: ['https://aliveville.com/game/'],
+    }),
+  ],
   vite: {
     plugins: [tailwindcss()],
     css: { transformer: 'lightningcss' },

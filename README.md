@@ -1,6 +1,8 @@
-# Aliveville / AI World Simulator
+# Aliveville — AI World Simulator
 
-Website: https://aliveville.com/game
+Play: https://aliveville.com/game/
+
+Homepage: https://aliveville.com/
 
 Live marketing site: `ai-game/astro-landing` (Astro + Three.js). Deploys to Cloudflare Pages.
 

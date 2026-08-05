@@ -14,7 +14,7 @@ NPC agents, quests, combat, and LLM dialogue make a small district feel alive
 
 - **Local checkout**: `ai-game`
 - **GitHub repository**: `sarthakagrawal927/aliveville`
-- **Public product name**: AliveVille
+- **Public product name**: Aliveville
 
 ## Users
 
