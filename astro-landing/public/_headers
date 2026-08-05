@@ -10,3 +10,15 @@
 
 /*.html
   Cache-Control: public, max-age=300, s-maxage=300, stale-while-revalidate=60
+
+/api/ai
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: public, max-age=300, s-maxage=300
+
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+  Cache-Control: public, max-age=300, s-maxage=300
+
+/llms*.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300, s-maxage=300

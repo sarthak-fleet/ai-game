@@ -1,20 +1,22 @@
 # Aliveville
 
-> Aliveville is an interactive AI world experiment — a persistent ecosystem exploring autonomous agent behavior, narrative emergence, and playable 3D exploration.
+> Aliveville is a browser-playable 3D AI world simulator where autonomous characters remember, react, form relationships, and create emergent stories.
 
-Marketing site at aliveville.com. Game client and simulation code live in the ai-game monorepo.
+The public game is available without an install at https://aliveville.com/game/.
 
 ## Product
 
-- [Home](https://aliveville.com/): Interactive landing and world preview
-- [Privacy](https://aliveville.com/privacy): Privacy policy for this site
+- [Homepage](https://aliveville.com/): Product overview and world preview
+- [Play Aliveville](https://aliveville.com/game/): Browser-playable 3D simulation
+- [Complete agent brief](https://aliveville.com/llms-full.txt): Expanded product facts and capabilities
+- [Agent catalog](https://aliveville.com/api/ai): Structured JSON inventory of public surfaces
+- [Homepage Markdown](https://aliveville.com/index.md): Product overview without JavaScript
+- [Game Markdown](https://aliveville.com/game/index.md): Playable-game capabilities without JavaScript
+- [Privacy](https://aliveville.com/privacy): Privacy policy
 - [Terms](https://aliveville.com/terms): Terms of use
 
-## Source
+## Source and publisher
 
-- [GitHub — AliveVille](https://github.com/sarthakagrawal927/aliveville): Monorepo (simulation, web3d client, Astro landing)
-
-## Optional
-
-- [Foundry](https://sassmaker.com): Fleet showcase
+- [GitHub source](https://github.com/sarthakagrawal927/aliveville): Simulation, 3D client, edge Worker, and landing site
+- [SaaS Maker](https://sassmaker.com): Public software studio and publisher directory
 - [Sarthak Agrawal](https://sarthakagrawal.dev): Builder portfolio

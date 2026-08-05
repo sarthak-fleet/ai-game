@@ -1,0 +1,42 @@
+{
+  "name": "Aliveville",
+  "version": "1",
+  "url": "https://aliveville.com",
+  "llms": "https://aliveville.com/llms.txt",
+  "llmsFull": "https://aliveville.com/llms-full.txt",
+  "sitemap": "https://aliveville.com/sitemap-index.xml",
+  "markdown": {
+    "suffix": ".md",
+    "negotiation": false
+  },
+  "surfaces": [
+    {
+      "id": "home",
+      "url": "https://aliveville.com/",
+      "md": "https://aliveville.com/index.md",
+      "kind": "static"
+    },
+    {
+      "id": "game",
+      "url": "https://aliveville.com/game/",
+      "md": "https://aliveville.com/game/index.md",
+      "kind": "static"
+    },
+    {
+      "id": "privacy",
+      "url": "https://aliveville.com/privacy",
+      "md": "https://aliveville.com/privacy.md",
+      "kind": "static"
+    },
+    {
+      "id": "terms",
+      "url": "https://aliveville.com/terms",
+      "md": "https://aliveville.com/terms.md",
+      "kind": "static"
+    }
+  ],
+  "auth": {
+    "public": true,
+    "notes": "The public homepage, game entrypoint, policies, and machine-readable product information do not require an account."
+  }
+}
