@@ -1,0 +1,55 @@
+---
+import LegalLayout from '../layouts/LegalLayout.astro';
+---
+<LegalLayout
+  title="AI World Simulator in the Browser — Aliveville"
+  description="What an AI world simulator is, how Aliveville runs autonomous NPCs with memory in a 3D town, and how to play free in the browser without install."
+  path="/ai-world-simulator"
+>
+  <main style="max-width:42rem;margin:2rem auto;padding:0 1.25rem 3rem;font-family:ui-sans-serif,system-ui,sans-serif;line-height:1.6;color:#d1d1d6;background:#010102;min-height:100vh">
+    <p style="margin:0 0 1rem"><a href="/" style="color:#f8d44e">← Aliveville</a></p>
+    <h1 style="font-size:1.75rem;line-height:1.25;color:#fff;margin:0 0 1rem">AI world simulator: playable civilization agents in the browser</h1>
+    <p>
+      An <strong>AI world simulator</strong> is a persistent environment where characters act on their own goals
+      instead of waiting for a scripted quest marker. Aliveville is a browser-playable 3D version of that idea:
+      a small town of autonomous agents who remember people, hold grudges, form relationships, and create
+      emergent stories while you walk around.
+    </p>
+    <p>
+      <a href="/game/" style="color:#f8d44e">Play Aliveville free in the browser</a> — no install, no account wall for the public demo.
+    </p>
+
+    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">How Aliveville differs from chat NPCs</h2>
+    <ul>
+      <li><strong>Agents keep living when you look away</strong> — the day continues; they are not only dialogue trees.</li>
+      <li><strong>Memory and social state</strong> — who they met, what they were offered, and how prior encounters went.</li>
+      <li><strong>3D town you can explore</strong> — walk the map; overhear and interrupt instead of only opening a chat panel.</li>
+      <li><strong>Browser-native</strong> — try the public build without downloading a client.</li>
+    </ul>
+
+    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Who this is for</h2>
+    <p>
+      Players who want an AI civilization / life-sim sandbox; builders studying agent memory and multi-agent
+      social loops; anyone comparing “AI world simulator” products that claim autonomous NPCs rather than
+      single-player chat skins.
+    </p>
+
+    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Try it</h2>
+    <ol>
+      <li>Open <a href="/game/" style="color:#f8d44e">aliveville.com/game</a> in a modern desktop browser.</li>
+      <li>Explore the town and watch agents act without you driving every line of dialogue.</li>
+      <li>Read the product overview on the <a href="/" style="color:#f8d44e">homepage</a> or the machine-readable brief in <a href="/llms.txt" style="color:#f8d44e">llms.txt</a>.</li>
+    </ol>
+
+    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Limits (honest)</h2>
+    <p>
+      Aliveville is an early, opinionated simulator — not a full MMORPG or a research benchmark suite.
+      Agent count, world size, and dialogue quality are bounded by the public browser build. Claims about
+      “living AI people” mean autonomous simulation loops with memory, not general intelligence.
+    </p>
+
+    <p style="margin-top:2rem">
+      Source: <a href="https://github.com/sarthakagrawal927/aliveville" style="color:#f8d44e">github.com/sarthakagrawal927/aliveville</a>
+    </p>
+  </main>
+</LegalLayout>

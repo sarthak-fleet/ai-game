@@ -17,6 +17,12 @@
       "kind": "static"
     },
     {
+      "id": "ai-world-simulator",
+      "url": "https://aliveville.com/ai-world-simulator",
+      "md": "https://aliveville.com/ai-world-simulator.md",
+      "kind": "static"
+    },
+    {
       "id": "game",
       "url": "https://aliveville.com/game/",
       "md": "https://aliveville.com/game/index.md",
