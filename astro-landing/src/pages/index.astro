@@ -7,20 +7,20 @@ import '../styles/global.css';
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aliveville — A browser-playable AI world simulator</title>
-    <meta name="description" content="Aliveville is a browser-playable AI world simulator. Walk a 3D town where autonomous agents live, remember, and react in real time. No install." />
+    <title>Aliveville — AI civilization simulation game in the browser</title>
+    <meta name="description" content="Play an AI civilization simulation in the browser: a 3D town of autonomous agents that live, remember, and react. No install. Free to try." />
     <meta name="keywords" content="AI world simulator, browser AI game, autonomous NPCs, 3D AI town, playable AI simulation, persistent AI agents" />
     <meta name="author" content="Sarthak Agrawal" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <link rel="canonical" href="https://aliveville.com/" />
     <meta property="og:url" content="https://aliveville.com/" />
-    <meta property="og:title" content="Aliveville — A browser-playable AI world simulator" />
-    <meta property="og:description" content="Walk a 3D town where autonomous AI agents live, remember, and react in real time. Plays in the browser." />
+    <meta property="og:title" content="Aliveville — AI civilization simulation game in the browser" />
+    <meta property="og:description" content="AI world / civilization simulation in the browser — autonomous NPCs with memory. No install." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://aliveville.com/assets/ashment_intro_square.jpg" />
     <meta property="og:site_name" content="Aliveville" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Aliveville — A browser-playable AI world simulator" />
+    <meta name="twitter:title" content="Aliveville — AI civilization simulation game in the browser" />
     <meta name="twitter:description" content="Walk a 3D town where 5 AI agents live their own day — remembering people, holding grudges, and gossiping while you explore." />
     <meta name="twitter:image" content="https://aliveville.com/assets/ashment_intro_square.jpg" />
     <style>
@@ -245,6 +245,32 @@ import '../styles/global.css';
             background: linear-gradient(180deg, #fff 40%, rgba(255, 255, 255, 0.1) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+        }
+
+        @media (max-width: 768px) {
+            nav {
+                padding:
+                    max(1rem, env(safe-area-inset-top))
+                    max(1rem, env(safe-area-inset-right))
+                    1rem
+                    max(1rem, env(safe-area-inset-left));
+            }
+
+            nav .logo {
+                font-size: 1rem;
+                letter-spacing: 0.22em;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            nav .btn-pro {
+                min-height: 44px;
+                padding: 12px 14px;
+                font-size: 0.6rem;
+                letter-spacing: 0.12em;
+            }
         }
 
         /* --- ANIMATIONS ---
@@ -904,6 +930,10 @@ import '../styles/global.css';
 
             // --- TEXT SCRAMBLE (defer — hero h1 must paint as ASHMENT first) ---
             const runScramble = () => {
+                const supportsScramble = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+                    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                if (!supportsScramble) return;
+
                 const scrambleElements = document.querySelectorAll('.scramble-text');
                 scrambleElements.forEach((el: any) => {
                     const finalValue = el.dataset.value;
