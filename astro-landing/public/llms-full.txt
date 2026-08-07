@@ -53,3 +53,7 @@ Aliveville is a playable game, not a general-purpose chatbot or a claim that lan
 ## Boundaries
 
 Aliveville does not require an account on its public marketing domain. The game and its behavior can change as the experiment evolves. Public machine-readable pages intentionally include product facts and policies, not credentials, private operational material, unpublished plans, or user data.
+
+## Category guide
+
+- AI world simulator: https://aliveville.com/ai-world-simulator

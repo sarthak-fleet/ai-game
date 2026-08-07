@@ -33,7 +33,13 @@ describe('Aliveville game search identity', () => {
     };
 
     expect(catalog.llmsFull).toBe('https://aliveville.com/llms-full.txt');
-    expect(catalog.surfaces?.map(({ id }) => id)).toEqual(['home', 'game', 'privacy', 'terms']);
+    expect(catalog.surfaces?.map(({ id }) => id)).toEqual([
+      'home',
+      'ai-world-simulator',
+      'game',
+      'privacy',
+      'terms',
+    ]);
 
     for (const surface of catalog.surfaces ?? []) {
       const pathname = new URL(surface.md).pathname;
