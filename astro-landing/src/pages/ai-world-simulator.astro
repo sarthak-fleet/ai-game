@@ -1,51 +1,76 @@
 ---
-import LegalLayout from '../layouts/LegalLayout.astro';
+const title = 'AI World Simulator in the Browser — Aliveville';
+const description =
+  'What an AI world simulator is, how Aliveville runs autonomous NPCs with memory in a 3D town, and how to play free in the browser without install.';
+const canonical = 'https://aliveville.com/ai-world-simulator';
 ---
-<LegalLayout title="AI World Simulator in the Browser — Aliveville" description="What an AI world simulator is, how Aliveville runs autonomous NPCs with memory in a 3D town, and how to play free in the browser without install." path="/ai-world-simulator">
-  <main style="max-width:42rem;margin:0 auto;padding:4rem 1.5rem;line-height:1.7;color:#d1d1d6;">
-    <a href="/" style="font-size:0.75rem;color:#888;">← Aliveville</a>
-    <h1 style="margin-top:1rem;font-size:2rem;color:#fff;">AI world simulator: playable civilization agents in the browser</h1>
-    <p style="margin-top:1rem;">
-      An <strong>AI world simulator</strong> is a persistent environment where characters act on their own goals
-      instead of waiting for a scripted quest marker. Aliveville is a browser-playable 3D version of that idea:
-      a small town of autonomous agents who remember people, hold grudges, form relationships, and create
-      emergent stories while you walk around.
-    </p>
-    <p>
-      <a href="/game/" style="color:#f8d44e">Play Aliveville free in the browser</a> — no install, no account wall for the public demo.
-    </p>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="keywords" content="AI world simulator, browser AI game, autonomous NPCs, 3D AI town, playable AI simulation, persistent AI agents" />
+    <meta name="author" content="Sarthak Agrawal" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Aliveville" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  </head>
+  <body style="margin:0;background:#010102;">
+    <main style="max-width:42rem;margin:0 auto;padding:4rem 1.5rem;line-height:1.7;color:#d1d1d6;font-family:ui-sans-serif,system-ui,sans-serif;">
+      <a href="/" style="font-size:0.75rem;color:#888;">← Aliveville</a>
+      <h1 style="margin-top:1rem;font-size:2rem;color:#fff;">AI world simulator: playable civilization agents in the browser</h1>
+      <p style="margin-top:1rem;">
+        An <strong>AI world simulator</strong> is a persistent environment where characters act on their own goals
+        instead of waiting for a scripted quest marker. Aliveville is a browser-playable 3D version of that idea:
+        a small town of autonomous agents who remember people, hold grudges, form relationships, and create
+        emergent stories while you walk around.
+      </p>
+      <p>
+        <a href="/game/" style="color:#f8d44e">Play Aliveville free in the browser</a> — no install, no account wall for the public demo.
+      </p>
 
-    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">How Aliveville differs from chat NPCs</h2>
-    <ul>
-      <li><strong>Agents keep living when you look away</strong> — the day continues; they are not only dialogue trees.</li>
-      <li><strong>Memory and social state</strong> — who they met, what they were offered, and how prior encounters went.</li>
-      <li><strong>3D town you can explore</strong> — walk the map; overhear and interrupt instead of only opening a chat panel.</li>
-      <li><strong>Browser-native</strong> — try the public build without downloading a client.</li>
-    </ul>
+      <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">How Aliveville differs from chat NPCs</h2>
+      <ul>
+        <li><strong>Agents keep living when you look away</strong> — the day continues; they are not only dialogue trees.</li>
+        <li><strong>Memory and social state</strong> — who they met, what they were offered, and how prior encounters went.</li>
+        <li><strong>3D town you can explore</strong> — walk the map; overhear and interrupt instead of only opening a chat panel.</li>
+        <li><strong>Browser-native</strong> — try the public build without downloading a client.</li>
+      </ul>
 
-    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Who this is for</h2>
-    <p>
-      Players who want an AI civilization / life-sim sandbox; builders studying agent memory and multi-agent
-      social loops; anyone comparing “AI world simulator” products that claim autonomous NPCs rather than
-      single-player chat skins.
-    </p>
+      <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Who this is for</h2>
+      <p>
+        Players who want an AI civilization / life-sim sandbox; builders studying agent memory and multi-agent
+        social loops; anyone comparing “AI world simulator” products that claim autonomous NPCs rather than
+        single-player chat skins.
+      </p>
 
-    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Try it</h2>
-    <ol>
-      <li>Open <a href="/game/" style="color:#f8d44e">aliveville.com/game</a> in a modern desktop browser.</li>
-      <li>Explore the town and watch agents act without you driving every line of dialogue.</li>
-      <li>Read the product overview on the <a href="/" style="color:#f8d44e">homepage</a> or the machine-readable brief in <a href="/llms.txt" style="color:#f8d44e">llms.txt</a>.</li>
-    </ol>
+      <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Try it</h2>
+      <ol>
+        <li>Open <a href="/game/" style="color:#f8d44e">aliveville.com/game</a> in a modern desktop browser.</li>
+        <li>Explore the town and watch agents act without you driving every line of dialogue.</li>
+        <li>Read the product overview on the <a href="/" style="color:#f8d44e">homepage</a> or the machine-readable brief in <a href="/llms.txt" style="color:#f8d44e">llms.txt</a>.</li>
+      </ol>
 
-    <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Limits (honest)</h2>
-    <p>
-      Aliveville is an early, opinionated simulator — not a full MMORPG or a research benchmark suite.
-      Agent count, world size, and dialogue quality are bounded by the public browser build. Claims about
-      “living AI people” mean autonomous simulation loops with memory, not general intelligence.
-    </p>
+      <h2 style="color:#fff;font-size:1.25rem;margin:2rem 0 0.75rem">Limits (honest)</h2>
+      <p>
+        Aliveville is an early, opinionated simulator — not a full MMORPG or a research benchmark suite.
+        Agent count, world size, and dialogue quality are bounded by the public browser build. Claims about
+        “living AI people” mean autonomous simulation loops with memory, not general intelligence.
+      </p>
 
-    <p style="margin-top:2rem">
-      Source: <a href="https://github.com/sarthakagrawal927/aliveville" style="color:#f8d44e">github.com/sarthakagrawal927/aliveville</a>
-    </p>
-  </main>
-</LegalLayout>
+      <p style="margin-top:2rem">
+        Source: <a href="https://github.com/sarthakagrawal927/aliveville" style="color:#f8d44e">github.com/sarthakagrawal927/aliveville</a>
+      </p>
+    </main>
+  </body>
+</html>
