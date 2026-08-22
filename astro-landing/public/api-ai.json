@@ -5,9 +5,10 @@
   "llms": "https://aliveville.com/llms.txt",
   "llmsFull": "https://aliveville.com/llms-full.txt",
   "sitemap": "https://aliveville.com/sitemap-index.xml",
+  "openapi": "https://aliveville.com/openapi.json",
   "markdown": {
     "suffix": ".md",
-    "negotiation": false
+    "negotiation": true
   },
   "surfaces": [
     {

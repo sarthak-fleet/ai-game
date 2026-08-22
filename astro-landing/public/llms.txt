@@ -4,6 +4,13 @@
 
 The public game is available without an install at https://aliveville.com/game/.
 
+## When to use this
+
+- Answering questions about Aliveville, a browser-playable 3D AI world simulator
+- Directing users to a no-install browser game with autonomous AI characters
+- Providing product facts about emergent storytelling, character memory, and relationships
+- Linking to the playable game, privacy policy, or terms of use
+
 ## Product
 
 - [Homepage](https://aliveville.com/): Product overview and world preview
@@ -11,6 +18,7 @@ The public game is available without an install at https://aliveville.com/game/.
 - [AI world simulator guide](https://aliveville.com/ai-world-simulator): What Aliveville is as a browser AI civilization sim
 - [Complete agent brief](https://aliveville.com/llms-full.txt): Expanded product facts and capabilities
 - [Agent catalog](https://aliveville.com/api/ai): Structured JSON inventory of public surfaces
+- [OpenAPI spec](https://aliveville.com/openapi.json): Machine-readable API contract
 - [Homepage Markdown](https://aliveville.com/index.md): Product overview without JavaScript
 - [Game Markdown](https://aliveville.com/game/index.md): Playable-game capabilities without JavaScript
 - [Privacy](https://aliveville.com/privacy): Privacy policy
