@@ -1,8 +1,13 @@
 /**
  * Cloudflare Pages Functions middleware — agent SEO surfaces for aliveville.com.
- * Handles /openapi.json, JSON error responses, Vary: Accept, rate-limit headers,
- * and agent-friendly 404s with markdown recovery body.
+ * Handles /openapi.json, JSON error responses, Accept: text/markdown negotiation
+ * for pages with .md alternates, Vary: Accept, rate-limit headers, and
+ * agent-friendly 404s with markdown recovery body.
  */
+
+interface Env {
+  ASSETS: Fetcher;
+}
 
 const SITE_ORIGIN = 'https://aliveville.com';
 
@@ -179,6 +184,17 @@ function wantsMarkdown(request: Request): boolean {
   return accept.indexOf('text/markdown') < accept.indexOf('text/html');
 }
 
+function normalizePath(pathname: string): string {
+  if (!pathname || pathname === '/') return '/';
+  const withSlash = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return withSlash.replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/';
+}
+
+function markdownPathFor(pathname: string): string {
+  const path = normalizePath(pathname);
+  return path === '/' ? '/index.md' : `${path}.md`;
+}
+
 function withRateLimit(headers: Headers): Headers {
   headers.set('ratelimit-limit', String(RATE_LIMIT));
   headers.set('ratelimit-remaining', String(RATE_LIMIT));
@@ -220,11 +236,8 @@ function markdown404(pathname: string, origin: string): Response {
   return new Response(body, { status: 404, headers });
 }
 
-export async function onRequest(context: {
-  request: Request;
-  next: () => Promise<Response>;
-}): Promise<Response> {
-  const { request, next } = context;
+export const onRequest: PagesFunction<Env> = async (context) => {
+  const { request, env, next } = context;
   const url = new URL(request.url);
   const pathname = url.pathname;
   const origin = url.origin;
@@ -244,6 +257,30 @@ export async function onRequest(context: {
   // JSON error for unknown /api/* paths (excluding /api/ai which is a static file)
   if (pathname.startsWith('/api/') && pathname !== '/api/ai') {
     return jsonError(404, 'not_found', `Unknown API path: ${pathname}`, pathname);
+  }
+
+  // Accept: text/markdown negotiation for HTML pages that have a .md alternate.
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    !pathname.endsWith('.md') &&
+    !pathname.includes('.') &&
+    !pathname.startsWith('/api/') &&
+    wantsMarkdown(request)
+  ) {
+    const mdPath = markdownPathFor(pathname);
+    const mdUrl = new URL(mdPath, url);
+    const mdReq = new Request(mdUrl.toString(), request);
+    const mdResp = await env.ASSETS.fetch(mdReq);
+    if (mdResp.status === 200) {
+      const headers = withRateLimit(new Headers(mdResp.headers));
+      headers.set('content-type', 'text/markdown; charset=utf-8');
+      headers.set('vary', 'Accept, Accept-Encoding');
+      headers.set('x-content-type-options', 'nosniff');
+      return new Response(request.method === 'HEAD' ? null : mdResp.body, {
+        status: 200,
+        headers,
+      });
+    }
   }
 
   // Pass through to static assets first — only intercept 404s after.
