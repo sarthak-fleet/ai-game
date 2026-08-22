@@ -32,6 +32,11 @@ jobs:
           # the action auto-detects the repo's packageManager (pnpm) which isn't
           # installed in this npm-based job; pin to npm so wrangler installs cleanly
           packageManager: npm
-          command: pages deploy astro-landing/dist --project-name=aliveville --branch=main
+          # Run from astro-landing/ so wrangler finds astro-landing/functions/_middleware.ts.
+          # Wrangler looks for functions/ relative to the CWD, not the deploy
+          # directory — deploying from the repo root with `pages deploy astro-landing/dist`
+          # silently skips the functions directory.
+          workingDirectory: astro-landing
+          command: pages deploy dist --project-name=aliveville --branch=main
       - name: Smoke production
         run: curl --fail --silent --show-error --location --output /dev/null --retry 3 --retry-delay 5 --max-time 20 https://aliveville.com/
