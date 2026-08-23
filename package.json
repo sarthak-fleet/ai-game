@@ -35,6 +35,7 @@
     "size": "size-limit",
     "size:check": "size-limit --json",
     "deploy": "node scripts/manual-deploy.mjs deploy-aliveville.yml ci.yml",
+    "deploy:worker": "pnpm run typecheck && pnpm exec wrangler deploy --tag \"$(git rev-parse HEAD)\"",
     "knip": "knip --no-exit-code --reporter symbols",
     "knip:strict": "knip --reporter symbols"
   },
