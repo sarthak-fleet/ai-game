@@ -23,6 +23,18 @@ const { title } = Astro.props;
 	<body class="text-[#dcdde1] antialiased selection:bg-[#c2a36b]/30 selection:text-white">
 		
 		<slot />
+		<script
+			is:inline
+			src="https://sassmaker.com/project-strip.js"
+			data-project="ai-game"
+			defer
+		></script>
+		<script
+			is:inline
+			src="https://sassmaker.com/ai-chat-footer.js"
+			data-name="AliveVille"
+			defer
+		></script>
 
 	</body>
 </html>
