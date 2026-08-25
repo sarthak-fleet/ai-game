@@ -39,11 +39,11 @@ Deploy (manual): `pnpm build:3d && npx wrangler deploy`. See `docs/operations/de
 - **Short current view**: `STATUS.md`
 - **Deep timeline + feature log**: `PROJECT_STATUS.md`
 - **Docs index**: `docs/index.md` — the canonical knowledge system (product, architecture, decisions, development, operations, knowledge, current, archive).
-- **Working on docs**: `docs/development/docs.md` — tree, rules, validation, Blume rendering.
+- **Working on docs**: `docs/development/docs.md` — tree, rules, and validation.
 
 ## Documentation maintenance
 
-1. **Markdown under `docs/` is the source of truth.** Blume (`blume.config.ts`) is only the presentation/search layer; generated output (`docs-dist/`, `.blume/`) is gitignored.
+1. **Markdown under `docs/` is the source of truth.** The repository validator checks frontmatter, links, and structure.
 2. **One canonical home per fact.** Don't re-explain something that already has a doc — link to it.
 3. **Don't duplicate code-discoverable facts.** Link to the file or command instead.
 4. **Every `docs/**/*.md` (except `archive/`) needs a `title` in frontmatter.** Validate with `node scripts/check-docs.mjs` (CI runs this via `.github/workflows/docs.yml`).

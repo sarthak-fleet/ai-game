@@ -8,8 +8,7 @@ sidebar:
 # Aliveville docs
 
 This is the canonical knowledge system for the Aliveville / `ai-game`
-repository. The committed Markdown here is the source of truth;
-[Blume](https://useblume.dev) is only the presentation and search layer.
+repository. The committed Markdown here is the source of truth.
 
 - **Short current view**: [`../STATUS.md`](../STATUS.md)
 - **Deep timeline + feature log**: [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md)

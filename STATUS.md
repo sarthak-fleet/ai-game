@@ -17,8 +17,8 @@ resuming feature expansion.
 ## Active work
 
 - **Documentation consolidation** — this knowledge system (in progress,
-  2026-07-18): reorganized `docs/` into a canonical structure, split ADRs
-  into individual files, added Blume presentation layer + validation.
+  2026-07-18): reorganized `docs/` into a canonical structure and split ADRs
+  into individual files with validation.
 - **Rival guided onboarding** — shipped (capped 2026-07-13). The move →
   talk → fight → consequence guide is wired; the human playtest verdict is
   deferred.
@@ -41,8 +41,8 @@ resuming feature expansion.
 - Should the human Rival playtest be conducted before or after wiring the
   vendor/shop UI? (Economy actions exist; the UI does not.)
 - When should the 5 missing local-only endpoints be ported to the Worker DO?
-- Is a published docs domain (docs.aliveville.com) warranted, or do the
-  committed Markdown + Blume local build suffice for now?
+- Is a published docs domain (docs.aliveville.com) warranted, or are the
+  committed Markdown files sufficient for now?
 
 ## Next steps
 

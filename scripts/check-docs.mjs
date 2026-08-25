@@ -66,13 +66,13 @@ const linkRe = /\[[^\]]+\]\(([^)]+)\)/g;
 for (const file of docsFiles) {
   const rel = toRepoPosix(file);
   const text = readFileSync(file, 'utf8');
-  // Archived docs are preserved for git history, not rendered as canonical
-  // Blume pages. Skip frontmatter + link checks for them (their links are
+  // Archived docs are preserved for git history, not treated as canonical
+  // pages. Skip frontmatter + link checks for them (their links are
   // expected to be stale relative to their original locations).
   if (isArchive(file)) continue;
   const fm = readFrontmatter(text);
   if (!fm?.title) {
-    errors.push(`${rel}: missing frontmatter \`title\` (Blume renders it as the page heading).`);
+    errors.push(`${rel}: missing frontmatter \`title\`.`);
   }
 
   for (const m of text.matchAll(linkRe)) {

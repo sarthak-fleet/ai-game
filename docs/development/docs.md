@@ -1,14 +1,13 @@
 ---
 title: Working on docs
-description: How the docs tree is organized, validated, and rendered with Blume.
+description: How the docs tree is organized and validated.
 sidebar:
   order: 4
 ---
 
 # Working on docs
 
-The committed Markdown under `docs/` is the **source of truth**. Blume is only
-the presentation/search layer. Code and executable configuration remain
+The committed Markdown under `docs/` is the **source of truth**. Code and executable configuration remain
 authoritative for implementation details and schedules.
 
 ## Tree
@@ -35,8 +34,8 @@ docs/
 
 1. **One canonical home per fact.** Don't re-explain something that already
    has a doc — link to it.
-2. **Markdown is the source of truth.** Blume config, generated HTML, and
-   search indexes are derived artifacts.
+2. **Markdown is the source of truth.** Generated presentation artifacts are
+   not part of this repository's documentation contract.
 3. **Don't duplicate code-discoverable facts.** Link to the file or command
    instead.
 4. **Mark unresolved questions explicitly** — do not invent information.
@@ -50,8 +49,8 @@ docs/
 
 ## Frontmatter
 
-Every `docs/**/*.md` (except `archive/`) must have a `title` in frontmatter —
-Blume renders it as the page heading. Optional fields: `description`,
+Every `docs/**/*.md` (except `archive/`) must have a `title` in frontmatter.
+Optional fields: `description`,
 `sidebar.order`.
 
 ## Validate
@@ -69,25 +68,6 @@ verifies:
 - Every relative Markdown link resolves to a file that exists.
 - No empty `docs/` subdirectories.
 
-Archived docs are preserved for git history, not rendered as canonical Blume
-pages. The checker skips frontmatter + link checks for `docs/archive/**`.
-
-## Render with Blume
-
-```bash
-pnpm docs:dev      # local Blume dev server (npx blume dev)
-pnpm docs:build    # static build → docs-dist/ (npx blume build)
-```
-
-Blume is fetched on first run via `npx`. To pin a version, run
-`pnpm add -D blume` and switch the scripts to `blume dev` / `blume build`.
-
-Blume config: [`../../blume.config.ts`](../../blume.config.ts). Generated
-output (`docs-dist/`, `.blume/`) is gitignored and never committed.
-
-## Fleet Blume context
-
-See the [fleet-wide Blume install pattern](https://github.com/sass-maker/fleet-workspace/blob/main/fleet-ops/docs/blume-docs.md)
-for the fleet-wide Blume install pattern. Aliveville does not yet have a
-published docs domain; set `deployment.site` in `blume.config.ts` when one is
-chosen.
+Archived docs are preserved for git history. The checker skips frontmatter and
+link checks for `docs/archive/**` because historical links may reflect their
+original locations.

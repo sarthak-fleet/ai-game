@@ -24,8 +24,6 @@
     "portraits:pregen": "tsx scripts/pregen-portraits.ts",
     "verify:readiness": "pnpm typecheck && pnpm lint && pnpm test && pnpm build:3d",
     "check:docs": "node scripts/check-docs.mjs",
-    "docs:dev": "npx blume dev",
-    "docs:build": "npx blume build",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

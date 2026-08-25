@@ -19,8 +19,6 @@
     "**/public/**",
     "**/*.config.{js,ts,mjs,cjs}",
     "**/eslint.config.*",
-    "**/blume.config.*",
-    "**/docs-blume/**",
     "scripts/**",
     "tests/e2e/**",
     "test/**",
@@ -48,8 +46,6 @@
     "tsx",
     "size-limit",
     "knip",
-    "blume",
-    "@blume/*",
     "astro",
     "@astrojs/*"
   ],
@@ -61,8 +57,7 @@
     "biome",
     "playwright",
     "vitest",
-    "knip",
-    "blume"
+    "knip"
   ],
   "ignoreIssues": {
     "**/schema.ts": ["exports", "types"],
