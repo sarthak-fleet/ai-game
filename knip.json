@@ -49,16 +49,7 @@
     "astro",
     "@astrojs/*"
   ],
-  "ignoreBinaries": [
-    "astro",
-    "vite",
-    "wrangler",
-    "tsx",
-    "biome",
-    "playwright",
-    "vitest",
-    "knip"
-  ],
+  "ignoreBinaries": ["astro", "vite", "wrangler", "tsx", "biome", "playwright", "vitest", "knip"],
   "ignoreIssues": {
     "**/schema.ts": ["exports", "types"],
     "**/foundry-monitoring.ts": ["exports", "types"],
