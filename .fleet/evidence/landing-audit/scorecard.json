@@ -1,0 +1,45 @@
+{
+  "$schema": "fleet.landing-audit.v1",
+  "project": "ai-game",
+  "priority": "P4",
+  "decision": "Hold",
+  "auditedAt": "2026-08-29",
+  "candidateUrl": "https://aliveville.com/",
+  "productionUrl": "https://aliveville.com/",
+  "releaseState": "Production was audited read-only. The repository explicitly protects astro-landing from modification, so no landing source, deployment, or provider state was changed.",
+  "implementationAction": "defer",
+  "migrationCandidate": false,
+  "deferredRemediation": [
+    "Add the shared Ask AI footer integration while retaining the existing bespoke Aliveville visual system.",
+    "Investigate the desktop-only CLS result of 0.253, likely associated with the animated hero treatment.",
+    "Exclude Cloudflare email-obfuscation URLs from internal link-graph classification or replace the protected contact rendering with a crawler-safe mail link."
+  ],
+  "gates": {
+    "contentPurpose": {
+      "score": 98,
+      "status": "pass",
+      "evidence": "The hero immediately identifies a browser-playable 3D town with five AI agents that remember people, hold grudges, gossip, and continue evolving while the player is away. Those claims are supported by session persistence plus deterministic offline catch-up after roughly ten minutes, capped at 96 compressed ticks, and the primary Play Now action resolves successfully to /game/."
+    },
+    "designQuality": {
+      "score": 94,
+      "status": "pass-with-advisory",
+      "evidence": "The cinematic black, white, and amber treatment is distinctive, cohesive, product-specific, and materially stronger than a generic shared template. The 390 and 1440 pixel checks showed no horizontal overflow, failed resources, or console errors. The page has clear purpose, hierarchy, product proof, repeated play actions, and a substantial FAQ. It has a manual Fleet project list but lacks the required shared Ask AI footer, and the desktop PSI run observed a layout shift that needs follow-up."
+    },
+    "seo": {
+      "score": 97,
+      "status": "pass-with-advisory",
+      "evidence": "All 14 critical homepage checks pass: exact title and description, canonical, Open Graph and Twitter metadata, H1/H2 hierarchy, approximately 2,419 server-rendered words, and no direct broken links. The five-page sitemap crawl found one synthetic /cdn-cgi/l/email-protection 404 created by Cloudflare email obfuscation; it is not a user-facing product route."
+    },
+    "geo": {
+      "score": 100,
+      "status": "pass",
+      "evidence": "The production origin qualifies at Fleet S-tier 100 with valid llms.txt, api-ai catalog, homepage Markdown, robots policy, sitemap discovery, JSON-LD, and machine-readable surfaces."
+    },
+    "performance": {
+      "score": 91,
+      "status": "pass-with-advisory",
+      "evidence": "PSI Swarm completed all four production profiles with weighted LCP 788 ms, TBT 0 ms, and weighted CLS 0.101. LCP was 2.01 s on slow mobile, 1.03 s on mid mobile, 574 ms on fast mobile, and 351 ms on desktop. Mobile CLS was zero, but desktop CLS reached 0.253 and reduces the score despite very fast rendering."
+    }
+  },
+  "minimumObserved": 91
+}
