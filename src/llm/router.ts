@@ -7,7 +7,7 @@ import { ACTION_SCHEMA_PROMPT, parseActionJson } from './schema.ts';
 type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 let llmFetch: FetchLike = (url, init) => fetch(url, init);
 
-/** Workers cannot fetch sibling *.workers.dev directly — inject a service-binding fetch instead. */
+/** Test hook for the direct OpenAI-compatible transport. */
 export function setLlmFetch(fn: FetchLike): void {
   llmFetch = fn;
 }
@@ -20,8 +20,8 @@ function proposeModelFor(tier: Tier): string | null {
 
 const TIER_MODEL: Record<Tier, () => string | null> = {
   background: () => null,
-  normal: () => process.env['LLM_MODEL_NORMAL'] ?? 'deepseek-chat',
-  quest: () => process.env['LLM_MODEL_QUEST'] ?? 'deepseek-reasoner',
+  normal: () => process.env['LLM_MODEL_NORMAL'] ?? null,
+  quest: () => process.env['LLM_MODEL_QUEST'] ?? null,
 };
 
 /** a free local backend (local-ai server or CLI) is driving the brains */
@@ -75,7 +75,7 @@ function authHeaders(): Record<string, string> {
 
 // --- Rate-limit governor ------------------------------------------------------
 // The ambient proposeAction firehose (up to LLM_MAX_NPCS calls every tick) shares
-// ONE upstream quota with player-facing dialogue. When the gateway is rate-limited
+// ONE upstream quota with player-facing dialogue. When the provider is rate-limited
 // the firehose was burning the entire budget on retries, so the player's dialogue
 // call got 429 → NPCs went "lost in thought (say that again)".
 //
@@ -109,14 +109,6 @@ function tripAmbientCooldown(): void {
 function clearAmbientCooldown(): void {
   ambientCooldownMs = 0;
   ambientCooldownUntil = 0;
-}
-
-// Force-pinning a single model defeats the gateway's health-aware fallback: when
-// that model is rate-limited/exhausted the call returns empty → NPCs go "lost in
-// thought". Default to advisory (body.model is a hint; the gateway routes to a
-// healthy model). Opt back into strict pinning with LLM_FORCE_MODEL=1.
-function forceModelHeader(model: string): Record<string, string> {
-  return process.env['LLM_FORCE_MODEL'] === '1' ? { 'x-gateway-force-model': model } : {};
 }
 
 export interface CompleteTextRequest {
@@ -179,13 +171,11 @@ export async function proposeAction({
   const noThink = process.env['LLM_NO_THINK'] === '1';
   const body: {
     model: string;
-    project_id?: string;
     response_format?: { type: 'json_object' };
     temperature: number;
     messages: Array<{ role: 'system' | 'user'; content: string }>;
   } = {
     model,
-    project_id: process.env['LLM_PROJECT_ID'] ?? 'ai-game',
     temperature: Number(process.env['LLM_TEMPERATURE'] ?? 0.7),
     messages: [
       {
@@ -211,7 +201,6 @@ export async function proposeAction({
       headers: {
         'content-type': 'application/json',
         ...authHeaders(),
-        ...forceModelHeader(model),
       },
       body: JSON.stringify(body),
       signal: ac.signal,
@@ -287,11 +276,9 @@ export async function streamText({
       headers: {
         'content-type': 'application/json',
         ...authHeaders(),
-        ...forceModelHeader(model),
       },
       body: JSON.stringify({
         model,
-        project_id: process.env['LLM_PROJECT_ID'] ?? 'ai-game',
         temperature: Number(process.env['LLM_TEMPERATURE'] ?? 0.7),
         stream: true,
         messages: [
@@ -383,11 +370,9 @@ export async function completeText({
       headers: {
         'content-type': 'application/json',
         ...authHeaders(),
-        ...forceModelHeader(model),
       },
       body: JSON.stringify({
         model,
-        project_id: process.env['LLM_PROJECT_ID'] ?? 'ai-game',
         temperature: Number(process.env['LLM_TEMPERATURE'] ?? 0.2),
         messages: [
           { role: 'system', content: system },

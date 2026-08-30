@@ -64,11 +64,13 @@
     ]
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "2.0.41",
     "@mlc-ai/web-llm": "^0.2.84",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.0",
     "@react-three/postprocessing": "^3.0.4",
     "@react-three/rapier": "^2.2.0",
+    "ai": "6.0.168",
     "kokoro-js": "^1.2.1",
     "posthog-js": "^1.396.5",
     "postprocessing": "^6.39.1",

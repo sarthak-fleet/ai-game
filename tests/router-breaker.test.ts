@@ -15,19 +15,19 @@ function resOk(content: string): Response {
 }
 
 describe('router rate-limit breaker', () => {
-  let prev: { key?: string; base?: string; local?: string; force?: string };
+  let prev: { key?: string; base?: string; local?: string; model?: string };
 
   beforeEach(() => {
     prev = {
       key: process.env['LLM_API_KEY'],
       base: process.env['LLM_BASE_URL'],
       local: process.env['LLM_LOCAL_AI_URL'],
-      force: process.env['LLM_FORCE_MODEL'],
+      model: process.env['LLM_MODEL_NORMAL'],
     };
     process.env['LLM_API_KEY'] = 'test-key';
-    process.env['LLM_BASE_URL'] = 'https://gateway.example/v1';
+    process.env['LLM_BASE_URL'] = 'https://direct.example/v1';
+    process.env['LLM_MODEL_NORMAL'] = 'free-model';
     delete process.env['LLM_LOCAL_AI_URL'];
-    delete process.env['LLM_FORCE_MODEL'];
   });
 
   afterEach(() => {
@@ -35,7 +35,7 @@ describe('router rate-limit breaker', () => {
       ['LLM_API_KEY', prev.key],
       ['LLM_BASE_URL', prev.base],
       ['LLM_LOCAL_AI_URL', prev.local],
-      ['LLM_FORCE_MODEL', prev.force],
+      ['LLM_MODEL_NORMAL', prev.model],
     ] as const) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
@@ -55,7 +55,7 @@ describe('router rate-limit breaker', () => {
       return mode === '429' ? res429() : resOk('{"type":"skip"}');
     });
 
-    // 1) first ambient call reaches the gateway, 429s, and trips the breaker
+    // 1) first ambient call reaches the provider, 429s, and trips the breaker
     const first = await proposeAction({ tier: 'normal', system: 's', user: 'u' });
     expect('error' in first && first.error).toBe('HTTP 429');
     expect(proposeCalls).toBe(1);
@@ -66,7 +66,7 @@ describe('router rate-limit breaker', () => {
     if ('skipped' in shed && shed.skipped) expect(shed.reason).toBe('rate_cooldown');
     expect(proposeCalls).toBe(1);
 
-    // 3) dialogue is NEVER gated — it still reaches the gateway during the cooldown
+    // 3) dialogue is NEVER gated — it still reaches the provider during the cooldown
     await completeText({ tier: 'normal', system: 's', user: 'u' });
     expect(dialogueCalls).toBe(1);
 
@@ -76,7 +76,7 @@ describe('router rate-limit breaker', () => {
     expect('text' in recovered).toBe(true);
     expect(dialogueCalls).toBe(2);
 
-    // 5) ...so the ambient firehose resumes hitting the gateway
+    // 5) ...so the ambient firehose resumes hitting the provider
     const resumed = await proposeAction({ tier: 'normal', system: 's', user: 'u' });
     expect(
       'skipped' in resumed && resumed.skipped === true && resumed.reason === 'rate_cooldown'
